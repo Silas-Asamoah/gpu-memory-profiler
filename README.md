@@ -36,3 +36,31 @@ The PyTorch Profiler provides the following metrics:
 2. Ease of Use: Both profilers are relatively easy to use, but the PyTorch profiler is often praised for its simplicity and user-friendly API. The TensorFlow profiler, while powerful, can be a bit more complex to set up and use.
 
 3. Visualization Tools: TensorFlow provides TensorBoard for visualizing profiling results, which is a powerful tool for understanding the performance of your models. PyTorch also provides a visualization tool, TensorBoardX, but it's not as fully featured as TensorBoard.
+
+gpu-memory-profiler/
+│
+├── gpumemprof/
+│   ├── __init__.py
+│   ├── profiler.py
+│   ├── utils.py
+│   └── ...
+│
+├── tests/
+│   ├── __init__.py
+│   ├── test_profiler.py
+│   └── ...
+│
+├── docs/
+│   ├── index.rst
+│   ├── usage.rst
+│   └── ...
+│
+├── examples/
+│   ├── tensorflow_example.py
+│   ├── pytorch_example.py
+│   └── ...
+│
+├── .gitignore
+├── README.md
+├── setup.py
+└── LICENSE
