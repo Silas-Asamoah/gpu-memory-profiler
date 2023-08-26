@@ -29,3 +29,10 @@ The PyTorch Profiler provides the following metrics:
 - FLOPs: The number of floating-point operations performed by the operation (only for certain operations).
 - Stack traces: The stack traces of the operation.
 - Module hierarchy: The module hierarchy of the operation (only for TorchScript models).
+
+## Differences between Tensorflow and Pytorch Profilers
+1. Metrics Provided: Both profilers provide a range of metrics, including execution time, memory usage, and input shapes. However, there are some differences. For example, the TensorFlow profiler provides metrics like parameters (the number of parameters in your model) and tensor_value (the value of the tensor produced by the operation), which are not provided by the PyTorch profiler. On the other hand, the PyTorch profiler provides stack traces and module hierarchy, which are not provided by the TensorFlow profiler.
+
+2. Ease of Use: Both profilers are relatively easy to use, but the PyTorch profiler is often praised for its simplicity and user-friendly API. The TensorFlow profiler, while powerful, can be a bit more complex to set up and use.
+
+3. Visualization Tools: TensorFlow provides TensorBoard for visualizing profiling results, which is a powerful tool for understanding the performance of your models. PyTorch also provides a visualization tool, TensorBoardX, but it's not as fully featured as TensorBoard.
