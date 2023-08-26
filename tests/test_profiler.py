@@ -1,6 +1,8 @@
 import pytest
-from tensor_torch_profiler.profiler import TensorTorchProfiler
 import tensorflow as tf
+
+from tensor_torch_profiler.profiler import TensorTorchProfiler
+
 
 def test_profiler():
     profiler = TensorTorchProfiler()
@@ -15,6 +17,7 @@ def test_profiler():
     assert profiler.stats["dummy_func"]["memory"] >= 0
 
     profiler.report()
+
 
 def test_profile_tensorflow():
     profiler = TensorTorchProfiler()

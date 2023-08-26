@@ -13,6 +13,7 @@ class TensorTorchProfiler:
     """
     A profiler for TensorFlow and PyTorch.
     """
+
     def __init__(self):
         self.stats = defaultdict(lambda: {"time": 0, "memory": 0})
 
@@ -36,7 +37,7 @@ class TensorTorchProfiler:
         self.stats[func.__name__]["memory"] += end_memory - start_memory
 
         return result
-    
+
     def profile_tensorflow(self, func, *args, **kwargs):
         """
         Profile a tensorflow function.
@@ -45,7 +46,7 @@ class TensorTorchProfiler:
         :param kwargs: The keyword arguments to pass to the function.
         :return: The result of the function.
         """
-        tf.profiler.experimental.start('logdir')
+        tf.profiler.experimental.start("logdir")
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
