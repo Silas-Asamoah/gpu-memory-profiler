@@ -18,3 +18,14 @@ The TensorFlow Profiler provides the following metrics:
 - tensor_value: The value of the tensor produced by the operation.
 - input_shapes: The shapes of the input tensors to the operation.
 - run_count: The number of times the operation was executed.
+
+## PyTorch Profiler
+The PyTorch Profiler provides the following metrics:
+- CPU time: The execution time of the operation on the CPU.
+- CUDA time: The execution time of the operation on the GPU.
+- CPU memory usage: The amount of CPU memory used by the operation.
+- CUDA memory usage: The amount of GPU memory used by the operation.
+- Input shapes: The shapes of the input tensors to the operation.
+- FLOPs: The number of floating-point operations performed by the operation (only for certain operations).
+- Stack traces: The stack traces of the operation.
+- Module hierarchy: The module hierarchy of the operation (only for TorchScript models).
