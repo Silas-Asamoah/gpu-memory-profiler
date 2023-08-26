@@ -1,0 +1,36 @@
+# Ignore Python build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore all pycache
+**/__pycache__
+
+# Ignore Python distribution artifacts
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Ignore Python environments
+.env
+.venv
+ENV/
+
+# Ignore Jupyter Notebook
+.ipynb_checkpoints
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore PyCharm settings
+.idea/
+
+# Ignore pytest cache
+.pytest_cache/
+
+# Ignore mypy type checking cache
+.mypy_cache/
+
+# Ignore Mac system files
+.DS_Store
