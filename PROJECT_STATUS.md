@@ -44,7 +44,7 @@
 
 -   ✅ GitHub Actions CI workflow (`.github/workflows/ci.yml`)
 -   ✅ Automated release workflow (`.github/workflows/release.yml`)
--   ✅ Multi-Python version testing (3.7-3.11)
+-   ✅ Multi-Python version testing (3.8-3.12)
 -   ✅ Automated linting, testing, and building
 -   ✅ PyPI deployment automation
 
@@ -143,7 +143,7 @@
 
 ### **Supported Platforms**
 
--   **Python**: 3.7, 3.8, 3.9, 3.10, 3.11
+-   **Python**: 3.8, 3.9, 3.10, 3.11, 3.12
 -   **Frameworks**: PyTorch 1.8+, TensorFlow 2.4+
 -   **OS**: Linux, macOS, Windows
 -   **GPU**: NVIDIA CUDA (optional, CPU mode available)

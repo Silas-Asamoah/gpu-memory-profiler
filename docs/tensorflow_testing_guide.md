@@ -32,26 +32,26 @@ The TensorFlow GPU Memory Profiler is a comprehensive tool for monitoring and op
 
 ✅ **TensorFlow GPU Profiling** (CUDA required)
 
-- Real-time GPU memory tracking with `tf.config.experimental.get_memory_info()`
-- TensorFlow session management
-- Graph execution monitoring
-- Mixed precision profiling
-- Keras integration
+-   Real-time GPU memory tracking with `tf.config.experimental.get_memory_info()`
+-   TensorFlow session management
+-   Graph execution monitoring
+-   Mixed precision profiling
+-   Keras integration
 
 ✅ **TensorFlow CPU Profiling** (No GPU required)
 
-- System RAM usage monitoring
-- TensorFlow CPU operation tracking
-- Keras model profiling
-- Cross-platform compatibility
+-   System RAM usage monitoring
+-   TensorFlow CPU operation tracking
+-   Keras model profiling
+-   Cross-platform compatibility
 
 ✅ **TensorFlow-Specific Features**
 
-- Automatic memory growth configuration
-- Graph vs Eager execution analysis
-- tf.function profiling
-- TensorFlow Lite optimization
-- Multi-GPU strategy profiling
+-   Automatic memory growth configuration
+-   Graph vs Eager execution analysis
+-   tf.function profiling
+-   TensorFlow Lite optimization
+-   Multi-GPU strategy profiling
 
 ---
 
@@ -59,24 +59,24 @@ The TensorFlow GPU Memory Profiler is a comprehensive tool for monitoring and op
 
 ### Minimum Requirements
 
-- **Python**: 3.7 or higher
-- **TensorFlow**: 2.4.0 or higher
-- **System Memory**: 4GB RAM
-- **Storage**: 200MB free space
+-   **Python**: 3.8 or higher
+-   **TensorFlow**: 2.4.0 or higher
+-   **System Memory**: 4GB RAM
+-   **Storage**: 200MB free space
 
 ### For GPU Profiling
 
-- **CUDA**: 11.2 or higher
-- **cuDNN**: 8.1 or higher
-- **GPU**: NVIDIA GPU with CUDA support
-- **GPU Memory**: 4GB or higher recommended
-- **TensorFlow-GPU**: Properly configured
+-   **CUDA**: 11.2 or higher
+-   **cuDNN**: 8.1 or higher
+-   **GPU**: NVIDIA GPU with CUDA support
+-   **GPU Memory**: 4GB or higher recommended
+-   **TensorFlow-GPU**: Properly configured
 
 ### For CPU-Only Profiling
 
-- **CPU**: Any modern CPU (4+ cores recommended)
-- **RAM**: 8GB or higher
-- **TensorFlow-CPU**: Any installation
+-   **CPU**: Any modern CPU (4+ cores recommended)
+-   **RAM**: 8GB or higher
+-   **TensorFlow-CPU**: Any installation
 
 ---
 
@@ -342,12 +342,12 @@ python -m tfmemprof.cli analyze --input tf_results.json --detect-leaks --visuali
 
 ### When to Use TensorFlow CPU Profiling
 
-- GPU not available
-- Development and testing
-- TensorFlow Lite optimization
-- CPU inference optimization
-- Educational purposes
-- CI/CD pipelines
+-   GPU not available
+-   Development and testing
+-   TensorFlow Lite optimization
+-   CPU inference optimization
+-   Educational purposes
+-   CI/CD pipelines
 
 ### Testing the TensorFlow CPU Profiler
 
@@ -956,11 +956,11 @@ python cpu_tensorflow_test_guide.py               # Full test suite
 
 **TensorFlow-Specific Features:**
 
-- Mixed precision profiling
-- Graph vs Eager execution analysis
-- Keras integration
-- Multi-GPU strategy profiling
-- TensorFlow Lite optimization
+-   Mixed precision profiling
+-   Graph vs Eager execution analysis
+-   Keras integration
+-   Multi-GPU strategy profiling
+-   TensorFlow Lite optimization
 
 ### Next Steps
 

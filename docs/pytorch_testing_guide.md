@@ -32,26 +32,26 @@ The PyTorch GPU Memory Profiler is a comprehensive tool for monitoring and optim
 
 ✅ **GPU Memory Profiling** (CUDA required)
 
-- Real-time GPU memory tracking
-- CUDA memory allocation monitoring
-- GPU memory fragmentation analysis
-- CUDA-specific optimizations
+-   Real-time GPU memory tracking
+-   CUDA memory allocation monitoring
+-   GPU memory fragmentation analysis
+-   CUDA-specific optimizations
 
 ✅ **CPU Memory Profiling** (No CUDA required)
 
-- System RAM usage monitoring
-- Process memory tracking
-- CPU-based model profiling
-- Cross-platform compatibility
+-   System RAM usage monitoring
+-   Process memory tracking
+-   CPU-based model profiling
+-   Cross-platform compatibility
 
 ✅ **Universal Features** (Both GPU and CPU)
 
-- Function execution timing
-- Context-based profiling
-- Memory leak detection
-- Real-time monitoring
-- Data visualization
-- Export capabilities
+-   Function execution timing
+-   Context-based profiling
+-   Memory leak detection
+-   Real-time monitoring
+-   Data visualization
+-   Export capabilities
 
 ---
 
@@ -59,23 +59,23 @@ The PyTorch GPU Memory Profiler is a comprehensive tool for monitoring and optim
 
 ### Minimum Requirements
 
-- **Python**: 3.7 or higher
-- **PyTorch**: 1.8.0 or higher
-- **System Memory**: 4GB RAM
-- **Storage**: 100MB free space
+-   **Python**: 3.8 or higher
+-   **PyTorch**: 1.8.0 or higher
+-   **System Memory**: 4GB RAM
+-   **Storage**: 100MB free space
 
 ### For GPU Profiling
 
-- **CUDA**: 10.2 or higher
-- **GPU**: NVIDIA GPU with CUDA support
-- **GPU Memory**: 2GB or higher recommended
-- **NVIDIA Drivers**: Compatible with CUDA version
+-   **CUDA**: 10.2 or higher
+-   **GPU**: NVIDIA GPU with CUDA support
+-   **GPU Memory**: 2GB or higher recommended
+-   **NVIDIA Drivers**: Compatible with CUDA version
 
 ### For CPU-Only Profiling
 
-- **CPU**: Any modern CPU (2+ cores recommended)
-- **RAM**: 4GB or higher
-- **OS**: Windows, macOS, or Linux
+-   **CPU**: Any modern CPU (2+ cores recommended)
+-   **RAM**: 4GB or higher
+-   **OS**: Windows, macOS, or Linux
 
 ---
 
@@ -321,11 +321,11 @@ python -m gpumemprof.cli analyze --input gpu_results.json --detect-leaks --visua
 
 ### When to Use CPU Profiling
 
-- CUDA is not available
-- Development and testing
-- Learning memory profiling concepts
-- CPU-based inference optimization
-- Educational purposes
+-   CUDA is not available
+-   Development and testing
+-   Learning memory profiling concepts
+-   CPU-based inference optimization
+-   Educational purposes
 
 ### Testing the CPU Profiler
 
@@ -990,8 +990,8 @@ visualizer.export_data(results, format='csv')
 
 **Symptoms:**
 
-- Very slow execution on CPU
-- High memory usage
+-   Very slow execution on CPU
+-   High memory usage
 
 **Solutions:**
 
@@ -1384,10 +1384,10 @@ python cpu_profiler_test_guide.py              # Full test suite
 
 **Getting Help:**
 
-- Check `DOCUMENTATION.md` for detailed API reference
-- Review `TROUBLESHOOTING.md` for common issues
-- Run tests with `--help` for usage options
-- Examine example files in `examples/` directory
+-   Check `DOCUMENTATION.md` for detailed API reference
+-   Review `TROUBLESHOOTING.md` for common issues
+-   Run tests with `--help` for usage options
+-   Examine example files in `examples/` directory
 
 ### Next Steps
 
