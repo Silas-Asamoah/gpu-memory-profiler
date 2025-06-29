@@ -1,0 +1,24 @@
+# Testing dependencies for GPU Memory Profiler
+# Install with: pip install -r requirements-test.txt
+
+# Core testing framework
+pytest>=6.0.0
+pytest-cov>=2.10.0
+pytest-mock>=3.6.0
+pytest-xdist>=2.4.0
+
+# Coverage reporting
+coverage>=5.5.0
+
+# Test data and utilities
+numpy>=1.19.0
+pandas>=1.2.0
+scipy>=1.7.0
+
+# Optional: For performance testing
+memory-profiler>=0.60.0
+line-profiler>=3.3.0
+
+# Optional: For integration testing with frameworks
+torch>=1.8.0
+tensorflow>=2.4.0 
