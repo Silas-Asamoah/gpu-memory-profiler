@@ -36,6 +36,9 @@ A production-ready, open source tool for real-time GPU memory profiling, leak de
 # Basic installation
 pip install gpu-memory-profiler
 
+# With visualization support
+pip install gpu-memory-profiler[viz]
+
 # With optional dependencies
 pip install gpu-memory-profiler[dev]    # Development tools
 pip install gpu-memory-profiler[test]   # Testing dependencies
@@ -50,6 +53,9 @@ cd gpu-memory-profiler
 
 # Install in development mode
 pip install -e .
+
+# Install with visualization support
+pip install -e .[viz]
 
 # Install with development dependencies
 pip install -e .[dev]
@@ -69,6 +75,8 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .[dev,test]
 pre-commit install
 ```
+
+**Note**: Black formatting check is temporarily disabled in CI. Code formatting will be addressed in a separate PR.
 
 ## Quick Start
 
@@ -117,3 +125,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CO
 ---
 
 **Version:** 0.1.0
+
+```
+
+```

@@ -17,4 +17,4 @@ plotly>=5.0.0
 dash>=2.0.0
 
 # Optional: For enhanced visualizations
-dash-bootstrap-components>=2.0.0
+dash-bootstrap-components>=1.6.0
