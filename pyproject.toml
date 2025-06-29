@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm[toml]>=7.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "gpu-memory-profiler"
 dynamic = ["version"]
 description = "A comprehensive GPU memory profiler for PyTorch and TensorFlow with CLI, visualization, and analytics"
 readme = "README.md"
-license = "MIT"
+license = {file = "LICENSE"}
 authors = [
     {name = "Silas Asamoah", email = "silasbempong@gmail.com"},
     {name = "Prince Agyei Tuffour", email = "prince.agyei.tuffour@gmail.com"}
