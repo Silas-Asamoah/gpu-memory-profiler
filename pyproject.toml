@@ -1,0 +1,223 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm[toml]>=7.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpu-memory-profiler"
+dynamic = ["version"]
+description = "A comprehensive GPU memory profiler for PyTorch and TensorFlow with CLI, visualization, and analytics"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Silas Asamoah", email = "silasbempong@gmail.com"},
+    {name = "Prince Agyei Tuffour", email = "prince.agyei.tuffour@gmail.com"}
+]
+maintainers = [
+    {name = "Silas Asamoah", email = "silasbempong@gmail.com"},
+    {name = "Prince Agyei Tuffour", email = "prince.agyei.tuffour@gmail.com"}
+]
+keywords = ["gpu", "memory", "profiler", "pytorch", "tensorflow", "deep-learning", "monitoring"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Monitoring",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "torch>=1.8.0",
+    "tensorflow>=2.4.0",
+    "numpy>=1.19.0",
+    "pandas>=1.2.0",
+    "psutil>=5.8.0",
+    "scipy>=1.7.0",
+]
+
+[project.optional-dependencies]
+viz = [
+    "matplotlib>=3.3.0",
+    "seaborn>=0.11.0",
+    "plotly>=5.0.0",
+    "dash>=2.0.0",
+    "dash-bootstrap-components>=1.6.0",
+]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "pytest-mock>=3.6.0",
+    "pytest-xdist>=2.4.0",
+    "black>=21.0.0",
+    "flake8>=3.8.0",
+    "mypy>=0.910",
+    "isort>=5.9.0",
+    "pre-commit>=2.15.0",
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.15.0",
+    "jupyter>=1.0.0",
+    "ipython>=7.0.0",
+    "notebook>=6.4.0",
+    "coverage>=5.5.0",
+    "tox>=3.24.0",
+    "memory-profiler>=0.60.0",
+    "line-profiler>=3.3.0",
+]
+test = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "pytest-mock>=3.6.0",
+    "pytest-xdist>=2.4.0",
+    "coverage>=5.5.0",
+    "numpy>=1.19.0",
+    "pandas>=1.2.0",
+    "scipy>=1.7.0",
+    "memory-profiler>=0.60.0",
+    "line-profiler>=3.3.0",
+    "torch>=1.8.0",
+    "tensorflow>=2.4.0",
+]
+docs = [
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.15.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nanaagyei/gpu-memory-profiler"
+Documentation = "https://github.com/nanaagyei/gpu-memory-profiler/tree/main/docs"
+Repository = "https://github.com/nanaagyei/gpu-memory-profiler.git"
+"Bug Tracker" = "https://github.com/nanaagyei/gpu-memory-profiler/issues"
+"Release Notes" = "https://github.com/nanaagyei/gpu-memory-profiler/blob/main/CHANGELOG.md"
+
+[project.scripts]
+gpumemprof = "gpumemprof.cli:main"
+tfmemprof = "tfmemprof.cli:main"
+
+[tool.setuptools_scm]
+write_to = "gpumemprof/_version.py"
+fallback_version = "0.1.0"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gpumemprof*", "tfmemprof*"]
+exclude = ["tests*", "examples*", "docs*"]
+
+[tool.setuptools.package-data]
+gpumemprof = ["*.txt", "*.md"]
+tfmemprof = ["*.txt", "*.md"]
+
+# Code formatting and linting
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    "venv",
+    ".eggs",
+    "*.egg",
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "tensorflow.*",
+    "numpy.*",
+    "pandas.*",
+    "matplotlib.*",
+    "seaborn.*",
+    "plotly.*",
+    "dash.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["gpumemprof", "tfmemprof"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+] 

@@ -1,66 +1,131 @@
-# gpu-memory-profiler
+# GPU Memory Profiler
 
-A simple tool to profile the memory usage of your GPU over time.
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/nanaagyei/gpu-memory-profiler/actions)
+[![PyPI Version](https://img.shields.io/pypi/v/gpu-memory-profiler.svg)](https://pypi.org/project/gpu-memory-profiler/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.8+-red.svg)](https://pytorch.org/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.4+-orange.svg)](https://tensorflow.org/)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
 
-This profiler is designed to work with deep learning frameworks like Pytorch and Tensorflow. It provides real-time tracking and profiling of GPU memory usage during the execution of your deep learning models. This can be particularly useful for identifying memory leaks or inefficiencies in your model's memory usage. The tool provides a detailed breakdown of memory usage by layer, allowing you to pinpoint exactly where in your model the most memory is being used. This can help you optimize your model for better performance and efficiency.
+A production-ready, open source tool for real-time GPU memory profiling, leak detection, and optimization in PyTorch and TensorFlow deep learning workflows.
 
+## Why use GPU Memory Profiler?
 
-## TensorFlow Profiler
+-   **Prevent Out-of-Memory Crashes**: Catch memory leaks and inefficiencies before they crash your training.
+-   **Optimize Model Performance**: Get actionable insights and recommendations for memory usage.
+-   **Works with PyTorch & TensorFlow**: Unified interface for both major frameworks.
+-   **Beautiful Visualizations**: Timeline plots, heatmaps, and interactive dashboards.
+-   **CLI & API**: Use from Python or the command line.
 
-The TensorFlow Profiler provides the following metrics:
+## Features
 
-- cpu_exec_micros: The execution time of the operation on the CPU.
-- exec_micros: The total execution time of the operation.
-- float_ops: The number of floating-point operations performed by the operation.
-- total_accelerator_exec_micros: The total execution time of the operation on the accelerator (e.g., GPU).
-- total_cpu_exec_micros: The total execution time of the operation on the CPU.
-- parameters: The number of parameters in your model.
-- tensor_value: The value of the tensor produced by the operation.
-- input_shapes: The shapes of the input tensors to the operation.
-- run_count: The number of times the operation was executed.
+-   Real-time GPU memory monitoring
+-   Memory leak detection & alerts
+-   Interactive and static visualizations
+-   Context-aware profiling (decorators, context managers)
+-   CLI tools for automation
+-   Data export (CSV, JSON)
+-   CPU compatibility mode
 
-## PyTorch Profiler
-The PyTorch Profiler provides the following metrics:
-- CPU time: The execution time of the operation on the CPU.
-- CUDA time: The execution time of the operation on the GPU.
-- CPU memory usage: The amount of CPU memory used by the operation.
-- CUDA memory usage: The amount of GPU memory used by the operation.
-- Input shapes: The shapes of the input tensors to the operation.
-- FLOPs: The number of floating-point operations performed by the operation (only for certain operations).
-- Stack traces: The stack traces of the operation.
-- Module hierarchy: The module hierarchy of the operation (only for TorchScript models).
+## Installation
 
-## Differences between Tensorflow and Pytorch Profilers
-1. Metrics Provided: Both profilers provide a range of metrics, including execution time, memory usage, and input shapes. However, there are some differences. For example, the TensorFlow profiler provides metrics like parameters (the number of parameters in your model) and tensor_value (the value of the tensor produced by the operation), which are not provided by the PyTorch profiler. On the other hand, the PyTorch profiler provides stack traces and module hierarchy, which are not provided by the TensorFlow profiler.
+### From PyPI (when released)
 
-2. Ease of Use: Both profilers are relatively easy to use, but the PyTorch profiler is often praised for its simplicity and user-friendly API. The TensorFlow profiler, while powerful, can be a bit more complex to set up and use.
+```bash
+# Basic installation
+pip install gpu-memory-profiler
 
-3. Visualization Tools: TensorFlow provides TensorBoard for visualizing profiling results, which is a powerful tool for understanding the performance of your models. PyTorch also provides a visualization tool, TensorBoardX, but it's not as fully featured as TensorBoard.
+# With visualization support
+pip install gpu-memory-profiler[viz]
 
-gpu-memory-profiler/
-│
-├── gpumemprof/
-│   ├── __init__.py
-│   ├── profiler.py
-│   ├── utils.py
-│   └── ...
-│
-├── tests/
-│   ├── __init__.py
-│   ├── test_profiler.py
-│   └── ...
-│
-├── docs/
-│   ├── index.rst
-│   ├── usage.rst
-│   └── ...
-│
-├── examples/
-│   ├── tensorflow_example.py
-│   ├── pytorch_example.py
-│   └── ...
-│
-├── .gitignore
-├── README.md
-├── setup.py
-└── LICENSE
+# With optional dependencies
+pip install gpu-memory-profiler[dev]    # Development tools
+pip install gpu-memory-profiler[test]   # Testing dependencies
+pip install gpu-memory-profiler[docs]   # Documentation tools
+```
+
+### From Source
+
+```bash
+git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+cd gpu-memory-profiler
+
+# Install in development mode
+pip install -e .
+
+# Install with visualization support
+pip install -e .[viz]
+
+# Install with development dependencies
+pip install -e .[dev]
+
+# Install with testing dependencies
+pip install -e .[test]
+```
+
+### Development Setup
+
+```bash
+# Clone and setup development environment
+git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+cd gpu-memory-profiler
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .[dev,test]
+pre-commit install
+```
+
+**Note**: Black formatting check is temporarily disabled in CI. Code formatting will be addressed in a separate PR.
+
+## Quick Start
+
+### PyTorch Example
+
+```python
+from gpumemprof import GPUMemoryProfiler
+profiler = GPUMemoryProfiler()
+@profiler.profile_function
+def train_step(model, data, target):
+    output = model(data)
+    loss = ...
+    loss.backward()
+    return loss
+results = profiler.get_results()
+print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
+```
+
+### TensorFlow Example
+
+```python
+from tfmemprof import TensorFlowProfiler
+profiler = TensorFlowProfiler()
+with profiler.profile_context("training"):
+    model.fit(x_train, y_train, epochs=5)
+results = profiler.get_results()
+print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
+```
+
+## Documentation
+
+-   **[Full Documentation & Guides](docs/index.md)**
+-   [CLI Usage](docs/cli.md)
+-   [CPU Compatibility](docs/cpu_compatibility.md)
+-   [Testing Guides](docs/pytorch_testing_guide.md), [TensorFlow](docs/tensorflow_testing_guide.md)
+-   [In-depth Article](docs/article.md)
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## License
+
+[MIT License](LICENSE)
+
+---
+
+**Version:** 0.1.0
+
+```
+
+```
