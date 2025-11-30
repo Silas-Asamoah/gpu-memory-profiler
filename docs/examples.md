@@ -216,15 +216,23 @@ tfmemprof track --threshold 3000 --alert --output tf_tracking.json
 
 ### PyTorch Training Example
 
-See [basic_profiling.py](../examples/basic_profiling.py) for a complete PyTorch training example with profiling.
+See [examples/basic/pytorch_demo.py](../examples/basic/pytorch_demo.py) for a complete PyTorch training example with profiling.
 
 ### Advanced Tracking Example
 
-See [advanced_tracking.py](../examples/advanced_tracking.py) for advanced memory tracking with alerts and visualization.
+See [examples/advanced/tracking_demo.py](../examples/advanced/tracking_demo.py) for advanced memory tracking with alerts and visualization.
+
+### CLI Quickstart
+
+See [examples/cli/quickstart.py](../examples/cli/quickstart.py) for runnable samples of the `gpumemprof` and `tfmemprof` command-line interfaces.
+
+### Testing Guides
+
+Legacy testing flows have been migrated to Markdown. See [docs/examples/test_guides/README.md](examples/test_guides/README.md) for CPU-only, PyTorch, TensorFlow, and CLI smoke-test checklists.
 
 ### TensorFlow Example
 
-See [tensorflow_basic_profiling.py](../examples/tensorflow_basic_profiling.py) for a complete TensorFlow example.
+See [examples/basic/tensorflow_demo.py](../examples/basic/tensorflow_demo.py) for a complete TensorFlow example.
 
 ## Best Practices
 

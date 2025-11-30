@@ -30,19 +30,13 @@ If CUDA is not available on your system, you can still use and test the memory p
 
 ## Quick Solutions
 
-### Option 1: Use the CPU-Only Test Suite
+### Option 1: Run the Markdown-Based Checklists
 
-I've created a complete CPU-compatible test suite for you:
+Follow the steps in `docs/examples/test_guides/README.md`:
 
 ```bash
-# Run the CPU-only tests
-python cpu_profiler_test_guide.py
-
-# Quick test
-python cpu_profiler_test_guide.py --quick
-
-# Specific test
-python cpu_profiler_test_guide.py --test 1
+CUDA_VISIBLE_DEVICES="" gpumemprof info
+python -m examples.cli.quickstart
 ```
 
 ### Option 2: Modify Existing Code for CPU
@@ -342,7 +336,7 @@ pip install -e .
 
 ```bash
 # Run CPU-compatible tests
-python cpu_profiler_test_guide.py
+python -m examples.cli.quickstart
 
 # Profile existing Python script
 python -m memory_profiler your_script.py
@@ -391,22 +385,18 @@ Even without GPU profiling, you still get:
 1. **Quick Start:**
 
 ```bash
-python cpu_profiler_test_guide.py --quick
+python -m examples.cli.quickstart
+gpumemprof info
 ```
 
 2. **Full Test Suite:**
 
-```bash
-python cpu_profiler_test_guide.py
-```
+Follow the CPU checklist in `docs/examples/test_guides/README.md`.
 
 3. **Specific Tests:**
 
-```bash
-python cpu_profiler_test_guide.py --test 1  # Basic profiling
-python cpu_profiler_test_guide.py --test 2  # Model training
-python cpu_profiler_test_guide.py --test 3  # Memory tracking
-```
+Use the snippets in this guide (or the Markdown checklists) to build targeted
+CPU profiling scenarios.
 
 ## Conclusion
 

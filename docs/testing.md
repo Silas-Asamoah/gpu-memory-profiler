@@ -78,10 +78,13 @@ tests/
 ├── test_visualizer.py            # Visualization components
 ├── test_analyzer.py              # Analysis algorithms
 ├── test_utils.py                 # Utility functions
-├── test_cli.py                   # Command line interface
+├── test_profiler.py              # CLI/framework integration
 ├── test_integration.py           # Integration tests
 └── test_performance.py           # Performance benchmarks
 ```
+
+For manual smoke tests (CPU-only, PyTorch GPU, TensorFlow GPU, CLI) see
+`docs/examples/test_guides/README.md`.
 
 ## PyTorch Testing
 

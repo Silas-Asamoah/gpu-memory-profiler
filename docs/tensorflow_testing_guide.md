@@ -24,6 +24,10 @@
 
 ---
 
+> **Note:** Legacy scripts under `examples/test_guides/` have been replaced by
+> Markdown workflows. Use `examples/basic/tensorflow_demo.py`, the CLI quickstart,
+> and `docs/examples/test_guides/README.md` for manual testing.
+
 ## Overview
 
 The TensorFlow GPU Memory Profiler is a comprehensive tool for monitoring and optimizing memory usage during TensorFlow model training and inference. This guide provides complete instructions for testing and using the profiler in both GPU and CPU environments with TensorFlow-specific optimizations.
@@ -144,13 +148,13 @@ Choose your scenario:
 #### With GPU:
 
 ```bash
-python tensorflow_profiler_test_guide.py --quick
+python -m examples.basic.tensorflow_demo
 ```
 
 #### CPU Only:
 
 ```bash
-python cpu_tensorflow_test_guide.py --quick
+python -m examples.cli.quickstart
 ```
 
 ### Expected Output:
@@ -189,43 +193,14 @@ nvidia-smi
 
 ### Testing the TensorFlow GPU Profiler
 
-#### 1. Run Individual Tests
+Run the curated demo:
 
 ```bash
-# Test 1: Basic TensorFlow function profiling
-python tensorflow_profiler_test_guide.py --test 1
-
-# Test 2: Context-based profiling
-python tensorflow_profiler_test_guide.py --test 2
-
-# Test 3: Real-time memory tracking
-python tensorflow_profiler_test_guide.py --test 3
-
-# Test 4: Memory leak detection
-python tensorflow_profiler_test_guide.py --test 4
-
-# Test 5: Complete model profiling
-python tensorflow_profiler_test_guide.py --test 5
-
-# Test 6: Keras integration
-python tensorflow_profiler_test_guide.py --test 6
-
-# Test 7: Visualization
-python tensorflow_profiler_test_guide.py --test 7
-
-# Test 8: Command line tools
-python tensorflow_profiler_test_guide.py --test 8
-
-# Test 9: Mixed precision profiling
-python tensorflow_profiler_test_guide.py --test 9
+python -m examples.basic.tensorflow_demo
 ```
 
-#### 2. Run Full Test Suite
-
-```bash
-# Complete TensorFlow test suite (3-4 minutes)
-python tensorflow_profiler_test_guide.py
-```
+For additional scenarios (mixed precision, CLI usage, watchdog flows), see
+`docs/examples/test_guides/README.md#tensorflow-gpu-checklist`.
 
 ### Basic TensorFlow GPU Profiling Usage
 
@@ -351,37 +326,15 @@ python -m tfmemprof.cli analyze --input tf_results.json --detect-leaks --visuali
 
 ### Testing the TensorFlow CPU Profiler
 
-#### 1. Run Individual CPU Tests
+Use the CLI and basic demo to validate CPU environments:
 
 ```bash
-# Test 1: Basic TensorFlow CPU profiling
-python cpu_tensorflow_test_guide.py --test 1
-
-# Test 2: CPU model training
-python cpu_tensorflow_test_guide.py --test 2
-
-# Test 3: CPU memory tracking
-python cpu_tensorflow_test_guide.py --test 3
-
-# Test 4: Memory leak simulation
-python cpu_tensorflow_test_guide.py --test 4
-
-# Test 5: TensorFlow CPU operations
-python cpu_tensorflow_test_guide.py --test 5
-
-# Test 6: Keras CPU training
-python cpu_tensorflow_test_guide.py --test 6
-
-# Test 7: Memory analysis
-python cpu_tensorflow_test_guide.py --test 7
+CUDA_VISIBLE_DEVICES="" tfmemprof info
+python -m examples.cli.quickstart
 ```
 
-#### 2. Run Full CPU Test Suite
-
-```bash
-# Complete TensorFlow CPU test suite (3-4 minutes)
-python cpu_tensorflow_test_guide.py
-```
+For more CPU-oriented exercises, see the CPU section of
+`docs/examples/test_guides/README.md`.
 
 ### Basic TensorFlow CPU Profiling Usage
 
@@ -490,53 +443,15 @@ train_tf_cpu_model()
 
 Both test suites provide comprehensive TensorFlow validation:
 
-#### GPU Test Suite Structure
+#### GPU & CPU Checklists
 
-```
-tensorflow_profiler_test_guide.py
-├── check_requirements()           # Validate TensorFlow GPU setup
-├── test_1_basic_tf_profiling()   # Function decorators
-├── test_2_tf_context_profiling() # Context managers
-├── test_3_tf_real_time_tracking() # Background monitoring
-├── test_4_tf_memory_leak_detection() # Leak simulation
-├── test_5_tf_model_profiling()   # Complete training
-├── test_6_tf_keras_integration() # Keras integration
-├── test_7_tf_visualization()     # Charts and exports
-├── test_8_tf_command_line_tools() # CLI interface
-└── test_9_tf_mixed_precision()   # Mixed precision
-```
+Detailed, copy-paste-ready checklists now live in
+`docs/examples/test_guides/README.md`. They cover:
 
-#### CPU Test Suite Structure
-
-```
-cpu_tensorflow_test_guide.py
-├── test_1_basic_tf_cpu_profiling()    # Function profiling
-├── test_2_tf_cpu_model_training()     # Model training
-├── test_3_tf_cpu_memory_tracking()    # Memory monitoring
-├── test_4_tf_cpu_memory_leak_simulation() # Leak detection
-├── test_5_tf_cpu_operations()         # TensorFlow ops
-├── test_6_tf_keras_cpu_training()     # Keras training
-└── test_7_tf_cpu_memory_analysis()    # Analysis tools
-```
-
-### Test Execution Options
-
-```bash
-# Quick validation (30 seconds)
-python tensorflow_profiler_test_guide.py --quick
-python cpu_tensorflow_test_guide.py --quick
-
-# Individual tests
-python tensorflow_profiler_test_guide.py --test 1
-python cpu_tensorflow_test_guide.py --test 1
-
-# Full test suites
-python tensorflow_profiler_test_guide.py
-python cpu_tensorflow_test_guide.py
-
-# Help and options
-python tensorflow_profiler_test_guide.py --help
-```
+- Basic TensorFlow profiling (`examples/basic/tensorflow_demo.py`)
+- CLI workflows (`examples/cli/quickstart.py`)
+- CPU-only sanity checks
+- Optional advanced scenarios (mixed precision, watchdog, exports)
 
 ---
 
@@ -943,15 +858,14 @@ This comprehensive guide provides everything needed to test and use the TensorFl
 **TensorFlow GPU Users:**
 
 ```bash
-python tensorflow_profiler_test_guide.py --quick  # Quick test
-python tensorflow_profiler_test_guide.py          # Full test suite
+python -m examples.basic.tensorflow_demo          # Quick test
 ```
 
 **TensorFlow CPU Users:**
 
 ```bash
-python cpu_tensorflow_test_guide.py --quick       # Quick test
-python cpu_tensorflow_test_guide.py               # Full test suite
+python -m examples.cli.quickstart                 # Quick test
+tfmemprof info                                    # System summary
 ```
 
 **TensorFlow-Specific Features:**

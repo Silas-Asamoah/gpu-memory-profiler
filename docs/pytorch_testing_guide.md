@@ -24,6 +24,11 @@
 
 ---
 
+> **Note:** Legacy scripts under `examples/test_guides/` have been
+> replaced by curated Markdown workflows.
+> Use `docs/examples/test_guides/README.md` plus the modules in
+> `examples/basic`, `examples/advanced`, and `examples/cli` for hands-on tests.
+
 ## Overview
 
 The PyTorch GPU Memory Profiler is a comprehensive tool for monitoring and optimizing memory usage during PyTorch model training and inference. This guide provides complete instructions for testing and using the profiler in both GPU and CPU environments.
@@ -137,13 +142,15 @@ Choose your scenario:
 #### With GPU:
 
 ```bash
-python pytorch_profiler_test_guide.py --quick
+python -m examples.basic.pytorch_demo
+# Optional advanced tracker demo
+python -m examples.advanced.tracking_demo
 ```
 
 #### CPU Only:
 
 ```bash
-python cpu_profiler_test_guide.py --quick
+python -m examples.cli.quickstart
 ```
 
 ### Expected Output:
@@ -179,37 +186,16 @@ nvidia-smi
 
 ### Testing the GPU Profiler
 
-#### 1. Run Individual Tests
+Run the curated demos (these are the same ones exercised in CI):
 
 ```bash
-# Test 1: Basic function profiling
-python pytorch_profiler_test_guide.py --test 1
-
-# Test 2: Context-based profiling
-python pytorch_profiler_test_guide.py --test 2
-
-# Test 3: Real-time memory tracking
-python pytorch_profiler_test_guide.py --test 3
-
-# Test 4: Memory leak detection
-python pytorch_profiler_test_guide.py --test 4
-
-# Test 5: Complete model profiling
-python pytorch_profiler_test_guide.py --test 5
-
-# Test 6: Visualization
-python pytorch_profiler_test_guide.py --test 6
-
-# Test 7: Command line tools
-python pytorch_profiler_test_guide.py --test 7
+python -m examples.basic.pytorch_demo
+python -m examples.advanced.tracking_demo
 ```
 
-#### 2. Run Full Test Suite
-
-```bash
-# Complete test suite (2-3 minutes)
-python pytorch_profiler_test_guide.py
-```
+For scenario-by-scenario instructions (context profiling, leak detection,
+watchdog tuning, exports, CLI workflows), see
+`docs/examples/test_guides/README.md#pytorch-gpu-checklist`.
 
 ### Basic GPU Profiling Usage
 
@@ -329,34 +315,15 @@ python -m gpumemprof.cli analyze --input gpu_results.json --detect-leaks --visua
 
 ### Testing the CPU Profiler
 
-#### 1. Run Individual CPU Tests
+Use the CLI and basic demo to validate CPU-only environments:
 
 ```bash
-# Test 1: Basic CPU profiling
-python cpu_profiler_test_guide.py --test 1
-
-# Test 2: CPU model training
-python cpu_profiler_test_guide.py --test 2
-
-# Test 3: CPU memory tracking
-python cpu_profiler_test_guide.py --test 3
-
-# Test 4: Memory leak simulation
-python cpu_profiler_test_guide.py --test 4
-
-# Test 5: PyTorch CPU operations
-python cpu_profiler_test_guide.py --test 5
-
-# Test 6: Memory analysis
-python cpu_profiler_test_guide.py --test 6
+CUDA_VISIBLE_DEVICES="" gpumemprof info
+python -m examples.cli.quickstart
 ```
 
-#### 2. Run Full CPU Test Suite
-
-```bash
-# Complete CPU test suite (2-3 minutes)
-python cpu_profiler_test_guide.py
-```
+For deeper CPU scenarios, follow the CPU section in
+`docs/examples/test_guides/README.md`.
 
 ### Basic CPU Profiling Usage
 
@@ -513,50 +480,17 @@ print(f"Peak CPU memory: {results['peak_memory_mb']:.2f} MB")
 
 Both test suites provide comprehensive validation:
 
-#### GPU Test Suite Structure
+#### GPU & CPU Checklists
 
-```
-pytorch_profiler_test_guide.py
-├── check_requirements()        # Validate CUDA setup
-├── test_1_basic_profiling()   # Function decorators
-├── test_2_context_profiling() # Context managers
-├── test_3_real_time_tracking() # Background monitoring
-├── test_4_memory_leak_detection() # Leak simulation
-├── test_5_model_profiling()   # Complete training
-├── test_6_visualization()     # Charts and exports
-└── test_7_command_line_tools() # CLI interface
-```
+See `docs/examples/test_guides/README.md` for the full set of scenarios. Each
+checklist maps to the curated modules:
 
-#### CPU Test Suite Structure
+- `examples/basic/pytorch_demo.py`
+- `examples/advanced/tracking_demo.py`
+- `examples/cli/quickstart.py`
 
-```
-cpu_profiler_test_guide.py
-├── test_1_basic_cpu_profiling()    # Function profiling
-├── test_2_cpu_model_training()     # Model training
-├── test_3_cpu_memory_tracking()    # Memory monitoring
-├── test_4_cpu_memory_leak_simulation() # Leak detection
-├── test_5_pytorch_cpu_operations() # PyTorch ops
-└── test_6_memory_analysis()        # Analysis tools
-```
-
-### Test Execution Options
-
-```bash
-# Quick validation (30 seconds)
-python pytorch_profiler_test_guide.py --quick
-python cpu_profiler_test_guide.py --quick
-
-# Individual tests
-python pytorch_profiler_test_guide.py --test 1
-python cpu_profiler_test_guide.py --test 1
-
-# Full test suites
-python pytorch_profiler_test_guide.py
-python cpu_profiler_test_guide.py
-
-# Help and options
-python pytorch_profiler_test_guide.py --help
-```
+These replace the monolithic `pytorch_profiler_test_guide.py` and
+`cpu_profiler_test_guide.py` scripts.
 
 ### Expected Test Results
 
@@ -671,7 +605,6 @@ visualizer.export_data(results, format='json', filepath='training_results.json')
 ```python
 import torch
 import torch.nn as nn
-from cpu_profiler_test_guide import CPUMemoryProfiler
 
 # Initialize CPU profiler
 profiler = CPUMemoryProfiler()
@@ -767,7 +700,7 @@ torch.cuda.empty_cache()
 #### CPU Version
 
 ```python
-from cpu_profiler_test_guide import CPUMemoryTracker
+
 
 # Setup CPU tracking
 tracker = CPUMemoryTracker(sampling_interval=0.05)
@@ -1371,15 +1304,15 @@ This comprehensive guide provides everything you need to test and use the PyTorc
 **GPU Users:**
 
 ```bash
-python pytorch_profiler_test_guide.py --quick  # Quick test
-python pytorch_profiler_test_guide.py          # Full test suite
+python -m examples.basic.pytorch_demo          # Quick test
+python -m examples.advanced.tracking_demo      # Tracker/watchdog demo
 ```
 
 **CPU Users:**
 
 ```bash
-python cpu_profiler_test_guide.py --quick      # Quick test
-python cpu_profiler_test_guide.py              # Full test suite
+python -m examples.cli.quickstart      # Quick test
+gpumemprof info                        # System summary
 ```
 
 **Getting Help:**

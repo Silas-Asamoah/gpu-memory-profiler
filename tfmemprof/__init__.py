@@ -9,20 +9,18 @@ __version__ = "0.1.0"
 __author__ = "GPU Memory Profiler Team"
 __email__ = "prince.agyei.tuffour@gmail.com"
 
-from .profiler import TensorFlowProfiler
-from .context_profiler import tensorflow_profiler, TensorFlowContextProfiler
-from .tracker import TensorFlowMemoryTracker
-from .visualizer import TensorFlowVisualizer
-from .analyzer import TensorFlowAnalyzer
-from .utils import get_system_info, validate_tensorflow_setup
+from .profiler import TFMemoryProfiler
+from .context_profiler import TensorFlowProfiler
+from .tracker import MemoryTracker as TensorFlowMemoryTracker
+from .visualizer import MemoryVisualizer as TensorFlowVisualizer
+from .analyzer import MemoryAnalyzer as TensorFlowAnalyzer
+from .utils import get_system_info
 
 __all__ = [
     "TensorFlowProfiler",
-    "tensorflow_profiler",
-    "TensorFlowContextProfiler",
+    "TFMemoryProfiler",
     "TensorFlowMemoryTracker",
     "TensorFlowVisualizer",
     "TensorFlowAnalyzer",
     "get_system_info",
-    "validate_tensorflow_setup",
 ]

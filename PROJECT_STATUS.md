@@ -21,7 +21,7 @@
 ### 🏗️ **Codebase Structure (100% Complete)**
 
 -   ✅ Clean root directory structure
--   ✅ Organized examples in `/examples/` and `/examples/test_guides/`
+-   ✅ Organized examples in `/examples/` with Markdown testing guides under `docs/examples/test_guides/`
 -   ✅ Removed redundant `tensor_torch_profiler/` directory
 -   ✅ Proper package structure: `gpumemprof/` and `tfmemprof/`
 -   ✅ All development artifacts cleaned up

@@ -112,7 +112,9 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 -   [CLI Usage](docs/cli.md)
 -   [CPU Compatibility](docs/cpu_compatibility.md)
 -   [Testing Guides](docs/pytorch_testing_guide.md), [TensorFlow](docs/tensorflow_testing_guide.md)
+-   [Example Test Guides (Markdown)](docs/examples/test_guides/README.md)
 -   [In-depth Article](docs/article.md)
+-   [Example scripts](examples/basic)
 
 ## Contributing
 
