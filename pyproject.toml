@@ -87,6 +87,7 @@ test = [
 ]
 tui = [
     "textual>=0.57.0",
+    "pyfiglet>=1.0.2",
 ]
 docs = [
     "sphinx>=4.0.0",

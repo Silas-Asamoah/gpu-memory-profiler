@@ -9,6 +9,7 @@ from .visualizer import MemoryVisualizer
 from .analyzer import MemoryAnalyzer
 from .utils import get_gpu_info, format_bytes, convert_bytes
 from .tracker import MemoryTracker
+from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
 
 __all__ = [
     "GPUMemoryProfiler",
@@ -19,6 +20,8 @@ __all__ = [
     "MemoryVisualizer",
     "MemoryAnalyzer",
     "MemoryTracker",
+    "CPUMemoryProfiler",
+    "CPUMemoryTracker",
     "get_gpu_info",
     "format_bytes",
     "convert_bytes",

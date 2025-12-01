@@ -4,9 +4,27 @@
 
 This guide explains how to use GPU Memory Profiler on systems without CUDA/GPU support.
 
-## 🚫 No CUDA? No Problem!
+## Built-in CPU Mode
 
-If CUDA is not available on your system, you can still use and test the memory profiler with some modifications. Here's what you can do:
+As of the latest release, the CLI, Python API, and Textual TUI automatically
+fallback to a psutil-powered `CPUMemoryProfiler`/`CPUMemoryTracker` whenever
+`torch.cuda.is_available()` returns `False`. No extra flags are required—the same
+commands just switch to RSS-based metrics:
+
+- `gpumemprof monitor` and `gpumemprof track` display CPU RSS data (MB) and can
+  still export CSV/JSON logs.
+- The TUI monitoring tab starts a CPU tracker so you can stream events/exports
+  without a GPU.
+- PyTorch sample workloads automatically run on CPU tensors and display RSS
+  deltas in the log.
+
+If you only care about CPU memory, simply run the normal CLI/TUI commands and
+they will do the right thing.
+
+## 🚫 No CUDA? Still Want Custom Tweaks?
+
+If you need lower-level control (or are using an older version), the sections
+below show how to roll your own CPU profilers or integrate other tooling.
 
 ## What Works Without CUDA
 
@@ -39,9 +57,10 @@ CUDA_VISIBLE_DEVICES="" gpumemprof info
 python -m examples.cli.quickstart
 ```
 
-### Option 2: Modify Existing Code for CPU
+### Option 2: Modify Existing Code for CPU (Legacy Approach)
 
-Here are the key modifications you can make to run CPU-only profiling:
+If you want to customize the CPU profiler beyond the built-in behavior, here are
+some patterns you can borrow:
 
 #### Modify the PyTorch Profiler for CPU
 

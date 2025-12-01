@@ -1,7 +1,7 @@
 """Context profiler for easy function and code block profiling."""
 
 import functools
-from typing import Optional, Union, Callable, Any
+from typing import Optional, Union, Callable, Any, List
 from contextlib import contextmanager
 
 import torch
@@ -238,6 +238,18 @@ def clear_results():
     global _global_profiler
     if _global_profiler:
         _global_profiler.clear_results()
+
+
+def get_profile_results(limit: Optional[int] = None) -> List[ProfileResult]:
+    """Return recent profile results captured by the global profiler."""
+    global _global_profiler
+    if not _global_profiler:
+        return []
+
+    results = list(_global_profiler.results)
+    if limit:
+        return results[-limit:]
+    return results
 
 
 def profile_model_training(model: torch.nn.Module,

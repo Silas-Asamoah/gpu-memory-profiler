@@ -25,13 +25,57 @@ gpu-profiler
 
 - **Overview tab** – Live system summary (platform, Python/TensorFlow versions,
   GPU snapshot). Use `r` to refresh.
-- **PyTorch tab** – Copy-ready commands for curated demos plus a live GPU
-  memory table sourced from `gpumemprof.utils.get_gpu_info`.
-- **TensorFlow tab** – Equivalent guidance with an auto-updating table that
-  reads from `tfmemprof.utils.get_gpu_info`.
-- **CLI & Actions tab** – Rich instructions plus buttons for logging tips,
-  refreshing system info, and launching sample PyTorch/TensorFlow profiling
-  runs (with an inline loader/log output).
+- **PyTorch tab** – Copy-ready commands for curated demos, a live GPU memory
+  table, and a refreshable profile summary (fed by
+  `gpumemprof.context_profiler`) that highlights recent decorator/context runs.
+- **TensorFlow tab** – Equivalent guidance with an auto-updating table, plus a
+  profile summary sourced from `tfmemprof.context_profiler` so you can review
+  calls without leaving the terminal.
+- **Monitoring tab** – Start/stop an actual tracker session (GPU when CUDA is
+  available, otherwise the CPU tracker), stream live allocation/alert events into
+  a dedicated log, review rolling stats (current, peak, utilization, alert
+  counts), tweak warning/critical thresholds, toggle `MemoryWatchdog`, and
+  export the full event history to CSV/JSON with one click.
+- **Visualizations tab** – Refresh an ASCII timeline for quick inspection, then
+  export the same data as a Matplotlib PNG or Plotly HTML file (saved under
+  `./visualizations`) for richer analysis.
+- **CLI & Actions tab** – Rich instructions plus quick-run buttons that execute
+  `gpumemprof` / `tfmemprof` commands directly inside the TUI. A command input
+  box (with Run/Cancel controls) lets you stream any shell command into the
+  inline log. When CUDA isn’t present, those commands automatically switch to
+  the CPU profiling backend, so you can still prototype workflows locally.
+
+When you click **Start Live Tracking** in the Monitoring tab, the TUI spins up
+`gpumemprof.tracker.MemoryTracker` in the background, pipes every event into the
+log, and keeps the stats table in sync every second. Toggle **Auto Cleanup** to
+let `MemoryWatchdog` react to warnings/criticals, or use the force/aggressive
+cleanup buttons to trigger a manual `torch.cuda.empty_cache()` + GC sweep.
+
+The Visualizations tab reads from the same tracking session: hit **Refresh
+Timeline** once events start flowing to render an ASCII graph plus summary
+stats, then use **Generate PNG Plot** (Matplotlib) or **Generate HTML Plot**
+(Plotly) to save richer artifacts you can share. Install the `[viz]` extra
+(`pip install "gpu-memory-profiler[viz]"`) if you want the optional Plotly
+export.
+
+The PyTorch/TensorFlow tabs both include **Refresh Profiles** and **Clear
+Profiles** buttons. They query the global profiler instances used by the
+`profile_function` decorators / `profile_context` managers, so any workloads you
+wrap with those helpers automatically appear in the tables with peak memory,
+delta-per-call, and average duration metrics.
+
+Need raw tracker data? While monitoring is active, hit **Export CSV** or
+**Export JSON** in the same tab to dump every recorded event into `./exports/`
+for later analysis.
+
+Want to automate CLI workflows? Use the command input at the bottom of the CLI
+tab (or the quick buttons) to launch `gpumemprof`/`tfmemprof` commands without
+leaving the dashboard—the RichLog streams stdout/stderr live, and **Cancel
+Command** terminates long-running jobs.
+
+Watching for leaks? The monitoring tab now includes a live alert history plus
+sliders for warning/critical thresholds (GPU mode) so you can tune signal/noise
+without restarting the tracker.
 
 Keyboard shortcuts:
 

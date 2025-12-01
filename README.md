@@ -10,6 +10,10 @@
 [![Textual TUI](https://img.shields.io/badge/TUI-Textual-blueviolet)](docs/tui.md)
 [![Prompt%20Toolkit](https://img.shields.io/badge/Prompt--toolkit-roadmap-lightgrey)](docs/tui.md#prompt-toolkit-roadmap)
 
+<p align="center">
+  <video src="docs/gpu-profiler-overview.mp4" autoplay loop muted playsinline width="900"></video>
+</p>
+
 A production-ready, open source tool for real-time GPU memory profiling, leak detection, and optimization in PyTorch and TensorFlow deep learning workflows.
 
 ## Why use GPU Memory Profiler?
@@ -145,6 +149,39 @@ workflows—see [docs/tui.md](docs/tui.md) for details.
   <br/>
   <em>CLI & Actions tab with quick commands, loaders, and log output.</em>
 </p>
+
+Need charts without leaving the terminal? The new **Visualizations** tab renders
+an ASCII timeline from the live tracker and can export the same data to PNG
+(Matplotlib) or HTML (Plotly) under `./visualizations` for deeper inspection.
+Just start tracking, refresh the tab, and hit the export buttons.
+
+The PyTorch and TensorFlow tabs now surface recent decorator/context profiling
+results as live tables—with refresh/clear controls—so you can review peak
+memory, deltas, and durations gathered via `gpumemprof.context_profiler` or
+`tfmemprof.context_profiler` without leaving the dashboard.
+
+When the monitoring session is running you can also dump every tracked event to
+`./exports/tracker_events_<timestamp>.{csv,json}` directly from the Monitoring
+tab, making it easy to feed the same data into pandas, spreadsheets, or external
+dashboards.
+
+Need tighter leak warnings? Adjust the warning/critical sliders in the same tab
+to update GPU `MemoryTracker` thresholds on the fly, and use the inline alert
+history to review exactly when spikes occurred.
+
+Need to run automation without opening another terminal? Use the CLI tab’s
+command input (or the quick action buttons) to execute `gpumemprof` /
+`tfmemprof` commands in-place; stdout/stderr stream straight into the log and
+you can cancel long-running jobs with a single click.
+
+## CPU Compatibility
+
+Working on a laptop or CI agent without CUDA? The CLI, Python API, and TUI now
+fall back to a psutil-powered `CPUMemoryProfiler`/`CPUMemoryTracker`. Run the
+same `gpumemprof monitor` / `gpumemprof track` commands and you’ll see RSS data
+instead of GPU VRAM, exportable to CSV/JSON and viewable inside the monitoring
+tab. PyTorch sample workloads automatically switch to CPU tensors when CUDA
+isn’t present, so every workflow stays accessible regardless of hardware.
 
 ## Contributing
 
