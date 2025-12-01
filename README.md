@@ -11,7 +11,7 @@
 [![Prompt%20Toolkit](https://img.shields.io/badge/Prompt--toolkit-roadmap-lightgrey)](docs/tui.md#prompt-toolkit-roadmap)
 
 <p align="center">
-  <video src="docs/gpu-profiler-overview.mp4" autoplay loop muted playsinline width="900"></video>
+  <video src="docs/gpu-profiler-overview.mp4" autoplay loop muted playsinline width="800"></video>
 </p>
 
 A production-ready, open source tool for real-time GPU memory profiling, leak detection, and optimization in PyTorch and TensorFlow deep learning workflows.
