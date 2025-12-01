@@ -7,6 +7,8 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.8+-red.svg)](https://pytorch.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.4+-orange.svg)](https://tensorflow.org/)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
+[![Textual TUI](https://img.shields.io/badge/TUI-Textual-blueviolet)](docs/tui.md)
+[![Prompt%20Toolkit](https://img.shields.io/badge/Prompt--toolkit-roadmap-lightgrey)](docs/tui.md#prompt-toolkit-roadmap)
 
 A production-ready, open source tool for real-time GPU memory profiling, leak detection, and optimization in PyTorch and TensorFlow deep learning workflows.
 
@@ -113,8 +115,35 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 -   [CPU Compatibility](docs/cpu_compatibility.md)
 -   [Testing Guides](docs/pytorch_testing_guide.md), [TensorFlow](docs/tensorflow_testing_guide.md)
 -   [Example Test Guides (Markdown)](docs/examples/test_guides/README.md)
+-   [Terminal UI (Textual)](docs/tui.md)
 -   [In-depth Article](docs/article.md)
 -   [Example scripts](examples/basic)
+
+## Terminal UI
+
+Prefer an interactive dashboard? Install the optional TUI dependencies and
+launch the Textual interface:
+
+```bash
+pip install "gpu-memory-profiler[tui]"
+gpu-profiler
+```
+
+The TUI surfaces system info, PyTorch/TensorFlow quick actions, and CLI tips.
+Future prompt_toolkit enhancements will add a command palette for advanced
+workflows—see [docs/tui.md](docs/tui.md) for details.
+
+<p align="center">
+  <img src="docs/gpu-profiler-1.png" alt="GPU Profiler Overview" width="700">
+  <br/>
+  <em>Overview, PyTorch, and TensorFlow tabs inside the Textual dashboard.</em>
+</p>
+
+<p align="center">
+  <img src="docs/gpu-profiler-2.png" alt="GPU Profiler CLI Actions" width="700">
+  <br/>
+  <em>CLI & Actions tab with quick commands, loaders, and log output.</em>
+</p>
 
 ## Contributing
 

@@ -12,6 +12,7 @@ This checklist ensures a smooth release process for GPU Memory Profiler.
 -   [ ] Imports are sorted: `python3 -m isort .`
 -   [ ] Linting passes: `python3 -m flake8`
 -   [ ] Type checking passes: `python3 -m mypy gpumemprof tfmemprof`
+-   [ ] TUI launches successfully: `gpu-profiler`
 
 ### 2. Documentation
 

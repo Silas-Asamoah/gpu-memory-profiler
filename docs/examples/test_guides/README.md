@@ -51,6 +51,13 @@ python -m examples.cli.quickstart
 This runs the same commands exercised in CI (`gpumemprof --help`, `info`,
 optional `monitor`, and the equivalent `tfmemprof` commands).
 
+Prefer an interactive dashboard? Launch the Textual TUI:
+
+```bash
+pip install "gpu-memory-profiler[tui]"
+gpu-profiler
+```
+
 ## Automation Tips
 
 - Integrate the demos into your workflow by adding `python -m examples.basic.*`

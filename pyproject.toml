@@ -85,6 +85,9 @@ test = [
     "torch>=1.8.0",
     "tensorflow>=2.4.0",
 ]
+tui = [
+    "textual>=0.57.0",
+]
 docs = [
     "sphinx>=4.0.0",
     "sphinx-rtd-theme>=1.0.0",
@@ -101,6 +104,7 @@ Repository = "https://github.com/nanaagyei/gpu-memory-profiler.git"
 [project.scripts]
 gpumemprof = "gpumemprof.cli:main"
 tfmemprof = "tfmemprof.cli:main"
+gpu-profiler = "gpumemprof.tui.app:run_app"
 
 [tool.setuptools_scm]
 write_to = "gpumemprof/_version.py"
