@@ -3,10 +3,17 @@ Comprehensive tests for the core GPU memory profiler functionality.
 """
 
 import pytest
-import torch
 import time
 import numpy as np
 from unittest.mock import Mock, patch
+
+try:  # Optional dependency: PyTorch
+    import torch
+except ModuleNotFoundError:  # pragma: no cover - environment w/out torch
+    torch = None  # type: ignore[assignment]
+
+TORCH_AVAILABLE = torch is not None
+TORCH_CUDA_AVAILABLE = bool(torch and torch.cuda.is_available())
 
 from gpumemprof import (
     GPUMemoryProfiler,
@@ -174,7 +181,7 @@ class TestProfileResult:
         assert result_dict['function_name'] == "test_function"
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+@pytest.mark.skipif(not TORCH_CUDA_AVAILABLE, reason="CUDA not available")
 class TestGPUMemoryProfiler:
     """Test GPU Memory Profiler functionality."""
 
@@ -299,7 +306,7 @@ class TestGPUMemoryProfiler:
 class TestProfileDecorators:
     """Test profile decorators and context managers."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.skipif(not TORCH_CUDA_AVAILABLE, reason="CUDA not available")
     def test_profile_function_decorator(self):
         """Test @profile_function decorator."""
         @profile_function
@@ -310,7 +317,7 @@ class TestProfileDecorators:
         assert torch.is_tensor(result)
         # Note: The decorator uses global profiler, so we can't easily check results here
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.skipif(not TORCH_CUDA_AVAILABLE, reason="CUDA not available")
     def test_profile_context_manager(self):
         """Test profile_context context manager."""
         with profile_context("test_context"):
@@ -323,7 +330,7 @@ class TestProfileDecorators:
 class TestErrorHandling:
     """Test error handling in profiler."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.skipif(not TORCH_CUDA_AVAILABLE, reason="CUDA not available")
     def test_profile_function_with_exception(self):
         """Test profiling a function that raises an exception."""
         profiler = GPUMemoryProfiler()
@@ -343,7 +350,7 @@ class TestErrorHandling:
         with pytest.raises(ValueError):
             GPUMemoryProfiler(device="cpu")  # Should only accept CUDA devices
 
-    @pytest.mark.skipif(torch.cuda.is_available(), reason="Test requires no CUDA")
+    @pytest.mark.skipif(TORCH_CUDA_AVAILABLE, reason="Test requires no CUDA")
     def test_no_cuda_available(self):
         """Test behavior when CUDA is not available."""
         with pytest.raises(RuntimeError):
@@ -353,7 +360,7 @@ class TestErrorHandling:
 class TestPerformance:
     """Test performance characteristics of the profiler."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.skipif(not TORCH_CUDA_AVAILABLE, reason="CUDA not available")
     def test_profiler_overhead(self):
         """Test that profiler doesn't add significant overhead."""
         profiler = GPUMemoryProfiler()
@@ -379,7 +386,7 @@ class TestPerformance:
         overhead_ratio = profiled_time / unprofiled_time
         assert overhead_ratio < 1.5, f"Profiler overhead too high: {overhead_ratio:.2f}x"
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.skipif(not TORCH_CUDA_AVAILABLE, reason="CUDA not available")
     def test_monitoring_performance(self):
         """Test monitoring performance with high frequency."""
         profiler = GPUMemoryProfiler()

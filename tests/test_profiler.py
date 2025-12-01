@@ -1,11 +1,24 @@
 import pytest
-import tensorflow as tf
-import torch
+
+try:  # Optional dependency: PyTorch
+    import torch
+except ModuleNotFoundError:  # pragma: no cover - environment w/out torch
+    torch = None  # type: ignore[assignment]
+
+try:  # Optional dependency: TensorFlow
+    import tensorflow as tf
+except ModuleNotFoundError:  # pragma: no cover - environment w/out tf
+    tf = None  # type: ignore[assignment]
 
 from gpumemprof import GPUMemoryProfiler
 
+TORCH_CUDA_AVAILABLE = bool(torch and torch.cuda.is_available())
+TF_AVAILABLE = tf is not None
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+
+@pytest.mark.skipif(
+    not TORCH_CUDA_AVAILABLE, reason="CUDA-enabled PyTorch not available"
+)
 def test_profiler():
     profiler = GPUMemoryProfiler()
 
@@ -20,7 +33,10 @@ def test_profiler():
     assert len(profiler.results) > 0
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+@pytest.mark.skipif(
+    not (TORCH_CUDA_AVAILABLE and TF_AVAILABLE),
+    reason="PyTorch (CUDA) and TensorFlow required",
+)
 def test_profile_tensorflow():
     profiler = GPUMemoryProfiler()
 

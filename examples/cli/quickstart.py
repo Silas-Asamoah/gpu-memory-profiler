@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import shutil
 
-import torch
-
 from examples.common import (
     ensure_cli_available,
     print_cli_result,
@@ -15,6 +13,15 @@ from examples.common import (
 )
 
 
+def _torch_cuda_available() -> bool:
+    """Return True if torch+CUDA are available without requiring a hard dependency."""
+    try:
+        import torch  # Local import to avoid ImportError when torch isn't installed
+    except ModuleNotFoundError:  # pragma: no cover - optional dependency missing
+        return False
+    return torch.cuda.is_available()
+
+
 def run_gpumemprof_examples() -> None:
     ensure_cli_available("gpumemprof")
     commands = [
@@ -22,7 +29,7 @@ def run_gpumemprof_examples() -> None:
         ("gpumemprof info (summary)", ["gpumemprof", "info"]),
     ]
 
-    if torch.cuda.is_available():
+    if _torch_cuda_available():
         commands.append(
             (
                 "gpumemprof monitor (5s)",

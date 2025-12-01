@@ -19,6 +19,22 @@ python -m examples.cli.quickstart
 
 For more CPU-focused tips, see `docs/cpu_compatibility.md`.
 
+### CPU Smoke Test (Automated)
+
+Use this duo whenever CUDA isn’t available:
+
+```bash
+# Step 1: force CPU mode and run the CLI walkthrough
+set CUDA_VISIBLE_DEVICES=    # PowerShell/CMD
+# or: export CUDA_VISIBLE_DEVICES=   # macOS/Linux shells
+python -m examples.cli.quickstart
+
+# Step 2: verify system-info fallbacks
+pytest tests/test_utils.py
+```
+
+Both steps run quickly and unblock CI jobs that lack GPUs.
+
 ## PyTorch GPU Checklist
 
 ```bash
@@ -57,6 +73,13 @@ Prefer an interactive dashboard? Launch the Textual TUI:
 pip install "gpu-memory-profiler[tui]"
 gpu-profiler
 ```
+
+## Enabling the CUDA Path
+
+Ready to profile on GPUs? Follow `docs/gpu_setup.md` for driver + framework
+installation instructions (PyTorch CUDA wheels, TensorFlow GPU wheel, and
+verification commands). Once complete, unset `CUDA_VISIBLE_DEVICES` (or point
+it to a real GPU) and rerun the PyTorch/TensorFlow checklists above.
 
 ## Automation Tips
 
