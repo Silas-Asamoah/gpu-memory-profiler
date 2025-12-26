@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import psutil
 
-from .tracker import TrackingEvent
+from gpumemprof.tracker import TrackingEvent
 
 
 @dataclass
@@ -261,8 +261,38 @@ class CPUMemoryTracker:
         )
         self.events.append(event)
 
-    def get_events(self, **filters: Any) -> List[TrackingEvent]:
-        return list(self.events)
+    def get_events(
+        self,
+        event_type: Optional[str] = None,
+        last_n: Optional[int] = None,
+        since: Optional[float] = None,
+    ) -> List[TrackingEvent]:
+        """
+        Get tracking events with optional filtering.
+
+        Args:
+            event_type: Filter by event type
+            last_n: Get last N events
+            since: Get events since timestamp
+
+        Returns:
+            List of filtered events
+        """
+        events: List[TrackingEvent] = list[TrackingEvent](self.events)
+
+        # Filter by type
+        if event_type:
+            events = [e for e in events if e.event_type == event_type]
+
+        # Filter by time
+        if since:
+            events = [e for e in events if e.timestamp >= since]
+
+        # Limit results
+        if last_n:
+            events = events[-last_n:]
+
+        return events
 
     def get_statistics(self) -> Dict[str, Any]:
         rss = self._current_rss()
