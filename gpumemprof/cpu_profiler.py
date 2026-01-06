@@ -278,7 +278,7 @@ class CPUMemoryTracker:
         Returns:
             List of filtered events
         """
-        events: List[TrackingEvent] = list[TrackingEvent](self.events)
+        events: List[TrackingEvent] = list(self.events)
 
         # Filter by type
         if event_type:
