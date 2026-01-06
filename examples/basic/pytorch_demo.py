@@ -32,12 +32,12 @@ def profile_tensor_allocation(profiler: GPUMemoryProfiler, repeats: int = 3) -> 
     for idx in range(repeats):
         size_mb = 32 * (idx + 1)
 
-        def allocate():
-            tensor = _allocate_tensor_mb(size_mb, device)
+        def allocate(sz=size_mb, dev=device):  # capture via default args
+            tensor = _allocate_tensor_mb(sz, dev)
             return tensor.mean().item()
 
         allocate.__name__ = f"tensor_alloc_{size_mb}mb"
-        profiler.profile_function(allocate)
+        profiler.profile_function(allocate)()
 
 
 def profile_training_epoch(

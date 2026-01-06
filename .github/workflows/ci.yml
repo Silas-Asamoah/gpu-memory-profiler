@@ -44,7 +44,12 @@ jobs:
                   if [ "${{ matrix.framework }}" = "pytorch" ]; then
                       pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
                   else
-                      pip install tensorflow-cpu==2.15.0
+                      # TensorFlow 2.15+ requires Python 3.9+; use 2.13.1 for Python 3.8
+                      if [ "${{ matrix.python-version }}" = "3.8" ]; then
+                          pip install tensorflow-cpu==2.13.1
+                      else
+                          pip install tensorflow-cpu==2.15.0
+                      fi
                   fi
 
             - name: Run tests

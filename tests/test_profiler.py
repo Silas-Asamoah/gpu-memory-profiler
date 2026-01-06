@@ -10,12 +10,22 @@ try:  # Optional dependency: TensorFlow
 except ModuleNotFoundError:  # pragma: no cover - environment w/out tf
     tf = None  # type: ignore[assignment]
 
-from gpumemprof import GPUMemoryProfiler
+# GPUMemoryProfiler requires torch at import time, so guard the import
+GPUMemoryProfiler = None  # type: ignore[assignment,misc]
+if torch is not None:
+    try:
+        from gpumemprof import GPUMemoryProfiler
+    except ImportError:  # pragma: no cover - torch installed but import still fails
+        pass
 
+TORCH_AVAILABLE = torch is not None
 TORCH_CUDA_AVAILABLE = bool(torch and torch.cuda.is_available())
 TF_AVAILABLE = tf is not None
 
 
+@pytest.mark.skipif(
+    not TORCH_AVAILABLE, reason="PyTorch not available"
+)
 @pytest.mark.skipif(
     not TORCH_CUDA_AVAILABLE, reason="CUDA-enabled PyTorch not available"
 )
@@ -33,6 +43,9 @@ def test_profiler():
     assert len(profiler.results) > 0
 
 
+@pytest.mark.skipif(
+    not TORCH_AVAILABLE, reason="PyTorch not available"
+)
 @pytest.mark.skipif(
     not (TORCH_CUDA_AVAILABLE and TF_AVAILABLE),
     reason="PyTorch (CUDA) and TensorFlow required",
