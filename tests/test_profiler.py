@@ -36,7 +36,7 @@ def test_profiler():
         return "Hello, World!"
 
     # Test basic profiling
-    result = profiler.profile_function(dummy_func)()
+    result = profiler.profile_function(dummy_func)
 
     # Check that profiling was performed
     assert profiler.results is not None
@@ -58,7 +58,7 @@ def test_profile_tensorflow():
         return tf.reduce_sum(x)
 
     # Test TensorFlow profiling
-    result = profiler.profile_function(dummy_tensorflow_func)()
+    result = profiler.profile_function(dummy_tensorflow_func)
 
     # Check that profiling was performed
     assert profiler.results is not None

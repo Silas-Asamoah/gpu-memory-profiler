@@ -37,7 +37,7 @@ def profile_tensor_allocation(profiler: GPUMemoryProfiler, repeats: int = 3) -> 
             return tensor.mean().item()
 
         allocate.__name__ = f"tensor_alloc_{size_mb}mb"
-        profiler.profile_function(allocate)()
+        profiler.profile_function(allocate)
 
 
 def profile_training_epoch(
