@@ -170,9 +170,10 @@ with profile_context("my_context"):
 
 See the [examples directory](../examples/) for complete working examples:
 
-- [Basic PyTorch profiling](../examples/basic_profiling.py)
-- [Advanced tracking](../examples/advanced_tracking.py)
-- [TensorFlow profiling](../examples/tensorflow_basic_profiling.py)
+- [Basic PyTorch profiling](../examples/basic/pytorch_demo.py)
+- [Advanced tracking](../examples/advanced/tracking_demo.py)
+- [TensorFlow profiling](../examples/basic/tensorflow_demo.py)
+- [CLI quickstart](../examples/cli/quickstart.py)
 
 ---
 

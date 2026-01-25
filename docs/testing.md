@@ -78,10 +78,52 @@ tests/
 ├── test_visualizer.py            # Visualization components
 ├── test_analyzer.py              # Analysis algorithms
 ├── test_utils.py                 # Utility functions
-├── test_cli.py                   # Command line interface
+├── test_profiler.py              # CLI/framework integration
 ├── test_integration.py           # Integration tests
 └── test_performance.py           # Performance benchmarks
 ```
+
+For manual smoke tests (CPU-only, PyTorch GPU, TensorFlow GPU, CLI) see
+`docs/examples/test_guides/README.md`.
+
+### CPU Smoke Test (No CUDA)
+
+Need a fast signal on CPU-only machines? Run both steps below:
+
+1. Force CPU execution and exercise the CLI walkthrough:
+
+    ```bash
+    # Windows (PowerShell/CMD)
+    set CUDA_VISIBLE_DEVICES=
+    python -m examples.cli.quickstart
+
+    # macOS/Linux
+    export CUDA_VISIBLE_DEVICES=
+    python -m examples.cli.quickstart
+    ```
+
+    The quickstart script runs `gpumemprof --help`, `gpumemprof info`, and (if
+    installed) the TensorFlow CLI without touching CUDA.
+
+2. Validate the system-info fallbacks:
+
+    ```bash
+    pytest tests/test_utils.py
+    ```
+
+    This ensures `gpumemprof.utils.get_system_info()` still reports sensible
+    metadata when GPUs are absent.
+
+Add these steps to CPU-only CI jobs or use them locally before installing
+CUDA.
+
+### Enabling the CUDA Path
+
+When you're ready to run GPU-accelerated tests or demos, install the CUDA
+toolchain and the CUDA-enabled framework wheels, then re-run `pytest` without
+forcing CPU-only mode. The full setup checklist (drivers, PyTorch CUDA builds,
+TensorFlow GPU builds, verification commands) lives in
+`docs/gpu_setup.md`.
 
 ## PyTorch Testing
 

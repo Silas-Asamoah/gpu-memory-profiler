@@ -7,6 +7,14 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.8+-red.svg)](https://pytorch.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.4+-orange.svg)](https://tensorflow.org/)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
+[![Textual TUI](https://img.shields.io/badge/TUI-Textual-blueviolet)](docs/tui.md)
+[![Prompt%20Toolkit](https://img.shields.io/badge/Prompt--toolkit-roadmap-lightgrey)](docs/tui.md#prompt-toolkit-roadmap)
+
+<p align="center">
+  <img src="docs/gpu-profiler-overview.gif" alt="GPU Profiler TUI Demo" width="900">
+  <br/>
+  <em>Interactive Textual dashboard with live monitoring, visualizations, and CLI automation.</em>
+</p>
 
 A production-ready, open source tool for real-time GPU memory profiling, leak detection, and optimization in PyTorch and TensorFlow deep learning workflows.
 
@@ -111,8 +119,71 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 -   **[Full Documentation & Guides](docs/index.md)**
 -   [CLI Usage](docs/cli.md)
 -   [CPU Compatibility](docs/cpu_compatibility.md)
+-   [GPU Setup (drivers + frameworks)](docs/gpu_setup.md)
 -   [Testing Guides](docs/pytorch_testing_guide.md), [TensorFlow](docs/tensorflow_testing_guide.md)
+-   [Example Test Guides (Markdown)](docs/examples/test_guides/README.md)
+-   [Terminal UI (Textual)](docs/tui.md)
 -   [In-depth Article](docs/article.md)
+-   [Example scripts](examples/basic)
+
+## Terminal UI
+
+Prefer an interactive dashboard? Install the optional TUI dependencies and
+launch the Textual interface:
+
+```bash
+pip install "gpu-memory-profiler[tui]"
+gpu-profiler
+```
+
+The TUI surfaces system info, PyTorch/TensorFlow quick actions, and CLI tips.
+Future prompt_toolkit enhancements will add a command palette for advanced
+workflows—see [docs/tui.md](docs/tui.md) for details.
+
+<p align="center">
+  <img src="docs/gpu-profiler-1.png" alt="GPU Profiler Overview" width="700">
+  <br/>
+  <em>Overview, PyTorch, and TensorFlow tabs inside the Textual dashboard.</em>
+</p>
+
+<p align="center">
+  <img src="docs/gpu-profiler-2.png" alt="GPU Profiler CLI Actions" width="700">
+  <br/>
+  <em>CLI & Actions tab with quick commands, loaders, and log output.</em>
+</p>
+
+Need charts without leaving the terminal? The new **Visualizations** tab renders
+an ASCII timeline from the live tracker and can export the same data to PNG
+(Matplotlib) or HTML (Plotly) under `./visualizations` for deeper inspection.
+Just start tracking, refresh the tab, and hit the export buttons.
+
+The PyTorch and TensorFlow tabs now surface recent decorator/context profiling
+results as live tables—with refresh/clear controls—so you can review peak
+memory, deltas, and durations gathered via `gpumemprof.context_profiler` or
+`tfmemprof.context_profiler` without leaving the dashboard.
+
+When the monitoring session is running you can also dump every tracked event to
+`./exports/tracker_events_<timestamp>.{csv,json}` directly from the Monitoring
+tab, making it easy to feed the same data into pandas, spreadsheets, or external
+dashboards.
+
+Need tighter leak warnings? Adjust the warning/critical sliders in the same tab
+to update GPU `MemoryTracker` thresholds on the fly, and use the inline alert
+history to review exactly when spikes occurred.
+
+Need to run automation without opening another terminal? Use the CLI tab’s
+command input (or the quick action buttons) to execute `gpumemprof` /
+`tfmemprof` commands in-place; stdout/stderr stream straight into the log and
+you can cancel long-running jobs with a single click.
+
+## CPU Compatibility
+
+Working on a laptop or CI agent without CUDA? The CLI, Python API, and TUI now
+fall back to a psutil-powered `CPUMemoryProfiler`/`CPUMemoryTracker`. Run the
+same `gpumemprof monitor` / `gpumemprof track` commands and you’ll see RSS data
+instead of GPU VRAM, exportable to CSV/JSON and viewable inside the monitoring
+tab. PyTorch sample workloads automatically switch to CPU tensors when CUDA
+isn’t present, so every workflow stays accessible regardless of hardware.
 
 ## Contributing
 

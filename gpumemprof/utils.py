@@ -1,8 +1,10 @@
 """Utility functions for GPU memory profiling."""
 
 import os
+import platform
 import subprocess
 import json
+import sys
 from typing import Dict, List, Optional, Union, Any
 import torch
 import psutil
@@ -147,12 +149,40 @@ def _get_nvidia_smi_info(device_id: int) -> Dict[str, Any]:
     return {}
 
 
+def _detect_platform_info() -> Dict[str, str]:
+    """Safely detect platform and architecture across OSes."""
+    if hasattr(os, "uname"):
+        try:
+            uname_result = os.uname()
+            return {
+                "platform": getattr(uname_result, "sysname", "Unknown"),
+                "architecture": getattr(uname_result, "machine", "Unknown"),
+            }
+        except Exception:
+            # Fall back to platform module if os.uname is unavailable or fails
+            pass
+
+    try:
+        uname_result = platform.uname()
+        system_name = getattr(uname_result, "system", platform.system())
+        machine = getattr(uname_result, "machine", platform.machine())
+    except Exception:
+        system_name = platform.system()
+        machine = platform.machine()
+
+    return {
+        "platform": system_name or "Unknown",
+        "architecture": machine or "Unknown",
+    }
+
+
 def get_system_info() -> Dict[str, Any]:
     """Get system information relevant to GPU profiling."""
+    platform_info = _detect_platform_info()
     system_info = {
-        "platform": os.uname().sysname,
-        "architecture": os.uname().machine,
-        "python_version": os.sys.version,
+        "platform": platform_info["platform"],
+        "architecture": platform_info["architecture"],
+        "python_version": sys.version,
         "cuda_available": torch.cuda.is_available(),
     }
 

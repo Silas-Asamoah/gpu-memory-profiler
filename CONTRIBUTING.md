@@ -166,7 +166,7 @@ tests/
 ├── test_visualizer.py        # Visualization components
 ├── test_analyzer.py          # Analysis algorithms
 ├── test_utils.py             # Utility functions
-├── test_cli.py               # Command line interface
+├── test_profiler.py          # CLI/framework integration
 └── conftest.py               # Test configuration
 ```
 

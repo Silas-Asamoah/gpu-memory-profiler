@@ -4,9 +4,27 @@
 
 This guide explains how to use GPU Memory Profiler on systems without CUDA/GPU support.
 
-## 🚫 No CUDA? No Problem!
+## Built-in CPU Mode
 
-If CUDA is not available on your system, you can still use and test the memory profiler with some modifications. Here's what you can do:
+As of the latest release, the CLI, Python API, and Textual TUI automatically
+fallback to a psutil-powered `CPUMemoryProfiler`/`CPUMemoryTracker` whenever
+`torch.cuda.is_available()` returns `False`. No extra flags are required—the same
+commands just switch to RSS-based metrics:
+
+- `gpumemprof monitor` and `gpumemprof track` display CPU RSS data (MB) and can
+  still export CSV/JSON logs.
+- The TUI monitoring tab starts a CPU tracker so you can stream events/exports
+  without a GPU.
+- PyTorch sample workloads automatically run on CPU tensors and display RSS
+  deltas in the log.
+
+If you only care about CPU memory, simply run the normal CLI/TUI commands and
+they will do the right thing.
+
+## 🚫 No CUDA? Still Want Custom Tweaks?
+
+If you need lower-level control (or are using an older version), the sections
+below show how to roll your own CPU profilers or integrate other tooling.
 
 ## What Works Without CUDA
 
@@ -30,24 +48,19 @@ If CUDA is not available on your system, you can still use and test the memory p
 
 ## Quick Solutions
 
-### Option 1: Use the CPU-Only Test Suite
+### Option 1: Run the Markdown-Based Checklists
 
-I've created a complete CPU-compatible test suite for you:
+Follow the steps in `docs/examples/test_guides/README.md`:
 
 ```bash
-# Run the CPU-only tests
-python cpu_profiler_test_guide.py
-
-# Quick test
-python cpu_profiler_test_guide.py --quick
-
-# Specific test
-python cpu_profiler_test_guide.py --test 1
+CUDA_VISIBLE_DEVICES="" gpumemprof info
+python -m examples.cli.quickstart
 ```
 
-### Option 2: Modify Existing Code for CPU
+### Option 2: Modify Existing Code for CPU (Legacy Approach)
 
-Here are the key modifications you can make to run CPU-only profiling:
+If you want to customize the CPU profiler beyond the built-in behavior, here are
+some patterns you can borrow:
 
 #### Modify the PyTorch Profiler for CPU
 
@@ -342,7 +355,7 @@ pip install -e .
 
 ```bash
 # Run CPU-compatible tests
-python cpu_profiler_test_guide.py
+python -m examples.cli.quickstart
 
 # Profile existing Python script
 python -m memory_profiler your_script.py
@@ -391,22 +404,18 @@ Even without GPU profiling, you still get:
 1. **Quick Start:**
 
 ```bash
-python cpu_profiler_test_guide.py --quick
+python -m examples.cli.quickstart
+gpumemprof info
 ```
 
 2. **Full Test Suite:**
 
-```bash
-python cpu_profiler_test_guide.py
-```
+Follow the CPU checklist in `docs/examples/test_guides/README.md`.
 
 3. **Specific Tests:**
 
-```bash
-python cpu_profiler_test_guide.py --test 1  # Basic profiling
-python cpu_profiler_test_guide.py --test 2  # Model training
-python cpu_profiler_test_guide.py --test 3  # Memory tracking
-```
+Use the snippets in this guide (or the Markdown checklists) to build targeted
+CPU profiling scenarios.
 
 ## Conclusion
 

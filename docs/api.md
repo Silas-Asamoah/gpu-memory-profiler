@@ -148,24 +148,15 @@ class TensorFlowProfiler:
 - `create_dashboard()`: Create interactive dashboard
 - `export_results(filename: str)`: Export results to file
 
-#### `TensorFlowContextProfiler`
+#### Context profiling
 
-Context-aware profiler for TensorFlow.
-
-```python
-class TensorFlowContextProfiler:
-    def __init__(self, profiler: TensorFlowProfiler):
-        self.profiler = profiler
-```
-
-### Context Profiling
-
-#### `tensorflow_profiler`
-
-Context manager for TensorFlow profiling.
+Use the high-level `TensorFlowProfiler` context manager to profile a training or inference block.
 
 ```python
-with tensorflow_profiler("training"):
+from tfmemprof import TensorFlowProfiler
+
+profiler = TensorFlowProfiler()
+with profiler.profile_context("training"):
     model.fit(x_train, y_train)
 ```
 
@@ -178,15 +169,6 @@ Get TensorFlow-specific system information.
 ```python
 def get_system_info() -> dict:
     """Get TensorFlow system information."""
-```
-
-#### `validate_tensorflow_setup()`
-
-Validate TensorFlow installation and GPU setup.
-
-```python
-def validate_tensorflow_setup() -> dict:
-    """Validate TensorFlow setup and return status."""
 ```
 
 ## CLI Commands

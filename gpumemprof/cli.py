@@ -7,13 +7,15 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import psutil
 import torch
 
 from .profiler import GPUMemoryProfiler
 from .tracker import MemoryTracker, MemoryWatchdog
 from .visualizer import MemoryVisualizer
 from .analyzer import MemoryAnalyzer
-from .utils import memory_summary, get_gpu_info, get_system_info
+from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
+from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
 
 
 def main():
@@ -125,7 +127,13 @@ def cmd_info(args):
     print(f"CUDA Available: {system_info.get('cuda_available', False)}")
 
     if not system_info.get('cuda_available', False):
-        print("CUDA is not available. GPU profiling cannot be performed.")
+        print("CUDA is not available. Falling back to CPU-only profiling.")
+        process = psutil.Process()
+        with process.oneshot():
+            mem = process.memory_info()
+        print(f"Process RSS: {format_bytes(mem.rss)}")
+        print(f"Process VMS: {format_bytes(mem.vms)}")
+        print(f"CPU Count: {psutil.cpu_count(logical=False)} physical / {psutil.cpu_count()} logical")
         return
 
     print(f"CUDA Version: {system_info.get('cuda_version', 'Unknown')}")
@@ -171,23 +179,31 @@ def cmd_monitor(args):
     duration = args.duration
     interval = args.interval
 
+    cuda_available = torch.cuda.is_available()
+
     print(f"Starting memory monitoring for {duration} seconds...")
-    print(f"Device: {device if device is not None else 'current'}")
+    print(f"Mode: {'GPU' if cuda_available else 'CPU'}")
     print(f"Sampling interval: {interval}s")
     print("Press Ctrl+C to stop early")
     print()
 
-    # Create profiler and start monitoring
-    profiler = GPUMemoryProfiler(device=device)
-    profiler.start_monitoring(interval)
+    if cuda_available:
+        profiler = GPUMemoryProfiler(device=device)
+        profiler.start_monitoring(interval)
+    else:
+        profiler = CPUMemoryProfiler()
+        profiler.start_monitoring(interval)
 
     start_time = time.time()
     try:
         while time.time() - start_time < duration:
             # Print current status every 5 seconds
             if int((time.time() - start_time)) % 5 == 0:
-                current_mem = torch.cuda.memory_allocated(
-                    profiler.device) / (1024**3)
+                if cuda_available:
+                    current_mem = torch.cuda.memory_allocated(
+                        profiler.device) / (1024**3)
+                else:
+                    current_mem = profiler._take_snapshot().rss / (1024**3)
                 elapsed = time.time() - start_time
                 print(
                     f"Elapsed: {elapsed:.1f}s, Current Memory: {current_mem:.2f} GB")
@@ -204,10 +220,12 @@ def cmd_monitor(args):
     print("-" * 30)
     summary = profiler.get_summary()
     print(f"Snapshots collected: {summary.get('snapshots_collected', 0)}")
-    print(
-        f"Peak memory usage: {summary.get('peak_memory_usage', 0) / (1024**3):.2f} GB")
-    print(
-        f"Memory change from baseline: {summary.get('memory_change_from_baseline', 0) / (1024**3):.2f} GB")
+    peak = summary.get('peak_memory_usage', 0)
+    change = summary.get('memory_change_from_baseline', 0)
+    unit = "GB" if cuda_available else "MB"
+    divisor = 1024**3 if cuda_available else 1024**2
+    print(f"Peak memory usage: {peak / divisor:.2f} {unit}")
+    print(f"Memory change from baseline: {change / divisor:.2f} {unit}")
 
     # Save data if requested
     if args.output:
@@ -233,29 +251,34 @@ def cmd_track(args):
     print("Press Ctrl+C to stop")
     print()
 
-    # Create tracker
-    tracker = MemoryTracker(
-        device=device,
-        sampling_interval=interval,
-        enable_alerts=True
-    )
+    cuda_available = torch.cuda.is_available()
+    if cuda_available:
+        tracker = MemoryTracker(
+            device=device,
+            sampling_interval=interval,
+            enable_alerts=True
+        )
 
-    # Set thresholds
-    tracker.set_threshold('memory_warning_percent', args.warning_threshold)
-    tracker.set_threshold('memory_critical_percent', args.critical_threshold)
+        # Set thresholds
+        tracker.set_threshold('memory_warning_percent', args.warning_threshold)
+        tracker.set_threshold('memory_critical_percent', args.critical_threshold)
 
-    # Add alert callback
-    def alert_callback(event):
-        timestamp = time.strftime('%H:%M:%S', time.localtime(event.timestamp))
-        print(f"[{timestamp}] {event.event_type.upper()}: {event.context}")
+        # Add alert callback
+        def alert_callback(event):
+            timestamp = time.strftime('%H:%M:%S', time.localtime(event.timestamp))
+            print(f"[{timestamp}] {event.event_type.upper()}: {event.context}")
 
-    tracker.add_alert_callback(alert_callback)
+        tracker.add_alert_callback(alert_callback)
 
-    # Create watchdog if requested
-    watchdog = None
-    if args.watchdog:
-        watchdog = MemoryWatchdog(tracker)
-        print("Memory watchdog enabled - automatic cleanup activated")
+        # Create watchdog if requested
+        watchdog = None
+        if args.watchdog:
+            watchdog = MemoryWatchdog(tracker)
+            print("Memory watchdog enabled - automatic cleanup activated")
+    else:
+        tracker = CPUMemoryTracker(sampling_interval=interval)
+        watchdog = None
+        print("Running CPU memory tracker (CUDA unavailable).")
 
     # Start tracking
     tracker.start_tracking()
@@ -291,11 +314,10 @@ def cmd_track(args):
     print("\nTracking Summary:")
     print("-" * 30)
     stats = tracker.get_statistics()
+    divisor = 1024**3 if cuda_available else 1024**2
+    unit = "GB" if cuda_available else "MB"
     print(f"Total events: {stats.get('total_events', 0)}")
-    print(f"Allocations: {stats.get('total_allocations', 0)}")
-    print(f"Deallocations: {stats.get('total_deallocations', 0)}")
-    print(f"Alerts: {stats.get('alert_count', 0)}")
-    print(f"Peak memory: {stats.get('peak_memory', 0) / (1024**3):.2f} GB")
+    print(f"Peak memory: {stats.get('peak_memory', 0) / divisor:.2f} {unit}")
 
     if watchdog:
         cleanup_stats = watchdog.get_cleanup_stats()

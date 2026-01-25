@@ -13,6 +13,9 @@ jobs:
             matrix:
                 python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
                 framework: [pytorch, tensorflow]
+                exclude:
+                    - python-version: "3.12"
+                      framework: tensorflow
 
         steps:
             - uses: actions/checkout@v4
@@ -30,10 +33,24 @@ jobs:
                   restore-keys: |
                       ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
-            - name: Install dependencies
+            - name: Install base dependencies
               run: |
                   python3 -m pip install --upgrade pip
-                  pip install -e .[test,viz]
+                  pip install -e . --no-deps
+                  pip install -r requirements-ci-base.txt
+
+            - name: Install framework dependencies
+              run: |
+                  if [ "${{ matrix.framework }}" = "pytorch" ]; then
+                      pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+                  else
+                      # TensorFlow 2.15+ requires Python 3.9+; use 2.13.1 for Python 3.8
+                      if [ "${{ matrix.python-version }}" = "3.8" ]; then
+                          pip install tensorflow-cpu==2.13.1
+                      else
+                          pip install tensorflow-cpu==2.15.0
+                      fi
+                  fi
 
             - name: Run tests
               run: |
@@ -133,3 +150,9 @@ jobs:
                   tfmemprof --help
                   gpumemprof info
                   tfmemprof info
+
+            - name: Run CLI quickstart smoke test
+              env:
+                  CUDA_VISIBLE_DEVICES: ""
+              run: |
+                  python -m examples.cli.quickstart

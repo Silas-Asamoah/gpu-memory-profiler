@@ -1,0 +1,107 @@
+# Terminal UI (Textual) Guide
+
+The GPU Memory Profiler now ships with a Textual-based TUI that bundles key
+workflows—system discovery, PyTorch/TensorFlow checklists, and CLI helpers—into
+an interactive terminal experience.
+
+## Installation
+
+Install the optional TUI dependencies:
+
+```bash
+pip install "gpu-memory-profiler[tui]"
+```
+
+During development you can also rely on `requirements-dev.txt`, which already
+includes `textual`.
+
+## Launching the TUI
+
+```bash
+gpu-profiler
+```
+
+### What You’ll See
+
+- **Overview tab** – Live system summary (platform, Python/TensorFlow versions,
+  GPU snapshot). Use `r` to refresh.
+- **PyTorch tab** – Copy-ready commands for curated demos, a live GPU memory
+  table, and a refreshable profile summary (fed by
+  `gpumemprof.context_profiler`) that highlights recent decorator/context runs.
+- **TensorFlow tab** – Equivalent guidance with an auto-updating table, plus a
+  profile summary sourced from `tfmemprof.context_profiler` so you can review
+  calls without leaving the terminal.
+- **Monitoring tab** – Start/stop an actual tracker session (GPU when CUDA is
+  available, otherwise the CPU tracker), stream live allocation/alert events into
+  a dedicated log, review rolling stats (current, peak, utilization, alert
+  counts), tweak warning/critical thresholds, toggle `MemoryWatchdog`, and
+  export the full event history to CSV/JSON with one click.
+- **Visualizations tab** – Refresh an ASCII timeline for quick inspection, then
+  export the same data as a Matplotlib PNG or Plotly HTML file (saved under
+  `./visualizations`) for richer analysis.
+- **CLI & Actions tab** – Rich instructions plus quick-run buttons that execute
+  `gpumemprof` / `tfmemprof` commands directly inside the TUI. A command input
+  box (with Run/Cancel controls) lets you stream any shell command into the
+  inline log. When CUDA isn’t present, those commands automatically switch to
+  the CPU profiling backend, so you can still prototype workflows locally.
+
+When you click **Start Live Tracking** in the Monitoring tab, the TUI spins up
+`gpumemprof.tracker.MemoryTracker` in the background, pipes every event into the
+log, and keeps the stats table in sync every second. Toggle **Auto Cleanup** to
+let `MemoryWatchdog` react to warnings/criticals, or use the force/aggressive
+cleanup buttons to trigger a manual `torch.cuda.empty_cache()` + GC sweep.
+
+The Visualizations tab reads from the same tracking session: hit **Refresh
+Timeline** once events start flowing to render an ASCII graph plus summary
+stats, then use **Generate PNG Plot** (Matplotlib) or **Generate HTML Plot**
+(Plotly) to save richer artifacts you can share. Install the `[viz]` extra
+(`pip install "gpu-memory-profiler[viz]"`) if you want the optional Plotly
+export.
+
+The PyTorch/TensorFlow tabs both include **Refresh Profiles** and **Clear
+Profiles** buttons. They query the global profiler instances used by the
+`profile_function` decorators / `profile_context` managers, so any workloads you
+wrap with those helpers automatically appear in the tables with peak memory,
+delta-per-call, and average duration metrics.
+
+Need raw tracker data? While monitoring is active, hit **Export CSV** or
+**Export JSON** in the same tab to dump every recorded event into `./exports/`
+for later analysis.
+
+Want to automate CLI workflows? Use the command input at the bottom of the CLI
+tab (or the quick buttons) to launch `gpumemprof`/`tfmemprof` commands without
+leaving the dashboard—the RichLog streams stdout/stderr live, and **Cancel
+Command** terminates long-running jobs.
+
+Watching for leaks? The monitoring tab now includes a live alert history plus
+sliders for warning/critical thresholds (GPU mode) so you can tune signal/noise
+without restarting the tracker.
+
+Keyboard shortcuts:
+
+| Key | Action                   |
+| --- | ------------------------ |
+| `r` | Refresh overview         |
+| `f` | Focus the log panel      |
+| `g` | Log `gpumemprof info`    |
+| `t` | Log `tfmemprof info`     |
+| `q` | Quit the TUI             |
+
+## Prompt Toolkit Roadmap
+
+For command-palette or multi-step form experiences, we plan to layer in
+`prompt_toolkit` components (e.g., an interactive shell for running
+`gpumemprof`/`tfmemprof` commands with auto-completion). The Textual layout is
+designed to accommodate this future addition without breaking compatibility.
+
+## Troubleshooting
+
+- **Missing dependency** – Ensure you used `pip install "gpu-memory-profiler[tui]"`.
+- **GPU-less environments** – The overview tab will fall back to CPU-only data
+  and explicitly state when GPU metrics are unavailable.
+- **Terminal too small** – Textual adapts to smaller windows, but a minimum of
+  ~100x30 characters makes the tabs most readable.
+
+For more sample commands, see the Markdown test guides under
+`docs/examples/test_guides/README.md`.
+

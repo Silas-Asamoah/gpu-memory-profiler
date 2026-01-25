@@ -3,7 +3,7 @@
 import functools
 import threading
 from contextlib import contextmanager
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 try:
     import tensorflow as tf
@@ -286,3 +286,45 @@ def clear_global_profiler():
         if _global_profiler:
             _global_profiler.reset()
             _global_profiler = None
+
+
+def clear_profiles():
+    """Reset profiling data without discarding the global profiler."""
+    global _global_profiler
+
+    with _profiler_lock:
+        if _global_profiler:
+            _global_profiler.reset()
+
+
+def get_profile_summaries(limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Return aggregated profiling summaries for recent functions/contexts."""
+    global _global_profiler
+
+    with _profiler_lock:
+        profiler = _global_profiler
+        if not profiler or not profiler.function_profiles:
+            return []
+
+        entries: List[Dict[str, Any]] = []
+        for name, stats in profiler.function_profiles.items():
+            snapshots = stats.get("snapshots") or []
+            last_snapshot = snapshots[-1] if snapshots else None
+            last_timestamp = getattr(last_snapshot, "timestamp", None)
+
+            entries.append(
+                {
+                    "name": name,
+                    "calls": stats.get("calls", 0),
+                    "total_duration": stats.get("total_duration", 0.0),
+                    "total_memory_used": stats.get("total_memory_used", 0.0),
+                    "peak_memory": stats.get("peak_memory", 0.0),
+                    "last_timestamp": last_timestamp,
+                }
+            )
+
+    entries.sort(key=lambda entry: entry.get("last_timestamp") or 0.0, reverse=True)
+
+    if limit:
+        return entries[:limit]
+    return entries

@@ -1,0 +1,370 @@
+"""CPU-only memory profiler and tracker."""
+
+from __future__ import annotations
+
+import csv
+import json
+import threading
+import time
+from collections import deque
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
+
+import psutil
+
+from gpumemprof.tracker import TrackingEvent
+
+
+@dataclass
+class CPUMemorySnapshot:
+    """Point-in-time CPU memory snapshot."""
+
+    timestamp: float
+    rss: int
+    vms: int
+    cpu_percent: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "timestamp": self.timestamp,
+            "rss": self.rss,
+            "vms": self.vms,
+            "cpu_percent": self.cpu_percent,
+        }
+
+
+@dataclass
+class CPUProfileResult:
+    """Results from profiling a CPU function/context."""
+
+    name: str
+    duration: float
+    snapshot_before: CPUMemorySnapshot
+    snapshot_after: CPUMemorySnapshot
+    peak_rss: int
+
+    def memory_diff(self) -> int:
+        return self.snapshot_after.rss - self.snapshot_before.rss
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "duration": self.duration,
+            "memory_diff": self.memory_diff(),
+            "peak_rss": self.peak_rss,
+            "before": self.snapshot_before.to_dict(),
+            "after": self.snapshot_after.to_dict(),
+        }
+
+
+class CPUMemoryProfiler:
+    """Lightweight CPU memory profiler mirroring the GPU API."""
+
+    def __init__(self):
+        self.process = psutil.Process()
+        self.snapshots: List[CPUMemorySnapshot] = []
+        self.results: List[CPUProfileResult] = []
+        self._monitoring = False
+        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_interval = 0.1
+        self._baseline_snapshot = self._take_snapshot()
+
+    def _take_snapshot(self) -> CPUMemorySnapshot:
+        with self.process.oneshot():
+            mem = self.process.memory_info()
+        cpu_pct = self.process.cpu_percent(interval=None)
+        return CPUMemorySnapshot(
+            timestamp=time.time(),
+            rss=mem.rss,
+            vms=mem.vms,
+            cpu_percent=cpu_pct,
+        )
+
+    def start_monitoring(self, interval: float = 0.1) -> None:
+        if self._monitoring:
+            return
+        self._monitoring = True
+        self._monitor_interval = interval
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._monitor_thread.start()
+
+    def _monitor_loop(self) -> None:
+        while self._monitoring:
+            self.snapshots.append(self._take_snapshot())
+            time.sleep(self._monitor_interval)
+
+    def stop_monitoring(self) -> None:
+        self._monitoring = False
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=1.0)
+            self._monitor_thread = None
+
+    def profile_function(self, func: Callable, *args, **kwargs) -> CPUProfileResult:
+        before = self._take_snapshot()
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        after = self._take_snapshot()
+        peak_rss = max(before.rss, after.rss)
+        profile = CPUProfileResult(
+            name=getattr(func, "__name__", "cpu_function"),
+            duration=end - start,
+            snapshot_before=before,
+            snapshot_after=after,
+            peak_rss=peak_rss,
+        )
+        self.results.append(profile)
+        return profile
+
+    def profile_context(self, name: str = "context"):
+        class _Context:
+            def __init__(self, outer: CPUMemoryProfiler, label: str):
+                self.outer = outer
+                self.label = label
+
+            def __enter__(self):
+                self.before = self.outer._take_snapshot()
+                self.start = time.time()
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                after = self.outer._take_snapshot()
+                end = time.time()
+                peak_rss = max(self.before.rss, after.rss)
+                profile = CPUProfileResult(
+                    name=self.label,
+                    duration=end - self.start,
+                    snapshot_before=self.before,
+                    snapshot_after=after,
+                    peak_rss=peak_rss,
+                )
+                self.outer.results.append(profile)
+
+        return _Context(self, name)
+
+    def clear_results(self) -> None:
+        self.snapshots.clear()
+        self.results.clear()
+        self._baseline_snapshot = self._take_snapshot()
+
+    def get_summary(self) -> Dict[str, Any]:
+        if not self.snapshots:
+            snapshots = [self._baseline_snapshot]
+        else:
+            snapshots = self.snapshots
+
+        rss_values = [snap.rss for snap in snapshots]
+        peak = max(rss_values) if rss_values else self._baseline_snapshot.rss
+        change = rss_values[-1] - rss_values[0] if len(rss_values) > 1 else 0
+
+        return {
+            "mode": "cpu",
+            "snapshots_collected": len(self.snapshots),
+            "peak_memory_usage": peak,
+            "memory_change_from_baseline": change,
+            "baseline_rss": self._baseline_snapshot.rss,
+        }
+
+
+class CPUMemoryTracker:
+    """CPU tracker offering a superset of the GPU tracker interface."""
+
+    def __init__(
+        self,
+        sampling_interval: float = 0.5,
+        max_events: int = 10_000,
+        enable_alerts: bool = True,
+    ):
+        self.process = psutil.Process()
+        self.sampling_interval = sampling_interval
+        self.events: deque[TrackingEvent] = deque(maxlen=max_events)
+        self.is_tracking = False
+        self._stop_event = threading.Event()
+        self._tracking_thread: Optional[threading.Thread] = None
+        self.enable_alerts = enable_alerts
+
+        self.stats = {
+            "tracking_start_time": None,
+            "peak_memory": 0,
+            "total_events": 0,
+            "alert_count": 0,
+        }
+
+    def _current_rss(self) -> int:
+        with self.process.oneshot():
+            return self.process.memory_info().rss
+
+    def start_tracking(self) -> None:
+        if self.is_tracking:
+            return
+        self.is_tracking = True
+        self._stop_event.clear()
+        self.stats["tracking_start_time"] = time.time()
+        self._tracking_thread = threading.Thread(target=self._tracking_loop, daemon=True)
+        self._tracking_thread.start()
+        self._add_event("start", 0, "CPU memory tracking started")
+
+    def stop_tracking(self) -> None:
+        if not self.is_tracking:
+            return
+        self.is_tracking = False
+        self._stop_event.set()
+        if self._tracking_thread:
+            self._tracking_thread.join(timeout=1.0)
+        self._add_event("stop", 0, "CPU memory tracking stopped")
+
+    def _tracking_loop(self) -> None:
+        last_rss = self._current_rss()
+
+        while not self._stop_event.wait(self.sampling_interval):
+            try:
+                current_rss = self._current_rss()
+            except Exception:
+                continue
+
+            change = current_rss - last_rss
+            self.stats["total_events"] += 1
+            if current_rss > self.stats["peak_memory"]:
+                self.stats["peak_memory"] = current_rss
+                self._add_event(
+                    "peak",
+                    change,
+                    f"New CPU peak RSS: {self._format_bytes(current_rss)}",
+                )
+
+            if change > 0:
+                self._add_event(
+                    "allocation",
+                    change,
+                    f"RSS increased by {self._format_bytes(change)}",
+                )
+            elif change < 0:
+                self._add_event(
+                    "deallocation",
+                    change,
+                    f"RSS decreased by {self._format_bytes(abs(change))}",
+                )
+
+            last_rss = current_rss
+
+    def _add_event(self, event_type: str, memory_change: int, context: str) -> None:
+        rss = self._current_rss()
+        event = TrackingEvent(
+            timestamp=time.time(),
+            event_type=event_type,
+            memory_allocated=rss,
+            memory_reserved=rss,
+            memory_change=memory_change,
+            device_id=-1,
+            context=context,
+        )
+        self.events.append(event)
+
+    def get_events(
+        self,
+        event_type: Optional[str] = None,
+        last_n: Optional[int] = None,
+        since: Optional[float] = None,
+    ) -> List[TrackingEvent]:
+        """
+        Get tracking events with optional filtering.
+
+        Args:
+            event_type: Filter by event type
+            last_n: Get last N events
+            since: Get events since timestamp
+
+        Returns:
+            List of filtered events
+        """
+        events: List[TrackingEvent] = list(self.events)
+
+        # Filter by type
+        if event_type:
+            events = [e for e in events if e.event_type == event_type]
+
+        # Filter by time
+        if since:
+            events = [e for e in events if e.timestamp >= since]
+
+        # Limit results
+        if last_n:
+            events = events[-last_n:]
+
+        return events
+
+    def get_statistics(self) -> Dict[str, Any]:
+        rss = self._current_rss()
+        duration = 0.0
+        if self.stats["tracking_start_time"]:
+            duration = time.time() - self.stats["tracking_start_time"]
+        return {
+            "mode": "cpu",
+            "total_events": len(self.events),
+            "peak_memory": self.stats["peak_memory"],
+            "current_memory_allocated": rss,
+            "tracking_duration_seconds": duration,
+        }
+
+    def get_memory_timeline(self, interval: float = 1.0) -> Dict[str, List[float]]:
+        if not self.events:
+            return {"timestamps": [], "allocated": [], "reserved": []}
+
+        timestamps = [event.timestamp for event in self.events]
+        allocated = [event.memory_allocated for event in self.events]
+        return {
+            "timestamps": timestamps,
+            "allocated": allocated,
+            "reserved": allocated,
+        }
+
+    def clear_events(self) -> None:
+        self.events.clear()
+        self.stats["peak_memory"] = 0
+        self.stats["total_events"] = 0
+
+    def export_events(self, filename: str, format: str = "csv") -> None:
+        records = [
+            {
+                "timestamp": event.timestamp,
+                "event_type": event.event_type,
+                "memory_allocated": event.memory_allocated,
+                "memory_change": event.memory_change,
+                "context": event.context,
+            }
+            for event in self.events
+        ]
+
+        if not records:
+            return
+
+        if format == "csv":
+            with open(filename, "w", newline="") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=records[0].keys())
+                writer.writeheader()
+                writer.writerows(records)
+        elif format == "json":
+            with open(filename, "w") as jsonfile:
+                json.dump(records, jsonfile, indent=2, default=str)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+
+    def export_events_with_timestamp(self, directory: str, format: str) -> str:
+        filename = (
+            f"{directory}/cpu_tracker_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}"
+        )
+        self.export_events(filename, format=format)
+        return filename
+
+    @staticmethod
+    def _format_bytes(value: int) -> str:
+        units = ["B", "KB", "MB", "GB", "TB"]
+        size = float(value)
+        unit_idx = 0
+        while size >= 1024 and unit_idx < len(units) - 1:
+            size /= 1024
+            unit_idx += 1
+        return f"{size:.2f} {units[unit_idx]}"
+
+
