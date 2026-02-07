@@ -30,12 +30,14 @@ def test_gpumemprof_import_and_star_import_succeed_when_viz_imports_blocked():
 
         assert hasattr(gpumemprof, "GPUMemoryProfiler")
         assert "GPUMemoryProfiler" in globals()
+        assert hasattr(gpumemprof, "MemoryVisualizer")
+        assert "MemoryVisualizer" in globals()
         try:
-            gpumemprof.MemoryVisualizer
+            gpumemprof.MemoryVisualizer()
         except ImportError as exc:
             assert "optional visualization dependencies" in str(exc)
         else:
-            raise AssertionError("Expected ImportError when requesting MemoryVisualizer")
+            raise AssertionError("Expected ImportError when constructing MemoryVisualizer")
 
         print("ok")
         """
