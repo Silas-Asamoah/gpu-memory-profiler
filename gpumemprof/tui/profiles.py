@@ -3,21 +3,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..context_profiler import (
     get_profile_results as get_pt_results,
     clear_results as clear_pt_results,
 )
 
+get_tf_summaries: Optional[Callable[..., List[Dict[str, Any]]]]
+clear_tf_profiles: Optional[Callable[[], None]]
 try:  # TensorFlow is optional
     from tfmemprof.context_profiler import (
-        get_profile_summaries as get_tf_summaries,
-        clear_profiles as clear_tf_profiles,
+        get_profile_summaries as _get_tf_summaries,
+        clear_profiles as _clear_tf_profiles,
     )
+    get_tf_summaries = _get_tf_summaries
+    clear_tf_profiles = _clear_tf_profiles
 except Exception:  # pragma: no cover - optional dependency
-    get_tf_summaries = None  # type: ignore
-    clear_tf_profiles = None  # type: ignore
+    get_tf_summaries = None
+    clear_tf_profiles = None
 
 
 @dataclass
@@ -34,9 +38,6 @@ class ProfileRow:
 
 def fetch_pytorch_profiles(limit: int = 15) -> List[ProfileRow]:
     """Return recent PyTorch profile rows."""
-    if get_pt_results is None:
-        return []
-
     try:
         results = get_pt_results(limit=limit)
     except Exception:
@@ -47,6 +48,7 @@ def fetch_pytorch_profiles(limit: int = 15) -> List[ProfileRow]:
         timestamp = getattr(result.memory_after, "timestamp", None) or getattr(
             result.memory_peak, "timestamp", 0.0
         )
+        recorded_at = float(timestamp or 0.0)
         rows.append(
             ProfileRow(
                 name=result.function_name,
@@ -54,7 +56,7 @@ def fetch_pytorch_profiles(limit: int = 15) -> List[ProfileRow]:
                 delta_mb=result.memory_diff() / (1024**2),
                 duration_ms=result.execution_time * 1000.0,
                 call_count=result.call_count,
-                recorded_at=timestamp,
+                recorded_at=recorded_at,
             )
         )
 
@@ -66,9 +68,6 @@ def fetch_pytorch_profiles(limit: int = 15) -> List[ProfileRow]:
 
 def clear_pytorch_profiles() -> bool:
     """Clear global PyTorch profile results."""
-    if clear_pt_results is None:
-        return False
-
     try:
         clear_pt_results()
         return True
@@ -121,4 +120,3 @@ def clear_tensorflow_profiles() -> bool:
         return True
     except Exception:
         return False
-
