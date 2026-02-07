@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import List, Dict, Any, Optional, Union, Tuple, cast
+from typing import List, Dict, Any, Optional, Union, Tuple
 from datetime import datetime
 
 import numpy as np
@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
+from matplotlib.figure import Figure
 import seaborn as sns
 
 # Interactive plotting
@@ -123,8 +124,14 @@ class MemoryVisualizer:
                                 reserved: List[int], labels: List[str],
                                 save_path: Optional[str]) -> plt.Figure:
         """Create static matplotlib timeline plot."""
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.style_config['figure_size'],
-                                       sharex=True, dpi=self.style_config['dpi'])
+        fig_obj, (ax1, ax2) = plt.subplots(
+            2,
+            1,
+            figsize=self.style_config['figure_size'],
+            sharex=True,
+            dpi=self.style_config['dpi'],
+        )
+        fig: Figure = fig_obj
 
         # Plot allocated memory
         ax1.plot(times, [m / (1024**3) for m in allocated],
@@ -155,7 +162,7 @@ class MemoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
-        return cast(plt.Figure, fig)
+        return fig
 
     def _create_interactive_timeline(self, times: List[float], allocated: List[int],
                                      reserved: List[int], labels: List[str],
@@ -224,7 +231,7 @@ class MemoryVisualizer:
             else:
                 fig.write_image(save_path, width=1200, height=800)
 
-        return cast(plt.Figure, fig)
+        return fig
 
     def plot_function_comparison(self,
                                  results: Optional[List[ProfileResult]] = None,
@@ -296,8 +303,11 @@ class MemoryVisualizer:
     def _create_static_bar_chart(self, labels: List[str], values: List[float],
                                  ylabel: str, title: str, save_path: Optional[str]) -> plt.Figure:
         """Create static matplotlib bar chart."""
-        fig, ax = plt.subplots(figsize=self.style_config['figure_size'],
-                               dpi=self.style_config['dpi'])
+        fig_obj, ax = plt.subplots(
+            figsize=self.style_config['figure_size'],
+            dpi=self.style_config['dpi'],
+        )
+        fig: Figure = fig_obj
 
         bars = ax.bar(labels, values, alpha=0.8)
         ax.set_ylabel(ylabel, fontsize=self.style_config['label_size'])
@@ -320,7 +330,7 @@ class MemoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
-        return cast(plt.Figure, fig)
+        return fig
 
     def _create_interactive_bar_chart(self, labels: List[str], values: List[float],
                                       ylabel: str, title: str, save_path: Optional[str]) -> go.Figure:
@@ -349,7 +359,7 @@ class MemoryVisualizer:
             else:
                 fig.write_image(save_path, width=1000, height=600)
 
-        return cast(plt.Figure, fig)
+        return fig
 
     def plot_memory_heatmap(self,
                             results: Optional[List[ProfileResult]] = None,
@@ -391,8 +401,11 @@ class MemoryVisualizer:
                 [r.peak_memory_usage() for r in func_results]) / (1024**3)  # GB
 
         # Create heatmap
-        fig, ax = plt.subplots(figsize=(10, max(6, len(functions) * 0.5)),
-                               dpi=self.style_config['dpi'])
+        fig_obj, ax = plt.subplots(
+            figsize=(10, max(6, len(functions) * 0.5)),
+            dpi=self.style_config['dpi'],
+        )
+        fig: Figure = fig_obj
 
         # Normalize data for better visualization
         normalized_data = np.zeros_like(data_matrix)
@@ -415,7 +428,7 @@ class MemoryVisualizer:
                  ha="right", rotation_mode="anchor")
 
         # Add colorbar
-        cbar = ax.figure.colorbar(im, ax=ax)
+        cbar = fig.colorbar(im, ax=ax)
         cbar.ax.set_ylabel('Normalized Value', rotation=-90, va="bottom")
 
         # Add text annotations
@@ -435,7 +448,7 @@ class MemoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
-        return cast(plt.Figure, fig)
+        return fig
 
     def create_dashboard(self,
                          results: Optional[List[ProfileResult]] = None,
