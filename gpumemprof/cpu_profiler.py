@@ -61,7 +61,7 @@ class CPUProfileResult:
 class CPUMemoryProfiler:
     """Lightweight CPU memory profiler mirroring the GPU API."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.process = psutil.Process()
         self.snapshots: List[CPUMemorySnapshot] = []
         self.results: List[CPUProfileResult] = []
@@ -100,7 +100,9 @@ class CPUMemoryProfiler:
             self._monitor_thread.join(timeout=1.0)
             self._monitor_thread = None
 
-    def profile_function(self, func: Callable, *args, **kwargs) -> CPUProfileResult:
+    def profile_function(
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> CPUProfileResult:
         before = self._take_snapshot()
         start = time.time()
         result = func(*args, **kwargs)
@@ -117,18 +119,18 @@ class CPUMemoryProfiler:
         self.results.append(profile)
         return profile
 
-    def profile_context(self, name: str = "context"):
+    def profile_context(self, name: str = "context") -> Any:
         class _Context:
-            def __init__(self, outer: CPUMemoryProfiler, label: str):
+            def __init__(self, outer: CPUMemoryProfiler, label: str) -> None:
                 self.outer = outer
                 self.label = label
 
-            def __enter__(self):
+            def __enter__(self) -> Any:
                 self.before = self.outer._take_snapshot()
                 self.start = time.time()
                 return self
 
-            def __exit__(self, exc_type, exc_val, exc_tb):
+            def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
                 after = self.outer._take_snapshot()
                 end = time.time()
                 peak_rss = max(self.before.rss, after.rss)
@@ -175,7 +177,7 @@ class CPUMemoryTracker:
         sampling_interval: float = 0.5,
         max_events: int = 10_000,
         enable_alerts: bool = True,
-    ):
+    ) -> None:
         self.process = psutil.Process()
         self.sampling_interval = sampling_interval
         self.events: deque[TrackingEvent] = deque(maxlen=max_events)
@@ -184,7 +186,7 @@ class CPUMemoryTracker:
         self._tracking_thread: Optional[threading.Thread] = None
         self.enable_alerts = enable_alerts
 
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "tracking_start_time": None,
             "peak_memory": 0,
             "total_events": 0,
@@ -193,7 +195,7 @@ class CPUMemoryTracker:
 
     def _current_rss(self) -> int:
         with self.process.oneshot():
-            return self.process.memory_info().rss
+            return int(self.process.memory_info().rss)
 
     def start_tracking(self) -> None:
         if self.is_tracking:
@@ -297,8 +299,9 @@ class CPUMemoryTracker:
     def get_statistics(self) -> Dict[str, Any]:
         rss = self._current_rss()
         duration = 0.0
-        if self.stats["tracking_start_time"]:
-            duration = time.time() - self.stats["tracking_start_time"]
+        tracking_start_time = self.stats.get("tracking_start_time")
+        if isinstance(tracking_start_time, (int, float)):
+            duration = time.time() - float(tracking_start_time)
         return {
             "mode": "cpu",
             "total_events": len(self.events),
@@ -366,5 +369,4 @@ class CPUMemoryTracker:
             size /= 1024
             unit_idx += 1
         return f"{size:.2f} {units[unit_idx]}"
-
 
