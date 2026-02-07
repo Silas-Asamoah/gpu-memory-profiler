@@ -315,7 +315,7 @@ class CPUMemoryTracker:
             return {"timestamps": [], "allocated": [], "reserved": []}
 
         timestamps = [event.timestamp for event in self.events]
-        allocated = [event.memory_allocated for event in self.events]
+        allocated = [float(event.memory_allocated) for event in self.events]
         return {
             "timestamps": timestamps,
             "allocated": allocated,
@@ -369,4 +369,3 @@ class CPUMemoryTracker:
             size /= 1024
             unit_idx += 1
         return f"{size:.2f} {units[unit_idx]}"
-

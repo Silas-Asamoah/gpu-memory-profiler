@@ -150,10 +150,7 @@ class GPUMemoryProfiler:
         if device_index >= torch.cuda.device_count():
             raise ValueError(f"Device {resolved_device} is not available")
 
-        if resolved_device.index is None:
-            resolved_device = torch.device(f"cuda:{device_index}")
-
-        return resolved_device
+        return torch.device(f"cuda:{device_index}")
 
     def _take_snapshot(self, operation: Optional[str] = None) -> MemorySnapshot:
         """Take a memory snapshot at the current moment."""
