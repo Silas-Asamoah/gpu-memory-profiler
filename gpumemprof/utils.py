@@ -84,7 +84,7 @@ def get_gpu_info(device: Optional[Union[str, int, torch.device]] = None) -> Dict
         "device_name": torch.cuda.get_device_name(device_id),
         "device_capability": torch.cuda.get_device_capability(device_id),
         "total_memory": torch.cuda.get_device_properties(device_id).total_memory,
-        "multiprocessor_count": torch.cuda.get_device_properties(device_id).multiprocessor_count,
+        "multiprocessor_count": torch.cuda.get_device_properties(device_id).multi_processor_count,
         "cuda_version": torch.version.cuda,
         "pytorch_version": torch.__version__,
     }
@@ -163,9 +163,9 @@ def _detect_platform_info() -> Dict[str, str]:
             pass
 
     try:
-        uname_result = platform.uname()
-        system_name = getattr(uname_result, "system", platform.system())
-        machine = getattr(uname_result, "machine", platform.machine())
+        platform_uname = platform.uname()
+        system_name = getattr(platform_uname, "system", platform.system())
+        machine = getattr(platform_uname, "machine", platform.machine())
     except Exception:
         system_name = platform.system()
         machine = platform.machine()
@@ -405,23 +405,27 @@ class MemoryContext:
     def __init__(self, name: str = "memory_context", device: Optional[Union[str, int, torch.device]] = None):
         self.name = name
         self.device = device
-        self.start_memory = None
-        self.end_memory = None
-        self.peak_memory = None
+        self.start_memory: Optional[int] = None
+        self.end_memory: Optional[int] = None
+        self.peak_memory: Optional[int] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "MemoryContext":
         torch.cuda.reset_peak_memory_stats(self.device)
         self.start_memory = torch.cuda.memory_allocated(self.device)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         torch.cuda.synchronize(self.device)
         self.end_memory = torch.cuda.memory_allocated(self.device)
         self.peak_memory = torch.cuda.max_memory_allocated(self.device)
 
     def get_summary(self) -> Dict[str, Any]:
         """Get memory usage summary for this context."""
-        if self.start_memory is None or self.end_memory is None:
+        if (
+            self.start_memory is None
+            or self.end_memory is None
+            or self.peak_memory is None
+        ):
             return {"error": "Context not properly initialized"}
 
         return {

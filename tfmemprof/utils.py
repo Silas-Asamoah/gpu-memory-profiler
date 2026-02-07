@@ -101,7 +101,7 @@ def get_backend_info() -> BackendInfo:
         try:
             build_info = cast(Dict[str, Any], tf.sysconfig.get_build_info())
         except Exception:
-            build_info: Dict[str, Any] = {}
+            build_info = {}
 
         backend_info["is_cuda_build"] = bool(build_info.get('is_cuda_build', False))
         backend_info["is_rocm_build"] = bool(build_info.get('is_rocm_build', False))
