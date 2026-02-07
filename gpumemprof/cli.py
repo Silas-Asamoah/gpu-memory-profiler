@@ -206,7 +206,7 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         while time.time() - start_time < duration:
             # Print current status every 5 seconds
             if int((time.time() - start_time)) % 5 == 0:
-                if cuda_available:
+                if isinstance(profiler, GPUMemoryProfiler):
                     current_mem = torch.cuda.memory_allocated(
                         profiler.device) / (1024**3)
                 else:
@@ -236,13 +236,16 @@ def cmd_monitor(args: argparse.Namespace) -> None:
 
     # Save data if requested
     if args.output:
-        visualizer = MemoryVisualizer(profiler)
-        output_path = visualizer.export_data(
-            snapshots=profiler.snapshots,
-            format=args.format,
-            save_path=Path(args.output).stem
-        )
-        print(f"Data saved to: {output_path}")
+        if isinstance(profiler, GPUMemoryProfiler):
+            visualizer = MemoryVisualizer(profiler)
+            output_path = visualizer.export_data(
+                snapshots=profiler.snapshots,
+                format=args.format,
+                save_path=Path(args.output).stem
+            )
+            print(f"Data saved to: {output_path}")
+        else:
+            print("Skipping visualization export: CPU monitoring snapshots are not supported by MemoryVisualizer.")
 
 
 def cmd_track(args: argparse.Namespace) -> None:
