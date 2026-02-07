@@ -16,7 +16,6 @@ __all__ = [
     "ProfileResult",
     "profile_context",
     "profile_function",
-    "MemoryVisualizer",
     "MemoryAnalyzer",
     "MemoryTracker",
     "CPUMemoryProfiler",

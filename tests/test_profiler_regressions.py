@@ -1,13 +1,16 @@
+from collections import defaultdict
 import subprocess
 import sys
 import textwrap
 
+import pytest
+
 from gpumemprof.context_profiler import profile_function
-from gpumemprof.profiler import TensorTracker
+from gpumemprof.profiler import GPUMemoryProfiler, MemorySnapshot, TensorTracker
 import gpumemprof.profiler as profiler_module
 
 
-def test_gpumemprof_import_succeeds_when_viz_imports_blocked():
+def test_gpumemprof_import_and_star_import_succeed_when_viz_imports_blocked():
     code = textwrap.dedent(
         """
         import builtins
@@ -23,8 +26,10 @@ def test_gpumemprof_import_succeeds_when_viz_imports_blocked():
         builtins.__import__ = blocked_import
 
         import gpumemprof
+        from gpumemprof import *  # noqa: F403,F401
 
         assert hasattr(gpumemprof, "GPUMemoryProfiler")
+        assert "GPUMemoryProfiler" in globals()
         try:
             gpumemprof.MemoryVisualizer
         except ImportError as exc:
@@ -90,3 +95,48 @@ def test_tensor_tracker_count_tensors_does_not_call_empty_cache(monkeypatch):
 
     assert tracker.count_tensors() == 0
     assert state["called"] is False
+
+
+class _ExceptionPathHarness:
+    def __init__(self):
+        self._tensor_tracker = None
+        self.results = []
+        self.function_stats = defaultdict(list)
+        self.device = 0
+
+    def _take_snapshot(self, operation=None):
+        return MemorySnapshot(
+            timestamp=0.0,
+            allocated_memory=0,
+            reserved_memory=0,
+            max_memory_allocated=0,
+            max_memory_reserved=0,
+            active_memory=0,
+            inactive_memory=0,
+            cpu_memory=0,
+            device_id=0,
+            operation=operation,
+        )
+
+
+def test_profile_function_reraises_without_duplicating_profiler_frame(monkeypatch):
+    harness = _ExceptionPathHarness()
+    monkeypatch.setattr(
+        profiler_module.torch.cuda, "reset_peak_memory_stats", lambda _device: None
+    )
+
+    def failing_operation():
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError) as exc_info:
+        GPUMemoryProfiler.profile_function(harness, failing_operation)
+
+    frame_names = []
+    tb = exc_info.value.__traceback__
+    while tb:
+        frame_names.append(tb.tb_frame.f_code.co_name)
+        tb = tb.tb_next
+
+    assert frame_names.count("profile_function") == 1
+    assert "failing_operation" in frame_names
+    assert len(harness.results) == 1
