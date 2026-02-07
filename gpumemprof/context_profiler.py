@@ -225,14 +225,12 @@ def start_monitoring(interval: float = 0.1, device: Optional[Union[str, int, tor
 
 def stop_monitoring():
     """Stop global memory monitoring."""
-    global _global_profiler
     if _global_profiler:
         _global_profiler.stop_monitoring()
 
 
 def get_summary():
     """Get global profiler summary."""
-    global _global_profiler
     if _global_profiler:
         return _global_profiler.get_summary()
     return {"message": "No global profiler instance"}
@@ -240,14 +238,12 @@ def get_summary():
 
 def clear_results():
     """Clear global profiler results."""
-    global _global_profiler
     if _global_profiler:
         _global_profiler.clear_results()
 
 
 def get_profile_results(limit: Optional[int] = None) -> List[ProfileResult]:
     """Return recent profile results captured by the global profiler."""
-    global _global_profiler
     if not _global_profiler:
         return []
 

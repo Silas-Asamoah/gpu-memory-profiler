@@ -294,7 +294,6 @@ def clear_global_profiler():
 
 def clear_profiles():
     """Reset profiling data without discarding the global profiler."""
-    global _global_profiler
 
     with _profiler_lock:
         if _global_profiler:
@@ -303,7 +302,6 @@ def clear_profiles():
 
 def get_profile_summaries(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """Return aggregated profiling summaries for recent functions/contexts."""
-    global _global_profiler
 
     with _profiler_lock:
         profiler = _global_profiler
