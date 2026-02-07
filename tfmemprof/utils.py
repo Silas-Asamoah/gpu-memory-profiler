@@ -9,6 +9,7 @@ import os
 import platform
 import subprocess
 import logging
+from importlib import metadata
 from typing import Dict, List, Optional, Any, Union
 import time
 
@@ -27,6 +28,78 @@ except ImportError:
     psutil = None
 
 import numpy as np
+
+
+def _is_package_installed(package_name: str) -> bool:
+    """Return True when a package distribution is installed."""
+    try:
+        metadata.version(package_name)
+        return True
+    except metadata.PackageNotFoundError:
+        return False
+    except Exception:
+        return False
+
+
+def _is_apple_silicon() -> bool:
+    """Return True when running on Apple Silicon."""
+    return platform.system() == "Darwin" and platform.machine() in {"arm64", "aarch64"}
+
+
+def _detect_runtime_backend(runtime_gpu_count: int, is_cuda_build: bool, is_rocm_build: bool, is_apple_silicon: bool, tensorflow_metal_installed: bool) -> str:
+    """Classify the currently usable TensorFlow runtime backend."""
+    if runtime_gpu_count > 0:
+        if is_cuda_build:
+            return "cuda"
+        if is_rocm_build:
+            return "rocm"
+        if is_apple_silicon:
+            return "metal"
+        return "gpu"
+
+    if is_apple_silicon and tensorflow_metal_installed:
+        return "metal"
+
+    return "cpu"
+
+
+def get_backend_info() -> Dict[str, Any]:
+    """Return backend diagnostics used by CLI and system reporting."""
+    backend_info = {
+        "is_apple_silicon": _is_apple_silicon(),
+        "runtime_gpu_count": 0,
+        "runtime_backend": "cpu",
+        "is_cuda_build": False,
+        "is_rocm_build": False,
+        "is_tensorrt_build": False,
+        "tensorflow_metal_installed": _is_package_installed("tensorflow-metal"),
+    }
+
+    if TF_AVAILABLE:
+        try:
+            runtime_gpu_count = len(tf.config.list_physical_devices('GPU'))
+        except Exception:
+            runtime_gpu_count = 0
+        backend_info["runtime_gpu_count"] = runtime_gpu_count
+
+        try:
+            build_info = tf.sysconfig.get_build_info()
+        except Exception:
+            build_info = {}
+
+        backend_info["is_cuda_build"] = bool(build_info.get('is_cuda_build', False))
+        backend_info["is_rocm_build"] = bool(build_info.get('is_rocm_build', False))
+        backend_info["is_tensorrt_build"] = bool(build_info.get('is_tensorrt_build', False))
+
+    backend_info["runtime_backend"] = _detect_runtime_backend(
+        runtime_gpu_count=backend_info["runtime_gpu_count"],
+        is_cuda_build=backend_info["is_cuda_build"],
+        is_rocm_build=backend_info["is_rocm_build"],
+        is_apple_silicon=backend_info["is_apple_silicon"],
+        tensorflow_metal_installed=backend_info["tensorflow_metal_installed"],
+    )
+
+    return backend_info
 
 
 def format_memory(bytes_value: Union[int, float]) -> str:
@@ -135,6 +208,7 @@ def get_system_info() -> Dict[str, Any]:
     # GPU information
     gpu_info = get_gpu_info()
     info['gpu'] = gpu_info
+    info['backend'] = get_backend_info()
 
     return info
 
