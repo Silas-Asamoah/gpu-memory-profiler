@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import List, Dict, Any, Optional, Union, Tuple
+from typing import List, Dict, Any, Optional, Union, Tuple, cast
 from datetime import datetime
 
 import numpy as np
@@ -155,7 +155,7 @@ class MemoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
-        return fig
+        return cast(plt.Figure, fig)
 
     def _create_interactive_timeline(self, times: List[float], allocated: List[int],
                                      reserved: List[int], labels: List[str],
@@ -224,7 +224,7 @@ class MemoryVisualizer:
             else:
                 fig.write_image(save_path, width=1200, height=800)
 
-        return fig
+        return cast(plt.Figure, fig)
 
     def plot_function_comparison(self,
                                  results: Optional[List[ProfileResult]] = None,
@@ -320,7 +320,7 @@ class MemoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
-        return fig
+        return cast(plt.Figure, fig)
 
     def _create_interactive_bar_chart(self, labels: List[str], values: List[float],
                                       ylabel: str, title: str, save_path: Optional[str]) -> go.Figure:
@@ -349,7 +349,7 @@ class MemoryVisualizer:
             else:
                 fig.write_image(save_path, width=1000, height=600)
 
-        return fig
+        return cast(plt.Figure, fig)
 
     def plot_memory_heatmap(self,
                             results: Optional[List[ProfileResult]] = None,
@@ -435,7 +435,7 @@ class MemoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
-        return fig
+        return cast(plt.Figure, fig)
 
     def create_dashboard(self,
                          results: Optional[List[ProfileResult]] = None,
