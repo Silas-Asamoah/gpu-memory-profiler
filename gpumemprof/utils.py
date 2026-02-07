@@ -176,17 +176,43 @@ def _detect_platform_info() -> Dict[str, str]:
     }
 
 
+def _get_mps_backend_info() -> Dict[str, bool]:
+    """Return PyTorch MPS backend capabilities when available."""
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is None:
+        return {"mps_built": False, "mps_available": False}
+
+    try:
+        mps_built = bool(mps_backend.is_built())
+    except Exception:
+        mps_built = False
+
+    try:
+        mps_available = bool(mps_backend.is_available())
+    except Exception:
+        mps_available = False
+
+    return {"mps_built": mps_built, "mps_available": mps_available}
+
+
 def get_system_info() -> Dict[str, Any]:
     """Get system information relevant to GPU profiling."""
     platform_info = _detect_platform_info()
+    cuda_available = torch.cuda.is_available()
+    mps_info = _get_mps_backend_info()
+    detected_backend = "cuda" if cuda_available else (
+        "mps" if mps_info["mps_available"] else "cpu")
     system_info = {
         "platform": platform_info["platform"],
         "architecture": platform_info["architecture"],
         "python_version": sys.version,
-        "cuda_available": torch.cuda.is_available(),
+        "cuda_available": cuda_available,
+        "mps_available": mps_info["mps_available"],
+        "mps_built": mps_info["mps_built"],
+        "detected_backend": detected_backend,
     }
 
-    if torch.cuda.is_available():
+    if cuda_available:
         system_info.update({
             "cuda_device_count": torch.cuda.device_count(),
             "cuda_version": torch.version.cuda,

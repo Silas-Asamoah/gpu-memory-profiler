@@ -12,6 +12,10 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Callable, Any
 import queue
 
+from .tf_env import configure_tensorflow_logging
+
+configure_tensorflow_logging()
+
 try:
     import tensorflow as tf
     TF_AVAILABLE = True

@@ -7,6 +7,10 @@ import sys
 import logging
 from pathlib import Path
 
+from .tf_env import configure_tensorflow_logging
+
+configure_tensorflow_logging()
+
 try:
     import tensorflow as tf
     TF_AVAILABLE = True
@@ -50,6 +54,7 @@ def cmd_info(args):
     print("-" * 20)
 
     gpu_info = system_info.get('gpu', {})
+    backend_info = system_info.get('backend', {})
     if gpu_info.get('available', False):
         print(f"GPU Available: Yes")
         print(f"GPU Count: {gpu_info['count']}")
@@ -63,9 +68,26 @@ def cmd_info(args):
                 f"  Current Memory: {device.get('current_memory_mb', 0):.1f} MB")
             print(f"  Peak Memory: {device.get('peak_memory_mb', 0):.1f} MB")
     else:
-        print("GPU Available: No")
+        print(
+            f"GPU Hardware Detected: {'Yes' if backend_info.get('hardware_gpu_detected', False) else 'No'}")
+        print("GPU Available to TensorFlow Runtime: No")
         if 'error' in gpu_info:
             print(f"Error: {gpu_info['error']}")
+        if backend_info.get('is_apple_silicon', False) and not backend_info.get('tensorflow_metal_installed', False):
+            print("Hint: install tensorflow-metal to enable Metal GPU runtime on Apple Silicon.")
+
+    if backend_info:
+        print("\nTensorFlow Backend Diagnostics:")
+        print("-" * 30)
+        print(f"Hardware GPU Detected: {backend_info.get('hardware_gpu_detected', False)}")
+        print(f"Runtime Backend: {backend_info.get('runtime_backend', 'cpu')}")
+        print(f"Runtime GPU Count: {backend_info.get('runtime_gpu_count', 0)}")
+        print(f"Apple Silicon: {backend_info.get('is_apple_silicon', False)}")
+        print(
+            f"tensorflow-metal Installed: {backend_info.get('tensorflow_metal_installed', False)}")
+        print(f"CUDA Build: {backend_info.get('is_cuda_build', False)}")
+        print(f"ROCm Build: {backend_info.get('is_rocm_build', False)}")
+        print(f"TensorRT Build: {backend_info.get('is_tensorrt_build', False)}")
 
     # TensorFlow specific information
     if TF_AVAILABLE:
@@ -73,7 +95,8 @@ def cmd_info(args):
         print("-" * 30)
         try:
             build_info = tf.sysconfig.get_build_info()
-            print(f"CUDA Build: {build_info.get('is_cuda_build', 'Unknown')}")
+            print(
+                f"CUDA Build: {backend_info.get('is_cuda_build', build_info.get('is_cuda_build', 'Unknown'))}")
             print(f"CUDA Version: {build_info.get('cuda_version', 'Unknown')}")
             print(
                 f"cuDNN Version: {build_info.get('cudnn_version', 'Unknown')}")

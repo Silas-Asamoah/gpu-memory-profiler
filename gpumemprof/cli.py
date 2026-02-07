@@ -125,9 +125,15 @@ def cmd_info(args):
     print(f"Platform: {system_info.get('platform', 'Unknown')}")
     print(f"Python Version: {system_info.get('python_version', 'Unknown')}")
     print(f"CUDA Available: {system_info.get('cuda_available', False)}")
+    print(f"Detected Backend: {system_info.get('detected_backend', 'cpu')}")
 
     if not system_info.get('cuda_available', False):
-        print("CUDA is not available. Falling back to CPU-only profiling.")
+        print(f"MPS Built: {system_info.get('mps_built', False)}")
+        print(f"MPS Available: {system_info.get('mps_available', False)}")
+        if system_info.get('mps_available', False):
+            print("CUDA is not available. MPS backend is available for supported PyTorch workloads.")
+        else:
+            print("CUDA is not available. Falling back to CPU-only profiling.")
         process = psutil.Process()
         with process.oneshot():
             mem = process.memory_info()

@@ -13,6 +13,10 @@ from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from contextlib import contextmanager
 import weakref
 
+from .tf_env import configure_tensorflow_logging
+
+configure_tensorflow_logging()
+
 try:
     import tensorflow as tf
     TF_AVAILABLE = True
