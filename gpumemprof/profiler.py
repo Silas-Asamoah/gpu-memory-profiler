@@ -122,29 +122,38 @@ class GPUMemoryProfiler:
 
     def _setup_device(self, device: Union[str, int, torch.device, None]) -> torch.device:
         """Setup and validate the device for profiling."""
+        resolved_device: torch.device
+
         if device is None:
             if torch.cuda.is_available():
-                device = torch.cuda.current_device()
+                resolved_device = torch.device(f"cuda:{torch.cuda.current_device()}")
             else:
                 raise RuntimeError(
                     "CUDA is not available, cannot profile GPU memory")
+        elif isinstance(device, int):
+            resolved_device = torch.device(f"cuda:{device}")
+        elif isinstance(device, str):
+            resolved_device = torch.device(device)
+        else:
+            resolved_device = device
 
-        if isinstance(device, (str, int)):
-            device = torch.device(
-                f"cuda:{device}" if isinstance(device, int) else device)
-
-        if not device.type == 'cuda':
+        if resolved_device.type != 'cuda':
             raise ValueError(
                 "Only CUDA devices are supported for GPU memory profiling")
 
-        if device.index is None:
-            device = torch.device(f"cuda:{torch.cuda.current_device()}")
-
         # Ensure device is available
-        if device.index >= torch.cuda.device_count():
-            raise ValueError(f"Device {device} is not available")
+        device_index = (
+            resolved_device.index
+            if resolved_device.index is not None
+            else torch.cuda.current_device()
+        )
+        if device_index >= torch.cuda.device_count():
+            raise ValueError(f"Device {resolved_device} is not available")
 
-        return device
+        if resolved_device.index is None:
+            resolved_device = torch.device(f"cuda:{device_index}")
+
+        return resolved_device
 
     def _take_snapshot(self, operation: Optional[str] = None) -> MemorySnapshot:
         """Take a memory snapshot at the current moment."""
@@ -171,7 +180,9 @@ class GPUMemoryProfiler:
 
         return snapshot
 
-    def profile_function(self, func: Callable, *args, **kwargs) -> ProfileResult:
+    def profile_function(
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> ProfileResult:
         """
         Profile a single function call.
 
@@ -277,7 +288,7 @@ class GPUMemoryProfiler:
         return profile_result
 
     @contextmanager
-    def profile_context(self, name: str = "context"):
+    def profile_context(self, name: str = "context") -> Any:
         """
         Context manager for profiling a block of code.
 
@@ -348,7 +359,7 @@ class GPUMemoryProfiler:
             self.results.append(profile_result)
             self.function_stats[name].append(profile_result)
 
-    def start_monitoring(self, interval: float = 0.1):
+    def start_monitoring(self, interval: float = 0.1) -> None:
         """
         Start continuous memory monitoring.
 
@@ -364,13 +375,13 @@ class GPUMemoryProfiler:
         self._monitor_thread.daemon = True
         self._monitor_thread.start()
 
-    def stop_monitoring(self):
+    def stop_monitoring(self) -> None:
         """Stop continuous memory monitoring."""
         self._monitoring = False
         if self._monitor_thread:
             self._monitor_thread.join()
 
-    def _monitor_memory(self):
+    def _monitor_memory(self) -> None:
         """Background thread for continuous memory monitoring."""
         while self._monitoring:
             snapshot = self._take_snapshot("monitor")
@@ -423,7 +434,7 @@ class GPUMemoryProfiler:
             'snapshots_collected': len(self.snapshots)
         }
 
-    def clear_results(self):
+    def clear_results(self) -> None:
         """Clear all profiling results and reset state."""
         self.results.clear()
         self.snapshots.clear()
@@ -431,11 +442,11 @@ class GPUMemoryProfiler:
         torch.cuda.reset_peak_memory_stats(self.device)
         self._baseline_snapshot = self._take_snapshot("new_baseline")
 
-    def __enter__(self):
+    def __enter__(self) -> "GPUMemoryProfiler":
         """Support for context manager usage."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Cleanup when exiting context manager."""
         self.stop_monitoring()
 
@@ -443,11 +454,11 @@ class GPUMemoryProfiler:
 class TensorTracker:
     """Tracks tensor creation and deletion for memory profiling."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tensor_count = 0
         self._setup_hooks()
 
-    def _setup_hooks(self):
+    def _setup_hooks(self) -> None:
         """Setup hooks to track tensor lifecycle."""
         # Note: This is a simplified version. Full implementation would require
         # more sophisticated tensor tracking using PyTorch's autograd hooks
