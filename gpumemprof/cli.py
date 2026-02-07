@@ -5,7 +5,7 @@ import sys
 import time
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Union
 
 import psutil
 import torch
@@ -18,7 +18,7 @@ from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
 from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
 
 
-def main():
+def main() -> None:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description="GPU Memory Profiler - Monitor and analyze GPU memory usage",
@@ -115,7 +115,7 @@ Examples:
         sys.exit(1)
 
 
-def cmd_info(args):
+def cmd_info(args: argparse.Namespace) -> None:
     """Handle info command."""
     print("GPU Memory Profiler - System Information")
     print("=" * 50)
@@ -179,7 +179,7 @@ def cmd_info(args):
             print(f"  Power Draw: {smi_info.get('power_draw_w', 0):.1f} W")
 
 
-def cmd_monitor(args):
+def cmd_monitor(args: argparse.Namespace) -> None:
     """Handle monitor command."""
     device = args.device
     duration = args.duration
@@ -193,6 +193,7 @@ def cmd_monitor(args):
     print("Press Ctrl+C to stop early")
     print()
 
+    profiler: Union[GPUMemoryProfiler, CPUMemoryProfiler]
     if cuda_available:
         profiler = GPUMemoryProfiler(device=device)
         profiler.start_monitoring(interval)
@@ -244,7 +245,7 @@ def cmd_monitor(args):
         print(f"Data saved to: {output_path}")
 
 
-def cmd_track(args):
+def cmd_track(args: argparse.Namespace) -> None:
     """Handle track command."""
     device = args.device
     duration = args.duration
@@ -258,6 +259,8 @@ def cmd_track(args):
     print()
 
     cuda_available = torch.cuda.is_available()
+    tracker: Union[MemoryTracker, CPUMemoryTracker]
+    watchdog: Optional[MemoryWatchdog] = None
     if cuda_available:
         tracker = MemoryTracker(
             device=device,
@@ -270,20 +273,18 @@ def cmd_track(args):
         tracker.set_threshold('memory_critical_percent', args.critical_threshold)
 
         # Add alert callback
-        def alert_callback(event):
+        def alert_callback(event: Any) -> None:
             timestamp = time.strftime('%H:%M:%S', time.localtime(event.timestamp))
             print(f"[{timestamp}] {event.event_type.upper()}: {event.context}")
 
         tracker.add_alert_callback(alert_callback)
 
         # Create watchdog if requested
-        watchdog = None
         if args.watchdog:
             watchdog = MemoryWatchdog(tracker)
             print("Memory watchdog enabled - automatic cleanup activated")
     else:
         tracker = CPUMemoryTracker(sampling_interval=interval)
-        watchdog = None
         print("Running CPU memory tracker (CUDA unavailable).")
 
     # Start tracking
@@ -335,7 +336,7 @@ def cmd_track(args):
         print(f"Events saved to: {args.output}")
 
 
-def cmd_analyze(args):
+def cmd_analyze(args: argparse.Namespace) -> None:
     """Handle analyze command."""
     input_file = args.input_file
 
