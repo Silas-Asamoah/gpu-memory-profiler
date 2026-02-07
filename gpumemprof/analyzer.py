@@ -183,10 +183,10 @@ class MemoryAnalyzer:
 
     def _detect_inefficient_allocations(self, results: List[ProfileResult]) -> List[MemoryPattern]:
         """Detect inefficient memory allocation patterns."""
-        patterns = []
+        patterns: List[MemoryPattern] = []
 
         # Look for functions that allocate much more than they actually use
-        inefficient_functions = []
+        inefficient_functions: List[Dict[str, Any]] = []
 
         for result in results:
             allocated = result.memory_allocated
@@ -205,13 +205,13 @@ class MemoryAnalyzer:
 
         if inefficient_functions:
             # Group by function name
-            func_efficiency = defaultdict(list)
+            func_efficiency: Dict[str, List[float]] = defaultdict(list)
             for item in inefficient_functions:
-                func_efficiency[item['function']].append(
-                    item['efficiency_ratio'])
+                func_efficiency[str(item['function'])].append(
+                    float(item['efficiency_ratio']))
 
             # Find consistently inefficient functions
-            consistently_inefficient = []
+            consistently_inefficient: List[str] = []
             for func_name, ratios in func_efficiency.items():
                 if len(ratios) >= self.thresholds['min_calls_for_analysis']:
                     avg_efficiency = statistics.mean(ratios)
@@ -243,7 +243,7 @@ class MemoryAnalyzer:
 
     def _detect_memory_spikes(self, results: List[ProfileResult]) -> List[MemoryPattern]:
         """Detect sudden memory spikes."""
-        patterns = []
+        patterns: List[MemoryPattern] = []
 
         # Calculate memory allocation statistics
         allocations = [
@@ -253,7 +253,9 @@ class MemoryAnalyzer:
             return patterns
 
         # Use statistical methods to detect outliers
-        q75, q25 = np.percentile(allocations, [75, 25])
+        allocation_array = np.asarray(allocations, dtype=float)
+        q75 = float(np.quantile(allocation_array, 0.75))
+        q25 = float(np.quantile(allocation_array, 0.25))
         iqr = q75 - q25
         outlier_threshold = q75 + 1.5 * iqr
 
@@ -292,7 +294,9 @@ class MemoryAnalyzer:
         patterns = []
 
         # Count function calls and total memory allocated
-        function_stats = defaultdict(lambda: {'calls': 0, 'total_memory': 0})
+        function_stats: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: {'calls': 0, 'total_memory': 0}
+        )
 
         for result in results:
             func_name = result.function_name
@@ -300,7 +304,7 @@ class MemoryAnalyzer:
             function_stats[func_name]['total_memory'] += result.memory_allocated
 
         # Find functions with many small allocations
-        repeated_allocation_functions = []
+        repeated_allocation_functions: List[Dict[str, Any]] = []
 
         for func_name, stats in function_stats.items():
             if stats['calls'] >= 10:  # Many calls
@@ -318,8 +322,8 @@ class MemoryAnalyzer:
         if repeated_allocation_functions:
             # Sort by total memory impact
             repeated_allocation_functions.sort(
-                key=lambda x: x['total_memory'], reverse=True)
-            top_functions = [f['function']
+                key=lambda x: float(x['total_memory']), reverse=True)
+            top_functions = [str(f['function'])
                              for f in repeated_allocation_functions[:5]]
 
             patterns.append(MemoryPattern(
@@ -493,7 +497,7 @@ class MemoryAnalyzer:
 
     def _analyze_function_correlations(self, results: List[ProfileResult]) -> List[PerformanceInsight]:
         """Analyze correlations between different metrics."""
-        insights = []
+        insights: List[PerformanceInsight] = []
 
         if len(results) < 10:  # Need enough data for correlation analysis
             return insights
@@ -531,7 +535,7 @@ class MemoryAnalyzer:
 
     def _analyze_temporal_patterns(self, results: List[ProfileResult]) -> List[PerformanceInsight]:
         """Analyze temporal patterns in the profiling data."""
-        insights = []
+        insights: List[PerformanceInsight] = []
 
         # Sort results by timestamp
         sorted_results = sorted(
@@ -590,25 +594,27 @@ class MemoryAnalyzer:
         if results is None and self.profiler:
             results = self.profiler.results
 
-        patterns = self.analyze_memory_patterns(results)
-        insights = self.generate_performance_insights(results)
+        effective_results = results or []
+
+        patterns = self.analyze_memory_patterns(effective_results)
+        insights = self.generate_performance_insights(effective_results)
 
         # Categorize findings by severity/impact
         critical_issues = [p for p in patterns if p.severity == 'critical']
         high_impact_insights = [i for i in insights if i.impact == 'high']
 
         # Generate summary statistics
-        total_memory_allocated = sum(r.memory_allocated for r in results)
-        total_execution_time = sum(r.execution_time for r in results)
-        unique_functions = len(set(r.function_name for r in results))
+        total_memory_allocated = sum(r.memory_allocated for r in effective_results)
+        total_execution_time = sum(r.execution_time for r in effective_results)
+        unique_functions = len(set(r.function_name for r in effective_results))
 
         report = {
             'summary': {
                 'total_functions_analyzed': unique_functions,
-                'total_function_calls': len(results),
+                'total_function_calls': len(effective_results),
                 'total_memory_allocated': total_memory_allocated,
                 'total_execution_time': total_execution_time,
-                'analysis_timestamp': results[-1].memory_after.timestamp if results else None
+                'analysis_timestamp': effective_results[-1].memory_after.timestamp if effective_results else None
             },
             'critical_issues': [p.__dict__ for p in critical_issues],
             'high_impact_insights': [i.__dict__ for i in high_impact_insights],

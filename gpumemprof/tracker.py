@@ -2,11 +2,10 @@
 
 import time
 import threading
-import queue
 from typing import Dict, List, Optional, Callable, Any, Union
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import torch
 import psutil
@@ -56,18 +55,18 @@ class MemoryTracker:
         self._stop_event = threading.Event()
 
         # Memory thresholds for alerts
-        self.thresholds = {
-            'memory_warning_percent': 80,  # Warn at 80% memory usage
-            'memory_critical_percent': 95,  # Critical at 95% memory usage
-            'memory_leak_threshold': 100 * 1024 * 1024,  # 100MB growth
-            'fragmentation_threshold': 0.3  # 30% fragmentation
+        self.thresholds: Dict[str, float] = {
+            'memory_warning_percent': 80.0,  # Warn at 80% memory usage
+            'memory_critical_percent': 95.0,  # Critical at 95% memory usage
+            'memory_leak_threshold': float(100 * 1024 * 1024),  # 100MB growth
+            'fragmentation_threshold': 0.3,  # 30% fragmentation
         }
 
         # Alert callbacks
         self.alert_callbacks: List[Callable[[TrackingEvent], None]] = []
 
         # Statistics
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             'peak_memory': 0,
             'total_allocations': 0,
             'total_deallocations': 0,
@@ -80,29 +79,31 @@ class MemoryTracker:
 
         # Get GPU info for memory limits
         self.gpu_info = get_gpu_info(self.device)
-        self.total_memory = self.gpu_info.get('total_memory', 0)
+        total_memory = self.gpu_info.get('total_memory', 0)
+        self.total_memory = int(total_memory) if isinstance(total_memory, (int, float)) else 0
 
     def _setup_device(self, device: Union[str, int, torch.device, None]) -> torch.device:
         """Setup and validate the device for tracking."""
+        resolved_device: torch.device
+
         if device is None:
             if torch.cuda.is_available():
-                device = torch.cuda.current_device()
+                resolved_device = torch.device(f"cuda:{torch.cuda.current_device()}")
             else:
                 raise RuntimeError(
                     "CUDA is not available, cannot track GPU memory")
+        elif isinstance(device, int):
+            resolved_device = torch.device(f"cuda:{device}")
+        elif isinstance(device, str):
+            resolved_device = torch.device(device)
+        else:
+            resolved_device = device
 
-        if isinstance(device, (str, int)):
-            device = torch.device(
-                f"cuda:{device}" if isinstance(device, int) else device)
-
-        if not device.type == 'cuda':
+        if resolved_device.type != 'cuda':
             raise ValueError(
                 "Only CUDA devices are supported for GPU memory tracking")
 
-        if device.index is None:
-            device = torch.device(f"cuda:{torch.cuda.current_device()}")
-
-        return device
+        return resolved_device
 
     def start_tracking(self) -> None:
         """Start real-time memory tracking."""
@@ -195,7 +196,7 @@ class MemoryTracker:
             memory_allocated=current_allocated,
             memory_reserved=current_reserved,
             memory_change=memory_change,
-            device_id=self.device.index,
+            device_id=self.device.index if self.device.index is not None else torch.cuda.current_device(),
             context=context,
             metadata=metadata
         )
@@ -440,12 +441,12 @@ class MemoryTracker:
 
         return alerts
 
-    def __enter__(self):
+    def __enter__(self) -> "MemoryTracker":
         """Context manager entry."""
         self.start_tracking()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         self.stop_tracking()
 
@@ -476,8 +477,8 @@ class MemoryWatchdog:
         self.tracker.add_alert_callback(self._handle_alert)
 
         self.cleanup_count = 0
-        self.last_cleanup_time = 0
-        self.min_cleanup_interval = 30  # Minimum 30 seconds between cleanups
+        self.last_cleanup_time = 0.0
+        self.min_cleanup_interval = 30.0  # Minimum 30 seconds between cleanups
 
     def _handle_alert(self, event: TrackingEvent) -> None:
         """Handle memory alerts."""

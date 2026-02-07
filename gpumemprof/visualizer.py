@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
+from matplotlib.figure import Figure
 import seaborn as sns
 
 # Interactive plotting
@@ -123,8 +124,14 @@ class MemoryVisualizer:
                                 reserved: List[int], labels: List[str],
                                 save_path: Optional[str]) -> plt.Figure:
         """Create static matplotlib timeline plot."""
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.style_config['figure_size'],
-                                       sharex=True, dpi=self.style_config['dpi'])
+        fig_obj, (ax1, ax2) = plt.subplots(
+            2,
+            1,
+            figsize=self.style_config['figure_size'],
+            sharex=True,
+            dpi=self.style_config['dpi'],
+        )
+        fig: Figure = fig_obj
 
         # Plot allocated memory
         ax1.plot(times, [m / (1024**3) for m in allocated],
@@ -250,41 +257,37 @@ class MemoryVisualizer:
             raise ValueError("No results available for comparison")
 
         # Aggregate data by function name
-        function_data = {}
+        function_memory_allocated: Dict[str, List[float]] = {}
+        function_execution_time: Dict[str, List[float]] = {}
+        function_peak_memory: Dict[str, List[float]] = {}
         for result in results:
             func_name = result.function_name
-            if func_name not in function_data:
-                function_data[func_name] = {
-                    'memory_allocated': [],
-                    'execution_time': [],
-                    'peak_memory': [],
-                    'call_count': 0
-                }
-
-            function_data[func_name]['memory_allocated'].append(
-                result.memory_allocated)
-            function_data[func_name]['execution_time'].append(
-                result.execution_time)
-            function_data[func_name]['peak_memory'].append(
-                result.peak_memory_usage())
-            function_data[func_name]['call_count'] += 1
+            function_memory_allocated.setdefault(func_name, []).append(
+                float(result.memory_allocated)
+            )
+            function_execution_time.setdefault(func_name, []).append(
+                float(result.execution_time)
+            )
+            function_peak_memory.setdefault(func_name, []).append(
+                float(result.peak_memory_usage())
+            )
 
         # Prepare plot data
-        functions = list(function_data.keys())
+        functions = list(function_memory_allocated.keys())
 
         if metric == 'memory_allocated':
-            values = [np.mean(function_data[func]['memory_allocated'])
+            values = [float(np.mean(function_memory_allocated[func]))
                       for func in functions]
             ylabel = 'Average Memory Allocated (GB)'
             title = 'Average Memory Allocation by Function'
             values = [v / (1024**3) for v in values]  # Convert to GB
         elif metric == 'execution_time':
-            values = [np.mean(function_data[func]['execution_time'])
+            values = [float(np.mean(function_execution_time[func]))
                       for func in functions]
             ylabel = 'Average Execution Time (seconds)'
             title = 'Average Execution Time by Function'
         elif metric == 'peak_memory':
-            values = [np.max(function_data[func]['peak_memory'])
+            values = [float(np.max(function_peak_memory[func]))
                       for func in functions]
             ylabel = 'Peak Memory Usage (GB)'
             title = 'Peak Memory Usage by Function'
@@ -300,8 +303,11 @@ class MemoryVisualizer:
     def _create_static_bar_chart(self, labels: List[str], values: List[float],
                                  ylabel: str, title: str, save_path: Optional[str]) -> plt.Figure:
         """Create static matplotlib bar chart."""
-        fig, ax = plt.subplots(figsize=self.style_config['figure_size'],
-                               dpi=self.style_config['dpi'])
+        fig_obj, ax = plt.subplots(
+            figsize=self.style_config['figure_size'],
+            dpi=self.style_config['dpi'],
+        )
+        fig: Figure = fig_obj
 
         bars = ax.bar(labels, values, alpha=0.8)
         ax.set_ylabel(ylabel, fontsize=self.style_config['label_size'])
@@ -395,13 +401,16 @@ class MemoryVisualizer:
                 [r.peak_memory_usage() for r in func_results]) / (1024**3)  # GB
 
         # Create heatmap
-        fig, ax = plt.subplots(figsize=(10, max(6, len(functions) * 0.5)),
-                               dpi=self.style_config['dpi'])
+        fig_obj, ax = plt.subplots(
+            figsize=(10, max(6, len(functions) * 0.5)),
+            dpi=self.style_config['dpi'],
+        )
+        fig: Figure = fig_obj
 
         # Normalize data for better visualization
         normalized_data = np.zeros_like(data_matrix)
         for j in range(data_matrix.shape[1]):
-            col_max = np.max(data_matrix[:, j])
+            col_max: float = float(np.max(data_matrix[:, j]))
             if col_max > 0:
                 normalized_data[:, j] = data_matrix[:, j] / col_max
 
@@ -419,7 +428,7 @@ class MemoryVisualizer:
                  ha="right", rotation_mode="anchor")
 
         # Add colorbar
-        cbar = ax.figure.colorbar(im, ax=ax)
+        cbar = fig.colorbar(im, ax=ax)
         cbar.ax.set_ylabel('Normalized Value', rotation=-90, va="bottom")
 
         # Add text annotations
@@ -483,7 +492,7 @@ class MemoryVisualizer:
 
         # Function comparison (top right)
         if results:
-            func_memory = {}
+            func_memory: Dict[str, List[float]] = {}
             for result in results:
                 if result.function_name not in func_memory:
                     func_memory[result.function_name] = []
@@ -628,7 +637,7 @@ class MemoryVisualizer:
         else:
             raise ValueError(f"Unsupported format: {format}")
 
-    def show(self, fig: Union[plt.Figure, go.Figure]):
+    def show(self, fig: Union[plt.Figure, go.Figure]) -> None:
         """Display a figure."""
         if isinstance(fig, plt.Figure):
             plt.show()

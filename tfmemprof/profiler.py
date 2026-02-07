@@ -9,7 +9,7 @@ import time
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING, Iterator
 from contextlib import contextmanager
 import weakref
 
@@ -45,7 +45,7 @@ class MemorySnapshot:
     operation_name: Optional[str] = None
     graph_node: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate snapshot data."""
         if self.gpu_memory_mb < 0:
             self.gpu_memory_mb = 0.0
@@ -64,8 +64,8 @@ class ProfileResult:
     total_allocations: int
     total_deallocations: int
     snapshots: List[MemorySnapshot] = field(default_factory=list)
-    function_profiles: Dict[str, Dict] = field(default_factory=dict)
-    tensor_lifecycle: Dict[str, Dict] = field(default_factory=dict)
+    function_profiles: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    tensor_lifecycle: Dict[str, Any] = field(default_factory=dict)
     memory_fragmentation: float = 0.0
     efficiency_score: float = 0.0
 
@@ -85,14 +85,14 @@ class ProfileResult:
 class TensorTracker:
     """Tracks TensorFlow tensor lifecycle and memory usage."""
 
-    def __init__(self):
-        self.tensors = weakref.WeakSet()
-        self.tensor_history = []
-        self.creation_times = {}
-        self.tensor_sizes = {}
+    def __init__(self) -> None:
+        self.tensors: weakref.WeakSet[Any] = weakref.WeakSet()
+        self.tensor_history: List[Dict[str, Any]] = []
+        self.creation_times: Dict[int, float] = {}
+        self.tensor_sizes: Dict[int, int] = {}
         self._lock = threading.Lock()
 
-    def track_tensor(self, tensor: r"tf.Tensor", operation_name: str = "unknown"):
+    def track_tensor(self, tensor: "tf.Tensor", operation_name: str = "unknown") -> None:
         """Track a new tensor."""
         if not TF_AVAILABLE or tensor is None:
             return
@@ -131,7 +131,7 @@ class TensorTracker:
                 'average_size_mb': (total_size / active_count / (1024 * 1024)) if active_count > 0 else 0
             }
 
-    def get_tensor_lifecycle(self) -> List[Dict]:
+    def get_tensor_lifecycle(self) -> List[Dict[str, Any]]:
         """Get complete tensor lifecycle history."""
         with self._lock:
             return self.tensor_history.copy()
@@ -140,7 +140,7 @@ class TensorTracker:
 class TFMemoryProfiler:
     """Main TensorFlow GPU Memory Profiler class."""
 
-    def __init__(self, device: Optional[str] = None, enable_tensor_tracking: bool = True):
+    def __init__(self, device: Optional[str] = None, enable_tensor_tracking: bool = True) -> None:
         """
         Initialize TensorFlow memory profiler.
 
@@ -156,10 +156,11 @@ class TFMemoryProfiler:
         self.enable_tensor_tracking = enable_tensor_tracking
 
         # Initialize components
-        self.tensor_tracker = TensorTracker() if enable_tensor_tracking else None
-        self.snapshots = []
-        self.function_profiles = {}
+        self.tensor_tracker: Optional[TensorTracker] = TensorTracker() if enable_tensor_tracking else None
+        self.snapshots: List[MemorySnapshot] = []
+        self.function_profiles: Dict[str, Dict[str, Any]] = {}
         self.profiling_active = False
+        self.profile_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
         # Setup TensorFlow memory growth
@@ -179,7 +180,7 @@ class TFMemoryProfiler:
         except Exception:
             return '/CPU:0'
 
-    def _setup_tf_memory(self):
+    def _setup_tf_memory(self) -> None:
         """Setup TensorFlow memory growth to avoid OOM errors."""
         try:
             gpus = tf.config.list_physical_devices('GPU')
@@ -254,9 +255,9 @@ class TFMemoryProfiler:
 
         return snapshot
 
-    def profile_function(self, func: Callable) -> Callable:
+    def profile_function(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Decorator to profile function memory usage."""
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             func_name = func.__name__
 
             # Capture before
@@ -308,7 +309,7 @@ class TFMemoryProfiler:
         return wrapper
 
     @contextmanager
-    def profile_context(self, name: str = "context"):
+    def profile_context(self, name: str = "context") -> Iterator[None]:
         """Context manager for profiling code blocks."""
         before_snapshot = self.capture_snapshot(f"{name}_start")
         start_time = time.time()
@@ -341,11 +342,11 @@ class TFMemoryProfiler:
                                              max(before_snapshot.gpu_memory_mb, after_snapshot.gpu_memory_mb))
                 profile['snapshots'].extend([before_snapshot, after_snapshot])
 
-    def start_continuous_profiling(self, interval: float = 1.0):
+    def start_continuous_profiling(self, interval: float = 1.0) -> None:
         """Start continuous memory profiling."""
         self.profiling_active = True
 
-        def profile_loop():
+        def profile_loop() -> None:
             while self.profiling_active:
                 self.capture_snapshot("continuous")
                 time.sleep(interval)
@@ -355,11 +356,12 @@ class TFMemoryProfiler:
         self.profile_thread.start()
         logging.info("Started continuous profiling")
 
-    def stop_continuous_profiling(self):
+    def stop_continuous_profiling(self) -> None:
         """Stop continuous memory profiling."""
         self.profiling_active = False
-        if hasattr(self, 'profile_thread'):
+        if self.profile_thread:
             self.profile_thread.join(timeout=5.0)
+            self.profile_thread = None
         logging.info("Stopped continuous profiling")
 
     def get_results(self) -> ProfileResult:
@@ -412,7 +414,7 @@ class TFMemoryProfiler:
                 tensor_lifecycle=tensor_lifecycle
             )
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset profiler state."""
         with self._lock:
             self.snapshots.clear()
@@ -422,12 +424,12 @@ class TFMemoryProfiler:
 
         logging.info("Profiler state reset")
 
-    def __enter__(self):
+    def __enter__(self) -> "TFMemoryProfiler":
         """Context manager entry."""
         self.capture_snapshot("context_start")
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         self.capture_snapshot("context_end")
         if self.profiling_active:

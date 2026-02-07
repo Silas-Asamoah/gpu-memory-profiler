@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Iterable, Sequence, List
+from typing import Any, Callable, Iterable, Sequence, List, Optional, cast
 
 # Suppress TensorFlow oneDNN warnings
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
@@ -48,37 +48,54 @@ from gpumemprof.utils import get_system_info, get_gpu_info, format_bytes
 from tfmemprof.utils import get_system_info as get_tf_system_info
 from tfmemprof.utils import get_gpu_info as get_tf_gpu_info
 
+torch: Any
 try:
-    import torch
+    import torch as _torch
+
+    torch = _torch
 except Exception:
     torch = None
 
+tf: Any
 try:
-    import tensorflow as tf
+    import tensorflow as _tf
     # Suppress TensorFlow INFO and WARNING messages
-    tf.get_logger().setLevel("ERROR")
+    _tf.get_logger().setLevel("ERROR")
     # Also suppress oneDNN warnings via environment
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+    tf = _tf
 except Exception:
     tf = None
 
+Figlet: Optional[Any]
 try:
-    from pyfiglet import Figlet
+    from pyfiglet import Figlet as _Figlet
+
+    Figlet = _Figlet
 except Exception:
     Figlet = None
 
+GPUMemoryProfiler: Optional[Any]
 try:
-    from gpumemprof import GPUMemoryProfiler
+    from gpumemprof import GPUMemoryProfiler as _GPUMemoryProfiler
+
+    GPUMemoryProfiler = _GPUMemoryProfiler
 except Exception:
     GPUMemoryProfiler = None
 
+CPUMemoryProfiler: Optional[Any]
 try:
-    from gpumemprof.cpu_profiler import CPUMemoryProfiler
+    from gpumemprof.cpu_profiler import CPUMemoryProfiler as _CPUMemoryProfiler
+
+    CPUMemoryProfiler = _CPUMemoryProfiler
 except Exception:
     CPUMemoryProfiler = None
 
+TFMemoryProfiler: Optional[Any]
 try:
-    from tfmemprof.profiler import TFMemoryProfiler
+    from tfmemprof.profiler import TFMemoryProfiler as _TFMemoryProfiler
+
+    TFMemoryProfiler = _TFMemoryProfiler
 except Exception:
     TFMemoryProfiler = None
 
@@ -90,21 +107,21 @@ WELCOME_MESSAGES = [
 ]
 
 
-def _safe_get_gpu_info() -> dict:
+def _safe_get_gpu_info() -> dict[str, Any]:
     try:
         return get_gpu_info()
     except Exception:
         return {}
 
 
-def _safe_get_tf_system_info() -> dict:
+def _safe_get_tf_system_info() -> dict[str, Any]:
     try:
         return get_tf_system_info()
     except Exception:
         return {}
 
 
-def _safe_get_tf_gpu_info() -> dict:
+def _safe_get_tf_gpu_info() -> dict[str, Any]:
     try:
         return get_tf_gpu_info()
     except Exception:
@@ -339,7 +356,7 @@ class AsciiWelcome(Static):
         messages: list[str],
         font: str = "Standard",
         interval: float = 3.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__("", **kwargs)
         self.messages = messages or ["GPU Memory Profiler"]
@@ -393,7 +410,12 @@ class AsciiWelcome(Static):
 class GPUStatsTable(DataTable):
     """Live-updating table of GPU stats."""
 
-    def __init__(self, title: str, provider, refresh_interval: float = 2.0):
+    def __init__(
+        self,
+        title: str,
+        provider: Callable[[], list[dict[str, Any]]],
+        refresh_interval: float = 2.0,
+    ) -> None:
         super().__init__(show_header=True, zebra_stripes=True, id=f"table-{title}")
         self.title_text = title
         self.provider = provider
@@ -423,7 +445,7 @@ class GPUStatsTable(DataTable):
 class MarkdownPanel(Markdown):
     """Reusable Markdown panel with refresh support."""
 
-    def __init__(self, builder, **kwargs):
+    def __init__(self, builder: Callable[[], str], **kwargs: Any) -> None:
         super().__init__("", **kwargs)
         self.builder = builder
 
@@ -445,12 +467,12 @@ class KeyValueTable(DataTable):
 class TimelineCanvas(Static):
     """ASCII timeline renderer for quick visual feedback."""
 
-    def __init__(self, width: int = 72, height: int = 10, **kwargs):
+    def __init__(self, width: int = 72, height: int = 10, **kwargs: Any) -> None:
         super().__init__("", **kwargs)
         self.canvas_width = width
         self.canvas_height = height
 
-    def render_timeline(self, timeline: dict) -> None:
+    def render_timeline(self, timeline: dict[str, Any]) -> None:
         allocated = timeline.get("allocated") if timeline else None
         reserved = timeline.get("reserved") if timeline else None
         if not allocated:
@@ -572,6 +594,13 @@ class ProfileResultsTable(DataTable):
 
 class GPUMemoryProfilerTUI(App):
     """Main Textual application."""
+
+    tracker_session: TrackerSession | None
+    cli_runner: CLICommandRunner
+    monitor_auto_cleanup: bool
+    _last_monitor_stats: dict[str, Any]
+    _last_timeline: dict[str, list[Any]]
+    recent_alerts: List[dict[str, Any]]
 
     CSS = """
     TabbedContent {
@@ -998,7 +1027,7 @@ class GPUMemoryProfilerTUI(App):
                 )
         yield Footer()
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         self.exit()
 
     def action_refresh_overview(self) -> None:
@@ -1200,9 +1229,10 @@ class GPUMemoryProfilerTUI(App):
         exports_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_path = exports_dir / f"tracker_events_{timestamp}.{format}"
+        active_session = session
 
         def _export() -> bool:
-            return session.export_events(str(file_path), format=format)
+            return bool(active_session.export_events(str(file_path), format=format))
 
         success = await asyncio.to_thread(_export)
         if not success:
@@ -1473,7 +1503,7 @@ class GPUMemoryProfilerTUI(App):
             "Visualizations", f"Saved timeline plot to: {file_path}"
         )
 
-    def _collect_timeline_data(self, interval: float = 1.0) -> dict:
+    def _collect_timeline_data(self, interval: float = 1.0) -> dict[str, Any]:
         session = self.tracker_session
         if session:
             timeline = session.get_memory_timeline(interval=interval)
@@ -1545,7 +1575,7 @@ class GPUMemoryProfilerTUI(App):
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if format == "png":
-            import matplotlib.pyplot as plt  # type: ignore
+            import matplotlib.pyplot as plt
 
             fig, ax = plt.subplots(figsize=(10, 5))
             ax.plot(rel_times, allocated_gb, label="Allocated (GB)", color="tab:blue")
@@ -1565,7 +1595,7 @@ class GPUMemoryProfilerTUI(App):
 
         if format == "html":
             try:
-                import plotly.graph_objects as go  # type: ignore
+                import plotly.graph_objects as go
             except ImportError as exc:  # pragma: no cover - optional dependency
                 raise ImportError(
                     "Plotly is required for HTML output. Install gpu-memory-profiler[viz]."
@@ -1603,7 +1633,12 @@ class GPUMemoryProfilerTUI(App):
 
         raise ValueError(f"Unsupported format: {format}")
 
-    async def _execute_task(self, title: str, func, formatter) -> None:
+    async def _execute_task(
+        self,
+        title: str,
+        func: Callable[[], Any],
+        formatter: Optional[Callable[[Any], str]],
+    ) -> None:
         formatter = formatter or (lambda value: str(value))
         self._set_loader(True)
         self.log_message(title, "Running sample workload...")
@@ -1619,19 +1654,23 @@ class GPUMemoryProfilerTUI(App):
         self.loader.display = visible
 
     @staticmethod
-    def _pytorch_sample_workload():
+    def _pytorch_sample_workload() -> dict[str, Any]:
+        if GPUMemoryProfiler is None or torch is None:
+            raise RuntimeError("PyTorch profiler is unavailable.")
         profiler = GPUMemoryProfiler()
 
-        def workload():
+        def workload() -> Any:
             x = torch.randn((3072, 3072), device="cuda")
             y = torch.matmul(x, x)
             return y.sum()
 
         profiler.profile_function(workload)
-        return profiler.get_summary()
+        return cast(dict[str, Any], profiler.get_summary())
 
     @staticmethod
-    def _tensorflow_sample_workload():
+    def _tensorflow_sample_workload() -> Any:
+        if TFMemoryProfiler is None or tf is None:
+            raise RuntimeError("TensorFlow profiler is unavailable.")
         profiler = TFMemoryProfiler()
         with profiler.profile_context("tf_sample"):
             tensor = tf.random.normal((2048, 2048))
@@ -1640,17 +1679,17 @@ class GPUMemoryProfilerTUI(App):
         return profiler.get_results()
 
     @staticmethod
-    def _cpu_sample_workload():
+    def _cpu_sample_workload() -> dict[str, Any]:
         if CPUMemoryProfiler is None:
             raise RuntimeError("CPUMemoryProfiler is unavailable.")
         profiler = CPUMemoryProfiler()
 
-        def workload():
+        def workload() -> int:
             data = [i for i in range(500000)]
             return sum(data)
 
         profiler.profile_function(workload)
-        return profiler.get_summary()
+        return cast(dict[str, Any], profiler.get_summary())
 
     @staticmethod
     def _format_pytorch_summary(summary: dict) -> str:
@@ -1666,7 +1705,7 @@ class GPUMemoryProfilerTUI(App):
         return "\n".join(lines)
 
     @staticmethod
-    def _format_tensorflow_results(results) -> str:
+    def _format_tensorflow_results(results: Any) -> str:
         lines = [
             f"Duration: {results.duration:.2f}s",
             f"Peak memory: {results.peak_memory_mb:.2f} MB",
@@ -1694,12 +1733,12 @@ class GPUMemoryProfilerTUI(App):
         self.command_log.write(f"[bold]{title}[/bold]\n{content}\n")
 
     async def on_mount(self) -> None:
-        self.tracker_session: TrackerSession | None = None
+        self.tracker_session = None
         self.cli_runner = CLICommandRunner()
         self.monitor_auto_cleanup = False
-        self._last_monitor_stats: dict[str, Any] = {}
-        self._last_timeline: dict[str, list] = {}
-        self.recent_alerts: List[dict[str, Any]] = []
+        self._last_monitor_stats = {}
+        self._last_timeline = {}
+        self.recent_alerts = []
         self.set_interval(1.0, self.refresh_monitoring_panel)
         self._update_watchdog_button_label()
         self._update_monitor_status()
@@ -1725,4 +1764,3 @@ def run_app() -> None:
 
 
 __all__ = ["run_app", "GPUMemoryProfilerTUI"]
-

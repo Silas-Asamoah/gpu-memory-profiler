@@ -3,7 +3,7 @@
 import functools
 import threading
 from contextlib import contextmanager
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Callable, Iterator, TypeVar, Union, cast
 
 from .tf_env import configure_tensorflow_logging
 
@@ -21,6 +21,7 @@ from .profiler import TFMemoryProfiler
 # Global profiler instance
 _global_profiler: Optional[TFMemoryProfiler] = None
 _profiler_lock = threading.Lock()
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def get_global_profiler() -> TFMemoryProfiler:
@@ -33,7 +34,7 @@ def get_global_profiler() -> TFMemoryProfiler:
         return _global_profiler
 
 
-def set_global_profiler(profiler: TFMemoryProfiler):
+def set_global_profiler(profiler: TFMemoryProfiler) -> None:
     """Set global profiler instance."""
     global _global_profiler
 
@@ -41,7 +42,12 @@ def set_global_profiler(profiler: TFMemoryProfiler):
         _global_profiler = profiler
 
 
-def profile_function(func=None, *, profiler=None, name=None):
+def profile_function(
+    func: Optional[F] = None,
+    *,
+    profiler: Optional[TFMemoryProfiler] = None,
+    name: Optional[str] = None,
+) -> Union[Callable[[F], F], F]:
     """
     Decorator to profile function memory usage.
 
@@ -50,16 +56,16 @@ def profile_function(func=None, *, profiler=None, name=None):
         profiler: Profiler instance (uses global if None)
         name: Custom name for profiling
     """
-    def decorator(f):
+    def decorator(f: F) -> F:
         @functools.wraps(f)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             prof = profiler or get_global_profiler()
-            func_name = name or f.__name__
+            _ = name or f.__name__
 
             # Use the profiler's function profiling
             return prof.profile_function(f)(*args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     if func is None:
         return decorator
@@ -68,7 +74,7 @@ def profile_function(func=None, *, profiler=None, name=None):
 
 
 @contextmanager
-def profile_context(name: str = "context", profiler: Optional[TFMemoryProfiler] = None):
+def profile_context(name: str = "context", profiler: Optional[TFMemoryProfiler] = None) -> Iterator[None]:
     """
     Context manager for profiling code blocks.
 
@@ -85,7 +91,7 @@ def profile_context(name: str = "context", profiler: Optional[TFMemoryProfiler] 
 class ProfiledLayer:
     """Wrapper for TensorFlow layers with automatic profiling."""
 
-    def __init__(self, layer, profiler: Optional[TFMemoryProfiler] = None, name: Optional[str] = None):
+    def __init__(self, layer: Any, profiler: Optional[TFMemoryProfiler] = None, name: Optional[str] = None) -> None:
         """
         Initialize profiled layer.
 
@@ -105,21 +111,21 @@ class ProfiledLayer:
         self._original_call = layer.call
         layer.call = self._profiled_call
 
-    def _profiled_call(self, *args, **kwargs):
+    def _profiled_call(self, *args: Any, **kwargs: Any) -> Any:
         """Profiled version of layer call."""
         with self.profiler.profile_context(f"layer_{self.name}"):
             return self._original_call(*args, **kwargs)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Delegate attribute access to wrapped layer."""
         return getattr(self.layer, name)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Make the wrapper callable."""
         return self.layer(*args, **kwargs)
 
 
-def profile_model(model, profiler: Optional[TFMemoryProfiler] = None):
+def profile_model(model: Any, profiler: Optional[TFMemoryProfiler] = None) -> Any:
     """
     Profile all layers in a TensorFlow model.
 
@@ -145,12 +151,12 @@ def profile_model(model, profiler: Optional[TFMemoryProfiler] = None):
 class TensorFlowProfiler:
     """High-level TensorFlow profiling interface."""
 
-    def __init__(self, device: Optional[str] = None):
+    def __init__(self, device: Optional[str] = None) -> None:
         """Initialize TensorFlow profiler."""
         self.profiler = TFMemoryProfiler(device=device)
         set_global_profiler(self.profiler)
 
-    def profile_training(self, model, dataset, epochs: int = 1, steps_per_epoch: Optional[int] = None):
+    def profile_training(self, model: Any, dataset: Any, epochs: int = 1, steps_per_epoch: Optional[int] = None) -> None:
         """
         Profile model training.
 
@@ -198,7 +204,7 @@ class TensorFlowProfiler:
 
                         step_count += 1
 
-    def profile_inference(self, model, data, batch_size: int = 32):
+    def profile_inference(self, model: Any, data: Any, batch_size: int = 32) -> None:
         """
         Profile model inference.
 
@@ -232,18 +238,25 @@ class TensorFlowProfiler:
                     with self.profiler.profile_context(f"inference_batch_{i}"):
                         model(batch, training=False)
 
-    def get_results(self):
+    def get_results(self) -> Any:
         """Get profiling results."""
         return self.profiler.get_results()
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset profiler state."""
         self.profiler.reset()
 
 
 # Convenience functions for common use cases
-def profile_keras_training(model, x_train, y_train, epochs: int = 1, batch_size: int = 32,
-                           validation_data=None, profiler: Optional[TFMemoryProfiler] = None):
+def profile_keras_training(
+    model: Any,
+    x_train: Any,
+    y_train: Any,
+    epochs: int = 1,
+    batch_size: int = 32,
+    validation_data: Optional[Any] = None,
+    profiler: Optional[TFMemoryProfiler] = None,
+) -> None:
     """
     Profile Keras model training.
 
@@ -282,7 +295,7 @@ def profile_keras_training(model, x_train, y_train, epochs: int = 1, batch_size:
                         model.evaluate(x_val, y_val, verbose=0)
 
 
-def clear_global_profiler():
+def clear_global_profiler() -> None:
     """Clear global profiler state."""
     global _global_profiler
 
@@ -292,9 +305,8 @@ def clear_global_profiler():
             _global_profiler = None
 
 
-def clear_profiles():
+def clear_profiles() -> None:
     """Reset profiling data without discarding the global profiler."""
-    global _global_profiler
 
     with _profiler_lock:
         if _global_profiler:
@@ -303,7 +315,6 @@ def clear_profiles():
 
 def get_profile_summaries(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """Return aggregated profiling summaries for recent functions/contexts."""
-    global _global_profiler
 
     with _profiler_lock:
         profiler = _global_profiler

@@ -10,7 +10,7 @@ import platform
 import subprocess
 import logging
 from importlib import metadata
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, TypedDict, cast
 import time
 
 from .tf_env import configure_tensorflow_logging
@@ -67,9 +67,20 @@ def _detect_runtime_backend(runtime_gpu_count: int, is_cuda_build: bool, is_rocm
     return "cpu"
 
 
-def get_backend_info() -> Dict[str, Any]:
+class BackendInfo(TypedDict):
+    is_apple_silicon: bool
+    hardware_gpu_detected: bool
+    runtime_gpu_count: int
+    runtime_backend: str
+    is_cuda_build: bool
+    is_rocm_build: bool
+    is_tensorrt_build: bool
+    tensorflow_metal_installed: bool
+
+
+def get_backend_info() -> BackendInfo:
     """Return backend diagnostics used by CLI and system reporting."""
-    backend_info = {
+    backend_info: BackendInfo = {
         "is_apple_silicon": _is_apple_silicon(),
         "hardware_gpu_detected": False,
         "runtime_gpu_count": 0,
@@ -88,7 +99,7 @@ def get_backend_info() -> Dict[str, Any]:
         backend_info["runtime_gpu_count"] = runtime_gpu_count
 
         try:
-            build_info = tf.sysconfig.get_build_info()
+            build_info = cast(Dict[str, Any], tf.sysconfig.get_build_info())
         except Exception:
             build_info = {}
 
@@ -111,7 +122,7 @@ def get_backend_info() -> Dict[str, Any]:
     return backend_info
 
 
-def format_memory(bytes_value: Union[int, float]) -> str:
+def format_memory(bytes_value: Optional[Union[int, float]]) -> str:
     """Format memory size in human-readable format."""
     if bytes_value is None:
         return "N/A"
@@ -127,7 +138,7 @@ def format_memory(bytes_value: Union[int, float]) -> str:
 
 def get_gpu_info() -> Dict[str, Any]:
     """Get detailed GPU information for TensorFlow."""
-    gpu_info = {
+    gpu_info: Dict[str, Any] = {
         'available': False,
         'count': 0,
         'devices': [],
@@ -185,7 +196,7 @@ def get_gpu_info() -> Dict[str, Any]:
 
 def get_system_info() -> Dict[str, Any]:
     """Get system and TensorFlow environment information."""
-    info = {
+    info: Dict[str, Any] = {
         'platform': platform.platform(),
         'python_version': platform.python_version(),
         'tensorflow_version': 'Not installed',
@@ -208,7 +219,7 @@ def get_system_info() -> Dict[str, Any]:
             pass
 
     # Memory information
-    if PSUTIL_AVAILABLE:
+    if PSUTIL_AVAILABLE and psutil is not None:
         memory = psutil.virtual_memory()
         info['total_memory_gb'] = memory.total / (1024 ** 3)
         info['available_memory_gb'] = memory.available / (1024 ** 3)
@@ -263,9 +274,9 @@ def analyze_fragmentation(snapshots: List) -> Dict[str, float]:
     }
 
 
-def suggest_optimizations(profile_result) -> List[str]:
+def suggest_optimizations(profile_result: Any) -> List[str]:
     """Generate TensorFlow-specific optimization suggestions."""
-    suggestions = []
+    suggestions: List[str] = []
 
     if not hasattr(profile_result, 'peak_memory_mb'):
         return suggestions
@@ -336,7 +347,7 @@ def suggest_optimizations(profile_result) -> List[str]:
     return unique_suggestions[:10]  # Return top 10 suggestions
 
 
-def generate_summary_report(profile_result) -> str:
+def generate_summary_report(profile_result: Any) -> str:
     """Generate a comprehensive summary report."""
     if not hasattr(profile_result, 'peak_memory_mb'):
         return "No profiling data available"
@@ -433,11 +444,11 @@ def generate_summary_report(profile_result) -> str:
     return "\n".join(report)
 
 
-def optimize_tensorflow_memory():
+def optimize_tensorflow_memory() -> List[str]:
     """Apply TensorFlow memory optimizations."""
     if not TF_AVAILABLE:
         logging.warning("TensorFlow not available for memory optimization")
-        return
+        return []
 
     optimizations_applied = []
 
@@ -505,7 +516,7 @@ def get_tensorflow_memory_usage() -> Dict[str, float]:
     return memory_info
 
 
-def clear_tensorflow_session():
+def clear_tensorflow_session() -> None:
     """Clear TensorFlow session and free memory."""
     if not TF_AVAILABLE:
         return
@@ -519,16 +530,17 @@ def clear_tensorflow_session():
 
 def validate_tensorflow_environment() -> Dict[str, Any]:
     """Validate TensorFlow environment for memory profiling."""
-    validation = {
+    issues: List[str] = []
+    validation: Dict[str, Any] = {
         'tensorflow_available': TF_AVAILABLE,
         'gpu_available': False,
         'memory_growth_enabled': False,
         'version_compatible': False,
-        'issues': []
+        'issues': issues
     }
 
     if not TF_AVAILABLE:
-        validation['issues'].append("TensorFlow not installed")
+        issues.append("TensorFlow not installed")
         return validation
 
     # Check TensorFlow version
@@ -538,10 +550,10 @@ def validate_tensorflow_environment() -> Dict[str, Any]:
         if major >= 2 and minor >= 4:
             validation['version_compatible'] = True
         else:
-            validation['issues'].append(
+            issues.append(
                 f"TensorFlow {version} may not be fully compatible (recommend 2.4+)")
     except Exception:
-        validation['issues'].append("Could not determine TensorFlow version")
+        issues.append("Could not determine TensorFlow version")
 
     # Check GPU availability
     try:
@@ -555,11 +567,11 @@ def validate_tensorflow_environment() -> Dict[str, Any]:
                     tf.config.experimental.set_memory_growth(gpu, True)
                 validation['memory_growth_enabled'] = True
             except Exception:
-                validation['issues'].append(
+                issues.append(
                     "Could not enable GPU memory growth")
         else:
-            validation['issues'].append("No GPU devices found")
+            issues.append("No GPU devices found")
     except Exception as e:
-        validation['issues'].append(f"Error checking GPU availability: {e}")
+        issues.append(f"Error checking GPU availability: {e}")
 
     return validation

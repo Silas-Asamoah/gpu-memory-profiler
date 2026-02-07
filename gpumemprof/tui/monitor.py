@@ -3,24 +3,40 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from ..utils import format_bytes
 
+MemoryTracker: Optional[Any]
+MemoryWatchdog: Optional[Any]
+TrackingEvent: Any
 try:
-    from gpumemprof.tracker import MemoryTracker, MemoryWatchdog, TrackingEvent
-except Exception:  # pragma: no cover - optional dependency
-    MemoryTracker = None  # type: ignore
-    MemoryWatchdog = None  # type: ignore
-    TrackingEvent = None  # type: ignore
+    from gpumemprof.tracker import (
+        MemoryTracker as _MemoryTracker,
+        MemoryWatchdog as _MemoryWatchdog,
+        TrackingEvent as _TrackingEvent,
+    )
 
-try:
-    from gpumemprof.cpu_profiler import CPUMemoryTracker
+    MemoryTracker = _MemoryTracker
+    MemoryWatchdog = _MemoryWatchdog
+    TrackingEvent = _TrackingEvent
 except Exception:  # pragma: no cover - optional dependency
-    CPUMemoryTracker = None  # type: ignore
+    MemoryTracker = None
+    MemoryWatchdog = None
+    TrackingEvent = Any
 
+CPUMemoryTracker: Optional[Any]
 try:
-    import torch
+    from gpumemprof.cpu_profiler import CPUMemoryTracker as _CPUMemoryTracker
+
+    CPUMemoryTracker = _CPUMemoryTracker
+except Exception:  # pragma: no cover - optional dependency
+    CPUMemoryTracker = None
+
+torch: Any
+try:
+    import torch as _torch
+    torch = _torch
 except Exception:  # pragma: no cover
     torch = None
 
@@ -62,7 +78,7 @@ class TrackerSession:
         self.max_events_per_poll = max_events_per_poll
         self.max_events = max_events
         self._tracker: Optional[Any] = None
-        self._watchdog: Optional[MemoryWatchdog] = None
+        self._watchdog: Optional[Any] = None
         self._last_seen_ts: Optional[float] = None
         self.backend = "gpu"
         self._cpu_thresholds = {
@@ -82,7 +98,7 @@ class TrackerSession:
         tracker_kwargs.setdefault("sampling_interval", self.sampling_interval)
         tracker_kwargs.setdefault("enable_alerts", True)
 
-        tracker = None
+        tracker: Optional[Any] = None
         backend = "gpu"
 
         if MemoryTracker is not None:
@@ -109,7 +125,7 @@ class TrackerSession:
         self._last_seen_ts = None
         self.backend = backend
 
-        if backend == "gpu" and MemoryWatchdog:
+        if backend == "gpu" and MemoryWatchdog is not None:
             self._watchdog = MemoryWatchdog(tracker, auto_cleanup=self.auto_cleanup)
         else:
             self._watchdog = None
@@ -155,17 +171,17 @@ class TrackerSession:
             )
         return views
 
-    def get_statistics(self) -> dict:
+    def get_statistics(self) -> Dict[str, Any]:
         """Expose the current tracker statistics."""
         if not self._tracker:
             return {}
-        return self._tracker.get_statistics()
+        return cast(Dict[str, Any], self._tracker.get_statistics())
 
-    def get_memory_timeline(self, interval: float = 1.0) -> dict:
+    def get_memory_timeline(self, interval: float = 1.0) -> Dict[str, Any]:
         """Return aggregated timeline data from the tracker."""
         if not self._tracker:
             return {}
-        return self._tracker.get_memory_timeline(interval=interval)
+        return cast(Dict[str, Any], self._tracker.get_memory_timeline(interval=interval))
 
     def get_device_label(self) -> Optional[str]:
         """Return the CUDA device label, if tracking."""
@@ -182,11 +198,11 @@ class TrackerSession:
         self._tracker.clear_events()
         self._last_seen_ts = None
 
-    def get_cleanup_stats(self) -> dict:
+    def get_cleanup_stats(self) -> Dict[str, Any]:
         """Return watchdog cleanup stats if available."""
         if not self._watchdog:
             return {}
-        return self._watchdog.get_cleanup_stats()
+        return cast(Dict[str, Any], self._watchdog.get_cleanup_stats())
 
     def set_auto_cleanup(self, enabled: bool) -> None:
         """Toggle automatic watchdog cleanup."""
@@ -209,7 +225,7 @@ class TrackerSession:
         tracker.export_events(file_path, format=format)
         return True
 
-    def get_thresholds(self) -> dict:
+    def get_thresholds(self) -> Dict[str, float]:
         if self.backend == "gpu" and self._tracker and hasattr(self._tracker, "thresholds"):
             thresholds = self._tracker.thresholds
             return {
@@ -225,5 +241,3 @@ class TrackerSession:
         else:
             self._cpu_thresholds["memory_warning_percent"] = warning
             self._cpu_thresholds["memory_critical_percent"] = critical
-
-

@@ -1,7 +1,7 @@
 """TensorFlow Memory Visualization"""
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple, cast
 import json
 import csv
 
@@ -28,7 +28,9 @@ import numpy as np
 class MemoryVisualizer:
     """TensorFlow memory visualization and dashboards."""
 
-    def __init__(self, style='default', figure_size=(12, 8)):
+    def __init__(
+        self, style: str = 'default', figure_size: Tuple[int, int] = (12, 8)
+    ) -> None:
         self.style = style
         self.figure_size = figure_size
 
@@ -38,7 +40,9 @@ class MemoryVisualizer:
             except Exception:
                 pass
 
-    def plot_memory_timeline(self, results, interactive=False, save_path=None):
+    def plot_memory_timeline(
+        self, results: Any, interactive: bool = False, save_path: Optional[str] = None
+    ) -> None:
         """Plot memory usage timeline."""
         if not hasattr(results, 'snapshots') or not results.snapshots:
             logging.warning("No snapshots available for plotting")
@@ -86,7 +90,9 @@ class MemoryVisualizer:
         else:
             logging.error("No plotting libraries available")
 
-    def plot_function_comparison(self, function_profiles, save_path=None):
+    def plot_function_comparison(
+        self, function_profiles: Dict[str, Dict[str, Any]], save_path: Optional[str] = None
+    ) -> None:
         """Plot function memory usage comparison."""
         if not function_profiles:
             logging.warning("No function profiles available")
@@ -117,7 +123,7 @@ class MemoryVisualizer:
             else:
                 plt.show()
 
-    def create_memory_heatmap(self, results, save_path=None):
+    def create_memory_heatmap(self, results: Any, save_path: Optional[str] = None) -> None:
         """Create memory usage heatmap."""
         if not hasattr(results, 'snapshots') or len(results.snapshots) < 10:
             logging.warning("Insufficient data for heatmap")
@@ -158,7 +164,7 @@ class MemoryVisualizer:
             else:
                 plt.show()
 
-    def create_interactive_dashboard(self, results, port=8050):
+    def create_interactive_dashboard(self, results: Any, port: int = 8050) -> None:
         """Create interactive Plotly dashboard."""
         if not PLOTLY_AVAILABLE:
             logging.error(
@@ -222,7 +228,7 @@ class MemoryVisualizer:
         except Exception as e:
             logging.error(f"Could not start dashboard: {e}")
 
-    def export_data(self, results, output_path, format='csv'):
+    def export_data(self, results: Any, output_path: str, format: str = 'csv') -> None:
         """Export profiling data."""
         if format.lower() == 'csv':
             self._export_csv(results, output_path)
@@ -231,7 +237,7 @@ class MemoryVisualizer:
         else:
             logging.error(f"Unsupported export format: {format}")
 
-    def _export_csv(self, results, output_path):
+    def _export_csv(self, results: Any, output_path: str) -> None:
         """Export data to CSV."""
         if not hasattr(results, 'snapshots') or not results.snapshots:
             logging.warning("No data to export")
@@ -253,18 +259,19 @@ class MemoryVisualizer:
 
         logging.info(f"Data exported to {output_path}")
 
-    def _export_json(self, results, output_path):
+    def _export_json(self, results: Any, output_path: str) -> None:
         """Export data to JSON."""
-        data = {
+        data: Dict[str, Any] = {
             'peak_memory_mb': getattr(results, 'peak_memory_mb', 0),
             'average_memory_mb': getattr(results, 'average_memory_mb', 0),
             'total_allocations': getattr(results, 'total_allocations', 0),
             'snapshots': []
         }
+        snapshots_data = cast(List[Dict[str, Any]], data['snapshots'])
 
         if hasattr(results, 'snapshots'):
             for snapshot in results.snapshots:
-                data['snapshots'].append({
+                snapshots_data.append({
                     'timestamp': snapshot.timestamp,
                     'name': snapshot.name,
                     'gpu_memory_mb': snapshot.gpu_memory_mb,
@@ -277,7 +284,7 @@ class MemoryVisualizer:
 
         logging.info(f"Data exported to {output_path}")
 
-    def save_plots(self, results, output_dir="./plots/"):
+    def save_plots(self, results: Any, output_dir: str = "./plots/") -> None:
         """Save all plots to directory."""
         import os
         os.makedirs(output_dir, exist_ok=True)

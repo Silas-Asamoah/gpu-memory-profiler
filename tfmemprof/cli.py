@@ -6,6 +6,7 @@ import time
 import sys
 import logging
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from .tf_env import configure_tensorflow_logging
 
@@ -24,7 +25,7 @@ from .analyzer import MemoryAnalyzer
 from .visualizer import MemoryVisualizer
 
 
-def setup_logging(verbose: bool = False):
+def setup_logging(verbose: bool = False) -> None:
     """Setup logging configuration."""
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -34,7 +35,7 @@ def setup_logging(verbose: bool = False):
     )
 
 
-def cmd_info(args):
+def cmd_info(args: argparse.Namespace) -> int:
     """Display system and GPU information."""
     print("TensorFlow Memory Profiler - System Information")
     print("=" * 50)
@@ -103,8 +104,10 @@ def cmd_info(args):
         except Exception as e:
             print(f"Could not get build info: {e}")
 
+    return 0
 
-def cmd_monitor(args):
+
+def cmd_monitor(args: argparse.Namespace) -> int:
     """Monitor GPU memory usage in real-time."""
     if not TF_AVAILABLE:
         print("Error: TensorFlow not available")
@@ -171,8 +174,10 @@ def cmd_monitor(args):
 
             print(f"Results saved to {args.output}")
 
+    return 0
 
-def cmd_track(args):
+
+def cmd_track(args: argparse.Namespace) -> int:
     """Start background memory tracking."""
     if not TF_AVAILABLE:
         print("Error: TensorFlow not available")
@@ -188,7 +193,7 @@ def cmd_track(args):
     )
 
     # Add alert callback
-    def alert_callback(alert):
+    def alert_callback(alert: Dict[str, Any]) -> None:
         print(f"\n⚠️  MEMORY ALERT: {alert['message']}")
 
     tracker.add_alert_callback(alert_callback)
@@ -229,8 +234,10 @@ def cmd_track(args):
         print(
             f"\nTracking completed. Peak memory: {results.peak_memory:.1f} MB")
 
+    return 0
 
-def cmd_analyze(args):
+
+def cmd_analyze(args: argparse.Namespace) -> int:
     """Analyze profiling results."""
     if not args.input:
         print("Error: Input file required for analysis")
@@ -248,7 +255,7 @@ def cmd_analyze(args):
 
     # Create a simple result object for analysis
     class AnalysisResult:
-        def __init__(self, data):
+        def __init__(self, data: Dict[str, Any]) -> None:
             self.peak_memory_mb = data.get('peak_memory', 0)
             self.average_memory_mb = data.get('average_memory', 0)
             self.min_memory_mb = min(data.get('memory_usage', [0]))
@@ -295,7 +302,7 @@ def cmd_analyze(args):
 
         # Create tracking result for leak detection
         class TrackingResult:
-            def __init__(self, data):
+            def __init__(self, data: Dict[str, Any]) -> None:
                 self.memory_usage = data.get('memory_usage', [])
                 self.timestamps = data.get('timestamps', [])
                 self.memory_growth_rate = 0
@@ -353,8 +360,10 @@ def cmd_analyze(args):
 
         print(f"✅ Report saved to {args.report}")
 
+    return 0
 
-def main():
+
+def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description="TensorFlow GPU Memory Profiler CLI",
