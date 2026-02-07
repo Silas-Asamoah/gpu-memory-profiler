@@ -5,6 +5,10 @@ import threading
 from contextlib import contextmanager
 from typing import Optional, Any, Dict, List
 
+from .tf_env import configure_tensorflow_logging
+
+configure_tensorflow_logging()
+
 try:
     import tensorflow as tf
     TF_AVAILABLE = True

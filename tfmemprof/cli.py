@@ -7,6 +7,10 @@ import sys
 import logging
 from pathlib import Path
 
+from .tf_env import configure_tensorflow_logging
+
+configure_tensorflow_logging()
+
 try:
     import tensorflow as tf
     TF_AVAILABLE = True
