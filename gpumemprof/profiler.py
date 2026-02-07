@@ -202,7 +202,7 @@ class GPUMemoryProfiler:
             result = func(*args, **kwargs)
             # Ensure all operations complete
             torch.cuda.synchronize(self.device)
-        except Exception as e:
+        except Exception:
             # Still capture memory state even if function fails
             memory_after = self._take_snapshot(f"after_{function_name}_error")
             memory_peak = self._take_snapshot(f"peak_{function_name}_error")
@@ -221,7 +221,7 @@ class GPUMemoryProfiler:
 
             self.results.append(profile_result)
             self.function_stats[function_name].append(profile_result)
-            raise e
+            raise
 
         end_time = time.time()
 
@@ -457,7 +457,6 @@ class TensorTracker:
         """Count current number of tracked tensors."""
         # Simplified implementation - count all tensors in CUDA memory
         gc.collect()
-        torch.cuda.empty_cache()
 
         tensor_count = 0
         for obj in gc.get_objects():

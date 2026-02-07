@@ -52,16 +52,21 @@ def profile_function(func: Optional[Callable] = None, *,
         def wrapper(*args, **kwargs):
             # Get profiler instance
             prof = profiler or get_global_profiler(device)
+            result_marker = object()
+            result_holder = {"value": result_marker}
 
             # Profile the function
             def profiled_func():
-                return f(*args, **kwargs)
+                result_holder["value"] = f(*args, **kwargs)
+                return result_holder["value"]
 
             profiled_func.__name__ = function_name
-            result_data = prof.profile_function(profiled_func)
+            prof.profile_function(profiled_func)
 
             # Return original function result, not profile result
-            return profiled_func()
+            if result_holder["value"] is result_marker:
+                return f(*args, **kwargs)
+            return result_holder["value"]
 
         # Add profiling metadata to the wrapper
         wrapper._is_profiled = True
