@@ -2,6 +2,7 @@ import contextlib
 from types import SimpleNamespace
 
 import gpumemprof.cli as gpumemprof_cli
+import tfmemprof.cli as tfmemprof_cli
 
 
 def _patch_cpu_process(monkeypatch):
@@ -106,3 +107,104 @@ def test_gpumemprof_info_keeps_cuda_output_when_available(monkeypatch, capsys):
     assert "CUDA Version: 12.1" in output
     assert "GPU 0 Information:" in output
     assert "Falling back to CPU-only profiling." not in output
+
+
+def test_tfmemprof_info_reports_backend_diagnostics_for_apple(monkeypatch, capsys):
+    monkeypatch.setattr(
+        tfmemprof_cli,
+        "get_system_info",
+        lambda: {
+            "platform": "macOS-15.3-arm64-arm-64bit",
+            "python_version": "3.10.19",
+            "tensorflow_version": "2.13.0",
+            "cpu_count": 8,
+            "total_memory_gb": 16.0,
+            "available_memory_gb": 8.0,
+            "gpu": {"available": False, "error": "No GPU devices found"},
+            "backend": {
+                "is_apple_silicon": True,
+                "runtime_gpu_count": 0,
+                "runtime_backend": "metal",
+                "is_cuda_build": False,
+                "is_rocm_build": False,
+                "is_tensorrt_build": False,
+                "tensorflow_metal_installed": True,
+            },
+        },
+    )
+    monkeypatch.setattr(tfmemprof_cli, "TF_AVAILABLE", True)
+    monkeypatch.setattr(
+        tfmemprof_cli,
+        "tf",
+        SimpleNamespace(
+            sysconfig=SimpleNamespace(
+                get_build_info=lambda: {
+                    "is_cuda_build": False,
+                    "cuda_version": "Unknown",
+                    "cudnn_version": "Unknown",
+                }
+            )
+        ),
+    )
+
+    tfmemprof_cli.cmd_info(SimpleNamespace())
+    output = capsys.readouterr().out
+
+    assert "Runtime Backend: metal" in output
+    assert "Apple Silicon: True" in output
+    assert "tensorflow-metal Installed: True" in output
+    assert "ROCm Build: False" in output
+    assert "TensorRT Build: False" in output
+    assert "CUDA Build: False" in output
+
+
+def test_tfmemprof_info_keeps_cuda_build_output(monkeypatch, capsys):
+    monkeypatch.setattr(
+        tfmemprof_cli,
+        "get_system_info",
+        lambda: {
+            "platform": "Linux",
+            "python_version": "3.10.19",
+            "tensorflow_version": "2.15.0",
+            "cpu_count": 8,
+            "total_memory_gb": 16.0,
+            "available_memory_gb": 8.0,
+            "gpu": {
+                "available": True,
+                "count": 1,
+                "total_memory": 4096,
+                "devices": [{"name": "GPU 0", "current_memory_mb": 10.0, "peak_memory_mb": 20.0}],
+            },
+            "backend": {
+                "is_apple_silicon": False,
+                "runtime_gpu_count": 1,
+                "runtime_backend": "cuda",
+                "is_cuda_build": True,
+                "is_rocm_build": False,
+                "is_tensorrt_build": True,
+                "tensorflow_metal_installed": False,
+            },
+        },
+    )
+    monkeypatch.setattr(tfmemprof_cli, "TF_AVAILABLE", True)
+    monkeypatch.setattr(
+        tfmemprof_cli,
+        "tf",
+        SimpleNamespace(
+            sysconfig=SimpleNamespace(
+                get_build_info=lambda: {
+                    "is_cuda_build": True,
+                    "cuda_version": "12.1",
+                    "cudnn_version": "8.9",
+                }
+            )
+        ),
+    )
+
+    tfmemprof_cli.cmd_info(SimpleNamespace())
+    output = capsys.readouterr().out
+
+    assert "Runtime Backend: cuda" in output
+    assert "CUDA Build: True" in output
+    assert "CUDA Version: 12.1" in output
+    assert "cuDNN Version: 8.9" in output
