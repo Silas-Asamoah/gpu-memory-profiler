@@ -12,7 +12,6 @@ import torch
 
 from .profiler import GPUMemoryProfiler
 from .tracker import MemoryTracker, MemoryWatchdog
-from .visualizer import MemoryVisualizer
 from .analyzer import MemoryAnalyzer
 from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
 from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
@@ -237,6 +236,15 @@ def cmd_monitor(args: argparse.Namespace) -> None:
     # Save data if requested
     if args.output:
         if isinstance(profiler, GPUMemoryProfiler):
+            try:
+                from .visualizer import MemoryVisualizer
+            except Exception:
+                print(
+                    "Visualization export requires optional dependencies. "
+                    "Install with `pip install gpu-memory-profiler[viz]`."
+                )
+                return
+
             visualizer = MemoryVisualizer(profiler)
             output_path = visualizer.export_data(
                 snapshots=profiler.snapshots,
