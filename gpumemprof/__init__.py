@@ -1,5 +1,7 @@
 """GPU Memory Profiler - A comprehensive memory profiling tool for PyTorch."""
 
+from typing import Any
+
 __version__ = "0.1.0"
 __author__ = "GPU Memory Profiler Team"
 
@@ -18,7 +20,7 @@ except ImportError as exc:
     class MemoryVisualizer:  # type: ignore[no-redef]
         """Fallback placeholder when optional visualization dependencies are missing."""
 
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             raise ImportError(
                 "MemoryVisualizer requires optional visualization dependencies. "
                 "Install with `pip install gpu-memory-profiler[viz]`."

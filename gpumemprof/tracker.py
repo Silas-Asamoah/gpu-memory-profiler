@@ -103,9 +103,6 @@ class MemoryTracker:
             raise ValueError(
                 "Only CUDA devices are supported for GPU memory tracking")
 
-        if resolved_device.index is None:
-            resolved_device = torch.device(f"cuda:{torch.cuda.current_device()}")
-
         return resolved_device
 
     def start_tracking(self) -> None:
