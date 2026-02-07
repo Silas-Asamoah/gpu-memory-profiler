@@ -183,10 +183,10 @@ class MemoryAnalyzer:
 
     def _detect_inefficient_allocations(self, results: List[ProfileResult]) -> List[MemoryPattern]:
         """Detect inefficient memory allocation patterns."""
-        patterns = []
+        patterns: List[MemoryPattern] = []
 
         # Look for functions that allocate much more than they actually use
-        inefficient_functions = []
+        inefficient_functions: List[Dict[str, Any]] = []
 
         for result in results:
             allocated = result.memory_allocated
@@ -205,13 +205,13 @@ class MemoryAnalyzer:
 
         if inefficient_functions:
             # Group by function name
-            func_efficiency = defaultdict(list)
+            func_efficiency: Dict[str, List[float]] = defaultdict(list)
             for item in inefficient_functions:
-                func_efficiency[item['function']].append(
-                    item['efficiency_ratio'])
+                func_efficiency[str(item['function'])].append(
+                    float(item['efficiency_ratio']))
 
             # Find consistently inefficient functions
-            consistently_inefficient = []
+            consistently_inefficient: List[str] = []
             for func_name, ratios in func_efficiency.items():
                 if len(ratios) >= self.thresholds['min_calls_for_analysis']:
                     avg_efficiency = statistics.mean(ratios)
