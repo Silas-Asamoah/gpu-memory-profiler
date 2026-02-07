@@ -67,6 +67,7 @@ def get_backend_info() -> Dict[str, Any]:
     """Return backend diagnostics used by CLI and system reporting."""
     backend_info = {
         "is_apple_silicon": _is_apple_silicon(),
+        "hardware_gpu_detected": False,
         "runtime_gpu_count": 0,
         "runtime_backend": "cpu",
         "is_cuda_build": False,
@@ -90,6 +91,10 @@ def get_backend_info() -> Dict[str, Any]:
         backend_info["is_cuda_build"] = bool(build_info.get('is_cuda_build', False))
         backend_info["is_rocm_build"] = bool(build_info.get('is_rocm_build', False))
         backend_info["is_tensorrt_build"] = bool(build_info.get('is_tensorrt_build', False))
+
+    backend_info["hardware_gpu_detected"] = bool(
+        backend_info["is_apple_silicon"] or backend_info["runtime_gpu_count"] > 0
+    )
 
     backend_info["runtime_backend"] = _detect_runtime_backend(
         runtime_gpu_count=backend_info["runtime_gpu_count"],

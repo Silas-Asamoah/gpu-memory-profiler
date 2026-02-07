@@ -123,6 +123,7 @@ def test_tfmemprof_info_reports_backend_diagnostics_for_apple(monkeypatch, capsy
             "gpu": {"available": False, "error": "No GPU devices found"},
             "backend": {
                 "is_apple_silicon": True,
+                "hardware_gpu_detected": True,
                 "runtime_gpu_count": 0,
                 "runtime_backend": "metal",
                 "is_cuda_build": False,
@@ -150,7 +151,10 @@ def test_tfmemprof_info_reports_backend_diagnostics_for_apple(monkeypatch, capsy
     tfmemprof_cli.cmd_info(SimpleNamespace())
     output = capsys.readouterr().out
 
+    assert "GPU Hardware Detected: Yes" in output
+    assert "GPU Available to TensorFlow Runtime: No" in output
     assert "Runtime Backend: metal" in output
+    assert "Hardware GPU Detected: True" in output
     assert "Apple Silicon: True" in output
     assert "tensorflow-metal Installed: True" in output
     assert "ROCm Build: False" in output
@@ -177,6 +181,7 @@ def test_tfmemprof_info_keeps_cuda_build_output(monkeypatch, capsys):
             },
             "backend": {
                 "is_apple_silicon": False,
+                "hardware_gpu_detected": True,
                 "runtime_gpu_count": 1,
                 "runtime_backend": "cuda",
                 "is_cuda_build": True,
@@ -205,6 +210,7 @@ def test_tfmemprof_info_keeps_cuda_build_output(monkeypatch, capsys):
     output = capsys.readouterr().out
 
     assert "Runtime Backend: cuda" in output
+    assert "Hardware GPU Detected: True" in output
     assert "CUDA Build: True" in output
     assert "CUDA Version: 12.1" in output
     assert "cuDNN Version: 8.9" in output

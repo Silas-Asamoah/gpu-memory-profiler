@@ -121,6 +121,7 @@ def test_tf_get_system_info_reports_apple_metal_backend(monkeypatch):
     backend = system_info["backend"]
 
     assert backend["is_apple_silicon"] is True
+    assert backend["hardware_gpu_detected"] is True
     assert backend["runtime_gpu_count"] == 0
     assert backend["tensorflow_metal_installed"] is True
     assert backend["runtime_backend"] == "metal"
@@ -139,6 +140,7 @@ def test_tf_get_system_info_reports_cuda_backend(monkeypatch):
     backend = system_info["backend"]
 
     assert backend["is_apple_silicon"] is False
+    assert backend["hardware_gpu_detected"] is True
     assert backend["runtime_gpu_count"] == 1
     assert backend["is_cuda_build"] is True
     assert backend["is_tensorrt_build"] is True
