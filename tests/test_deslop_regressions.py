@@ -3,6 +3,8 @@ import sys
 import textwrap
 
 from gpumemprof.context_profiler import profile_function
+from gpumemprof.profiler import TensorTracker
+import gpumemprof.profiler as profiler_module
 
 
 def test_gpumemprof_import_succeeds_when_viz_imports_blocked():
@@ -72,3 +74,19 @@ def test_profile_function_decorator_executes_once_and_returns_result():
     assert state["calls"] == 1
     assert profiler.calls == 1
     assert profiler.seen_name == "custom_profile_name"
+
+
+def test_tensor_tracker_count_tensors_does_not_call_empty_cache(monkeypatch):
+    tracker = TensorTracker()
+    state = {"called": False}
+
+    def fail_if_called():
+        state["called"] = True
+        raise AssertionError("count_tensors should not call torch.cuda.empty_cache()")
+
+    monkeypatch.setattr(profiler_module.gc, "collect", lambda: 0)
+    monkeypatch.setattr(profiler_module.gc, "get_objects", lambda: [])
+    monkeypatch.setattr(profiler_module.torch.cuda, "empty_cache", fail_if_called)
+
+    assert tracker.count_tensors() == 0
+    assert state["called"] is False

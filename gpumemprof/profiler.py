@@ -457,7 +457,6 @@ class TensorTracker:
         """Count current number of tracked tensors."""
         # Simplified implementation - count all tensors in CUDA memory
         gc.collect()
-        torch.cuda.empty_cache()
 
         tensor_count = 0
         for obj in gc.get_objects():
