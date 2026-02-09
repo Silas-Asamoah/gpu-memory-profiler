@@ -1191,7 +1191,7 @@ class GPUMemoryProfilerTUI(App):
             return
 
         self.cli_command_input.value = command
-        self.command_log.write(f"[bold green]$ {command}[/bold]\n")
+        self.command_log.write(f"[bold green]$ {command}[/bold green]\n")
         self._set_loader(True)
         try:
             exit_code = await self.cli_runner.run(command, self._handle_cli_output)
