@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Callable
 
 import pytest
 
 pytest.importorskip("textual")
+try:
+    import pytest_textual_snapshot  # noqa: F401
+except ModuleNotFoundError as exc:
+    raise RuntimeError(
+        "Missing required test dependency: pytest-textual-snapshot. Install via "
+        "`conda run -n tensor-torch-profiler python -m pip install -r requirements-test.txt`."
+    ) from exc
+
+pytest_plugins = (
+    ("pytest_textual_snapshot",)
+    if os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD") == "1"
+    else ()
+)
 
 from textual.pilot import Pilot
 from textual.widgets import Header as TextualHeader
