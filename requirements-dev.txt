@@ -2,10 +2,11 @@
 # Install with: pip install -r requirements-dev.txt
 
 # Testing
-pytest>=6.0.0
+pytest>=8.0.0
 pytest-cov>=2.10.0
 pytest-mock>=3.6.0
 pytest-xdist>=2.4.0
+pytest-textual-snapshot>=1.1.0
 
 # Code quality
 black>=21.0.0
