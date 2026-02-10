@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- [Future changes will be listed here]
+- Drop support for Python 3.8 and 3.9; minimum supported runtime is now Python 3.10.
+- Migration note: users on Python 3.8/3.9 should upgrade to Python 3.10+ or pin `gpu-memory-profiler<0.2.0`.
 
 ### Deprecated
 
