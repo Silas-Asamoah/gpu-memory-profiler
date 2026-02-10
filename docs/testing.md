@@ -67,6 +67,25 @@ python3 -m pytest -n auto
 python3 -m pytest -n 4
 ```
 
+### Textual Snapshot Tests
+
+Use snapshot tests to detect unintended visual/layout regressions in the Textual
+TUI tabs.
+
+```bash
+# Validate snapshots against the committed SVG baselines
+conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot
+
+# Intentionally update snapshots after approved UI changes
+conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot --snapshot-update
+```
+
+Snapshot files are stored at:
+
+`tests/tui/__snapshots__/test_app_snapshots/*.svg`
+
+Only update snapshot baselines when UI changes are intentional and reviewed.
+
 ## Test Structure
 
 ```
