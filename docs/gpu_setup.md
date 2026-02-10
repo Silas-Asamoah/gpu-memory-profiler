@@ -9,7 +9,7 @@ verify CUDA availability, and switch between CPU and GPU smoke tests.
   through NVIDIA Experience (Windows) or your distro’s driver manager (Linux).
 - **CUDA toolkit** (optional). Most pip wheels bundle the needed runtime, but
   native builds may require the toolkit/`nvcc`.
-- **Python 3.8–3.12** in a virtual environment.
+- **Python 3.10–3.12** in a virtual environment.
 
 ## 2. PyTorch (CUDA) Installation
 
@@ -95,4 +95,3 @@ gpu-profiler
 
 Use the overview tab to confirm the profiler sees your GPUs before running the
 full benchmarking or release checklist.
-

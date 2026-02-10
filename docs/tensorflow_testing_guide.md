@@ -63,7 +63,7 @@ The TensorFlow GPU Memory Profiler is a comprehensive tool for monitoring and op
 
 ### Minimum Requirements
 
--   **Python**: 3.8 or higher
+-   **Python**: 3.10 or higher
 -   **TensorFlow**: 2.4.0 or higher
 -   **System Memory**: 4GB RAM
 -   **Storage**: 200MB free space

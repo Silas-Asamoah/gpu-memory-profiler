@@ -64,7 +64,7 @@ The PyTorch GPU Memory Profiler is a comprehensive tool for monitoring and optim
 
 ### Minimum Requirements
 
--   **Python**: 3.8 or higher
+-   **Python**: 3.10 or higher
 -   **PyTorch**: 1.8.0 or higher
 -   **System Memory**: 4GB RAM
 -   **Storage**: 100MB free space

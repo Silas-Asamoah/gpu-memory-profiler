@@ -6,7 +6,7 @@ This guide covers different installation methods for GPU Memory Profiler.
 
 ## Prerequisites
 
--   Python 3.8 or higher
+-   Python 3.10 or higher
 -   pip (Python package installer)
 -   Git (for source installation)
 
