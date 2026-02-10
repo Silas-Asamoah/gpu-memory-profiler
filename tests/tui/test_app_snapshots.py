@@ -78,6 +78,7 @@ def _configure_snapshot_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(appmod, "fetch_pytorch_profiles", lambda limit=15: [])
     monkeypatch.setattr(appmod, "fetch_tensorflow_profiles", lambda limit=15: [])
+    monkeypatch.setattr(appmod.GPUMemoryProfilerTUI, "set_interval", lambda *args, **kwargs: None)
 
     class SnapshotHeader(TextualHeader):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
