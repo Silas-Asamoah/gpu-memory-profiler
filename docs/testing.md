@@ -86,6 +86,14 @@ Snapshot files are stored at:
 
 Only update snapshot baselines when UI changes are intentional and reviewed.
 
+If you see `fixture 'snap_compare' not found` or plugin import errors, install
+test dependencies and re-run:
+
+```bash
+conda run -n tensor-torch-profiler python -m pip install -r requirements-test.txt
+conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot
+```
+
 ## Test Structure
 
 ```
