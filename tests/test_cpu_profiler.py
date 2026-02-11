@@ -504,6 +504,8 @@ class TestCPUMemoryTracker:
             t.start()
         for t in threads:
             t.join(timeout=10)
+        for t in threads:
+            assert not t.is_alive(), f"Thread {t.name} did not complete (deadlock/timeout)"
 
         assert errors == [], f"Concurrent access raised errors: {errors}"
         assert len(tracker.events) == num_writers * writes_per_thread
@@ -528,6 +530,7 @@ class TestCPUMemoryTracker:
         reader_thread = threading.Thread(target=reader)
         reader_thread.start()
         reader_thread.join(timeout=5)
+        assert not reader_thread.is_alive(), "reader_thread timed out (possible deadlock)"
 
         tracker.stop_tracking()
 
@@ -561,6 +564,8 @@ class TestCPUMemoryTracker:
         t2.start()
         t1.join(timeout=5)
         t2.join(timeout=5)
+        assert not t1.is_alive(), "adder thread timed out (possible deadlock)"
+        assert not t2.is_alive(), "clearer thread timed out (possible deadlock)"
 
         assert errors == [], f"Concurrent clear/add raised: {errors}"
 
@@ -605,5 +610,69 @@ class TestCPUMemoryTracker:
         t2.start()
         t1.join(timeout=5)
         t2.join(timeout=5)
+        assert not t1.is_alive(), "adder thread timed out (possible deadlock)"
+        assert not t2.is_alive(), "exporter thread timed out (possible deadlock)"
 
         assert errors == [], f"Concurrent export/add raised: {errors}"
+
+    @patch("gpumemprof.cpu_profiler.psutil.Process")
+    def test_no_deque_mutation_error_under_concurrent_load(self, mock_cls, tmp_path):
+        """Regression: concurrent add/read/export must not raise
+        ``RuntimeError: deque mutated during iteration`` (the exact error
+        that was reproducible on *main* before the thread-safety fix).
+        """
+        mock_cls.return_value = _make_mock_process()
+        tracker = CPUMemoryTracker(max_events=50_000)
+        errors: List[Exception] = []
+
+        def writer(tid: int) -> None:
+            try:
+                for i in range(500):
+                    tracker._add_event("w", i, f"t{tid}_{i}")
+            except Exception as exc:
+                errors.append(exc)
+
+        def reader() -> None:
+            try:
+                for _ in range(300):
+                    tracker.get_events()
+                    tracker.get_memory_timeline()
+                    tracker.get_statistics()
+            except Exception as exc:
+                errors.append(exc)
+
+        def exporter() -> None:
+            try:
+                for i in range(20):
+                    tracker.export_events(
+                        str(tmp_path / f"regression_{i}.csv"), format="csv"
+                    )
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [
+            threading.Thread(target=writer, args=(0,)),
+            threading.Thread(target=writer, args=(1,)),
+            threading.Thread(target=reader),
+            threading.Thread(target=reader),
+            threading.Thread(target=exporter),
+        ]
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=10)
+        for t in threads:
+            assert not t.is_alive(), f"Thread {t.name} timed out (possible deadlock)"
+
+        # Explicitly check for the *exact* failure mode fixed by this PR.
+        deque_errors = [
+            e for e in errors
+            if isinstance(e, RuntimeError) and "deque mutated" in str(e)
+        ]
+        assert deque_errors == [], (
+            f"Regression: deque-mutation errors still occur under concurrent load: "
+            f"{deque_errors}"
+        )
+        # No other errors should have occurred either.
+        assert errors == [], f"Unexpected errors under concurrent load: {errors}"

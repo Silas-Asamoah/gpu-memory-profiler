@@ -203,7 +203,8 @@ class CPUMemoryTracker:
             return
         self.is_tracking = True
         self._stop_event.clear()
-        self.stats["tracking_start_time"] = time.time()
+        with self._events_lock:
+            self.stats["tracking_start_time"] = time.time()
         self._tracking_thread = threading.Thread(target=self._tracking_loop, daemon=True)
         self._tracking_thread.start()
         self._add_event("start", 0, "CPU memory tracking started")
