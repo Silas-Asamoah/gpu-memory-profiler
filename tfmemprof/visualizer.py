@@ -37,8 +37,8 @@ class MemoryVisualizer:
         if MATPLOTLIB_AVAILABLE and style != 'default':
             try:
                 plt.style.use(style)
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.debug("Could not apply matplotlib style %r: %s", style, exc)
 
     def plot_memory_timeline(
         self, results: Any, interactive: bool = False, save_path: Optional[str] = None

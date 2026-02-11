@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, cast
 
 from ..utils import format_bytes
+
+logger = logging.getLogger(__name__)
 
 MemoryTracker: Optional[Any]
 MemoryWatchdog: Optional[Any]
@@ -20,7 +23,7 @@ try:
     MemoryTracker = _MemoryTracker
     MemoryWatchdog = _MemoryWatchdog
     TrackingEvent = _TrackingEvent
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     MemoryTracker = None
     MemoryWatchdog = None
     TrackingEvent = Any
@@ -30,14 +33,14 @@ try:
     from gpumemprof.cpu_profiler import CPUMemoryTracker as _CPUMemoryTracker
 
     CPUMemoryTracker = _CPUMemoryTracker
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     CPUMemoryTracker = None
 
 torch: Any
 try:
     import torch as _torch
     torch = _torch
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover - optional dependency
     torch = None
 
 
@@ -104,7 +107,8 @@ class TrackerSession:
         if MemoryTracker is not None:
             try:
                 tracker = MemoryTracker(**tracker_kwargs)
-            except Exception:
+            except Exception as exc:
+                logger.debug("GPU MemoryTracker init failed, falling back to CPU: %s", exc)
                 tracker = None
 
         if tracker is None and CPUMemoryTracker is not None:

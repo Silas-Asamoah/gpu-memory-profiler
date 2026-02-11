@@ -41,7 +41,8 @@ def _is_package_installed(package_name: str) -> bool:
         return True
     except metadata.PackageNotFoundError:
         return False
-    except Exception:
+    except Exception as exc:
+        logging.debug("Package check failed for %r: %s", package_name, exc)
         return False
 
 
@@ -94,13 +95,15 @@ def get_backend_info() -> BackendInfo:
     if TF_AVAILABLE:
         try:
             runtime_gpu_count = len(tf.config.list_physical_devices('GPU'))
-        except Exception:
+        except Exception as exc:
+            logging.debug("Could not get TF GPU count: %s", exc)
             runtime_gpu_count = 0
         backend_info["runtime_gpu_count"] = runtime_gpu_count
 
         try:
             build_info = cast(Dict[str, Any], tf.sysconfig.get_build_info())
-        except Exception:
+        except Exception as exc:
+            logging.debug("Could not get TF build info: %s", exc)
             build_info = {}
 
         backend_info["is_cuda_build"] = bool(build_info.get('is_cuda_build', False))
@@ -181,8 +184,8 @@ def get_gpu_info() -> Dict[str, Any]:
                 if hasattr(tf, 'sysconfig'):
                     gpu_info['cuda_version'] = tf.sysconfig.get_build_info().get(
                         'cuda_version', 'Unknown')
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.debug("Could not get CUDA version from sysconfig: %s", exc)
 
         else:
             gpu_info['error'] = 'No GPU devices found'
@@ -215,8 +218,8 @@ def get_system_info() -> Dict[str, Any]:
             info['tf_build_cuda'] = build_info.get('is_cuda_build', False)
             info['tf_cuda_version'] = build_info.get('cuda_version', 'N/A')
             info['tf_cudnn_version'] = build_info.get('cudnn_version', 'N/A')
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug("Could not read TF build info: %s", exc)
 
     # Memory information
     if PSUTIL_AVAILABLE and psutil is not None:
@@ -465,15 +468,15 @@ def optimize_tensorflow_memory() -> List[str]:
         try:
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
             optimizations_applied.append("Enabled mixed precision training")
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug("Mixed precision not applied: %s", exc)
 
         # Enable XLA compilation
         try:
             tf.config.optimizer.set_jit(True)
             optimizations_applied.append("Enabled XLA compilation")
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug("XLA compilation not enabled: %s", exc)
 
         logging.info(
             f"Applied TensorFlow optimizations: {optimizations_applied}")
@@ -552,7 +555,8 @@ def validate_tensorflow_environment() -> Dict[str, Any]:
         else:
             issues.append(
                 f"TensorFlow {version} may not be fully compatible (recommend 2.4+)")
-    except Exception:
+    except Exception as exc:
+        logging.debug("TF version check failed: %s", exc)
         issues.append("Could not determine TensorFlow version")
 
     # Check GPU availability
@@ -566,7 +570,8 @@ def validate_tensorflow_environment() -> Dict[str, Any]:
                 for gpu in gpus:
                     tf.config.experimental.set_memory_growth(gpu, True)
                 validation['memory_growth_enabled'] = True
-            except Exception:
+            except Exception as exc:
+                logging.debug("GPU memory growth config failed: %s", exc)
                 issues.append(
                     "Could not enable GPU memory growth")
         else:

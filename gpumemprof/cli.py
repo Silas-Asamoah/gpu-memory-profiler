@@ -238,7 +238,7 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         if isinstance(profiler, GPUMemoryProfiler):
             try:
                 from .visualizer import MemoryVisualizer
-            except Exception:
+            except ImportError:
                 print(
                     "Visualization export requires optional dependencies. "
                     "Install with `pip install gpu-memory-profiler[viz]`."

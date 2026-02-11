@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ from typing import Any, Callable, Iterable, Sequence, List, Optional, cast
 
 # Suppress TensorFlow oneDNN warnings
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+
+logger = logging.getLogger(__name__)
 
 from textual import events
 from textual.app import App, ComposeResult
@@ -53,7 +56,7 @@ try:
     import torch as _torch
 
     torch = _torch
-except Exception:
+except ImportError:  # pragma: no cover - optional dependency
     torch = None
 
 tf: Any
@@ -64,7 +67,7 @@ try:
     # Also suppress oneDNN warnings via environment
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
     tf = _tf
-except Exception:
+except ImportError:  # pragma: no cover - optional dependency
     tf = None
 
 Figlet: Optional[Any]
@@ -72,7 +75,7 @@ try:
     from pyfiglet import Figlet as _Figlet
 
     Figlet = _Figlet
-except Exception:
+except ImportError:  # pragma: no cover - optional dependency
     Figlet = None
 
 GPUMemoryProfiler: Optional[Any]
@@ -80,7 +83,7 @@ try:
     from gpumemprof import GPUMemoryProfiler as _GPUMemoryProfiler
 
     GPUMemoryProfiler = _GPUMemoryProfiler
-except Exception:
+except ImportError:  # pragma: no cover - optional dependency
     GPUMemoryProfiler = None
 
 CPUMemoryProfiler: Optional[Any]
@@ -88,7 +91,7 @@ try:
     from gpumemprof.cpu_profiler import CPUMemoryProfiler as _CPUMemoryProfiler
 
     CPUMemoryProfiler = _CPUMemoryProfiler
-except Exception:
+except ImportError:  # pragma: no cover - optional dependency
     CPUMemoryProfiler = None
 
 TFMemoryProfiler: Optional[Any]
@@ -96,7 +99,7 @@ try:
     from tfmemprof.profiler import TFMemoryProfiler as _TFMemoryProfiler
 
     TFMemoryProfiler = _TFMemoryProfiler
-except Exception:
+except ImportError:  # pragma: no cover - optional dependency
     TFMemoryProfiler = None
 
 
@@ -110,21 +113,24 @@ WELCOME_MESSAGES = [
 def _safe_get_gpu_info() -> dict[str, Any]:
     try:
         return get_gpu_info()
-    except Exception:
+    except Exception as exc:
+        logger.debug("_safe_get_gpu_info failed: %s", exc)
         return {}
 
 
 def _safe_get_tf_system_info() -> dict[str, Any]:
     try:
         return get_tf_system_info()
-    except Exception:
+    except Exception as exc:
+        logger.debug("_safe_get_tf_system_info failed: %s", exc)
         return {}
 
 
 def _safe_get_tf_gpu_info() -> dict[str, Any]:
     try:
         return get_tf_gpu_info()
-    except Exception:
+    except Exception as exc:
+        logger.debug("_safe_get_tf_gpu_info failed: %s", exc)
         return {}
 
 
@@ -368,7 +374,8 @@ class AsciiWelcome(Static):
         if Figlet:
             try:
                 self._figlet = Figlet(font=self.font_name)
-            except Exception:
+            except Exception as exc:
+                logger.debug("Figlet initialization failed: %s", exc)
                 self._figlet = None
 
     def on_mount(self) -> None:
@@ -390,8 +397,8 @@ class AsciiWelcome(Static):
             try:
                 rendered = self._figlet.renderText(message)
                 return Text(rendered.rstrip(), style="bold cyan")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Figlet render failed, using fallback: %s", exc)
 
         fallback = dedent(
             f"""
@@ -1376,7 +1383,7 @@ class GPUMemoryProfilerTUI(App):
             return "-"
         try:
             return format_bytes(int(value))
-        except Exception:
+        except (TypeError, ValueError):
             return "-"
 
     def _append_monitor_events(self, events: list[TrackerEventView]) -> None:

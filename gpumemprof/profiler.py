@@ -1,5 +1,6 @@
 """Core GPU Memory Profiler for PyTorch."""
 
+import logging
 import time
 import threading
 import psutil
@@ -13,6 +14,8 @@ import torch
 import numpy as np
 
 from .utils import get_gpu_info, format_bytes, convert_bytes
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -210,8 +213,9 @@ class GPUMemoryProfiler:
             result = func(*args, **kwargs)
             # Ensure all operations complete
             torch.cuda.synchronize(self.device)
-        except Exception:
+        except Exception as exc:
             # Still capture memory state even if function fails
+            logger.debug("Profiled function raised, capturing error snapshot: %s", exc)
             memory_after = self._take_snapshot(f"after_{function_name}_error")
             memory_peak = self._take_snapshot(f"peak_{function_name}_error")
 

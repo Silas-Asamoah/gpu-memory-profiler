@@ -1,5 +1,6 @@
 """Utility functions for GPU memory profiling."""
 
+import logging
 import os
 import platform
 import subprocess
@@ -8,6 +9,8 @@ import sys
 from typing import Dict, List, Optional, Union, Any
 import torch
 import psutil
+
+logger = logging.getLogger(__name__)
 
 
 def format_bytes(bytes_value: int, precision: int = 2) -> str:
@@ -113,8 +116,8 @@ def get_gpu_info(device: Optional[Union[str, int, torch.device]] = None) -> Dict
     # Try to get additional info via nvidia-ml-py or nvidia-smi
     try:
         gpu_info.update(_get_nvidia_smi_info(device_id))
-    except Exception:
-        pass  # nvidia-smi info is optional
+    except Exception as exc:
+        logger.debug("nvidia-smi info unavailable: %s", exc)
 
     return gpu_info
 
@@ -143,8 +146,8 @@ def _get_nvidia_smi_info(device_id: int) -> Dict[str, Any]:
                             "power_draw_w": float(values[7].strip()),
                         }
                     }
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("nvidia-smi query failed: %s", exc)
 
     return {}
 
@@ -158,15 +161,15 @@ def _detect_platform_info() -> Dict[str, str]:
                 "platform": getattr(uname_result, "sysname", "Unknown"),
                 "architecture": getattr(uname_result, "machine", "Unknown"),
             }
-        except Exception:
-            # Fall back to platform module if os.uname is unavailable or fails
-            pass
+        except Exception as exc:
+            logger.debug("os.uname() failed, falling back to platform module: %s", exc)
 
     try:
         platform_uname = platform.uname()
         system_name = getattr(platform_uname, "system", platform.system())
         machine = getattr(platform_uname, "machine", platform.machine())
-    except Exception:
+    except Exception as exc:
+        logger.debug("platform.uname() failed, using fallback: %s", exc)
         system_name = platform.system()
         machine = platform.machine()
 
@@ -184,12 +187,14 @@ def _get_mps_backend_info() -> Dict[str, bool]:
 
     try:
         mps_built = bool(mps_backend.is_built())
-    except Exception:
+    except Exception as exc:
+        logger.debug("MPS backend query failed (is_built): %s", exc)
         mps_built = False
 
     try:
         mps_available = bool(mps_backend.is_available())
-    except Exception:
+    except Exception as exc:
+        logger.debug("MPS backend query failed (is_available): %s", exc)
         mps_available = False
 
     return {"mps_built": mps_built, "mps_available": mps_available}
