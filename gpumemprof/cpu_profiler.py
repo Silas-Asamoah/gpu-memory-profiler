@@ -181,6 +181,7 @@ class CPUMemoryTracker:
         self.process = psutil.Process()
         self.sampling_interval = sampling_interval
         self.events: deque[TrackingEvent] = deque(maxlen=max_events)
+        self._events_lock = threading.Lock()
         self.is_tracking = False
         self._stop_event = threading.Event()
         self._tracking_thread: Optional[threading.Thread] = None
@@ -202,7 +203,8 @@ class CPUMemoryTracker:
             return
         self.is_tracking = True
         self._stop_event.clear()
-        self.stats["tracking_start_time"] = time.time()
+        with self._events_lock:
+            self.stats["tracking_start_time"] = time.time()
         self._tracking_thread = threading.Thread(target=self._tracking_loop, daemon=True)
         self._tracking_thread.start()
         self._add_event("start", 0, "CPU memory tracking started")
@@ -226,9 +228,14 @@ class CPUMemoryTracker:
                 continue
 
             change = current_rss - last_rss
-            self.stats["total_events"] += 1
-            if current_rss > self.stats["peak_memory"]:
-                self.stats["peak_memory"] = current_rss
+            is_new_peak = False
+            with self._events_lock:
+                self.stats["total_events"] += 1
+                if current_rss > self.stats["peak_memory"]:
+                    self.stats["peak_memory"] = current_rss
+                    is_new_peak = True
+
+            if is_new_peak:
                 self._add_event(
                     "peak",
                     change,
@@ -261,7 +268,8 @@ class CPUMemoryTracker:
             device_id=-1,
             context=context,
         )
-        self.events.append(event)
+        with self._events_lock:
+            self.events.append(event)
 
     def get_events(
         self,
@@ -280,7 +288,8 @@ class CPUMemoryTracker:
         Returns:
             List of filtered events
         """
-        events: List[TrackingEvent] = list(self.events)
+        with self._events_lock:
+            events: List[TrackingEvent] = list(self.events)
 
         # Filter by type
         if event_type:
@@ -298,24 +307,30 @@ class CPUMemoryTracker:
 
     def get_statistics(self) -> Dict[str, Any]:
         rss = self._current_rss()
+        with self._events_lock:
+            total_events = len(self.events)
+            peak_memory = self.stats["peak_memory"]
+            tracking_start_time = self.stats.get("tracking_start_time")
         duration = 0.0
-        tracking_start_time = self.stats.get("tracking_start_time")
         if isinstance(tracking_start_time, (int, float)):
             duration = time.time() - float(tracking_start_time)
         return {
             "mode": "cpu",
-            "total_events": len(self.events),
-            "peak_memory": self.stats["peak_memory"],
+            "total_events": total_events,
+            "peak_memory": peak_memory,
             "current_memory_allocated": rss,
             "tracking_duration_seconds": duration,
         }
 
     def get_memory_timeline(self, interval: float = 1.0) -> Dict[str, List[float]]:
-        if not self.events:
+        with self._events_lock:
+            events_snapshot = list(self.events)
+
+        if not events_snapshot:
             return {"timestamps": [], "allocated": [], "reserved": []}
 
-        timestamps = [event.timestamp for event in self.events]
-        allocated = [float(event.memory_allocated) for event in self.events]
+        timestamps = [event.timestamp for event in events_snapshot]
+        allocated = [float(event.memory_allocated) for event in events_snapshot]
         return {
             "timestamps": timestamps,
             "allocated": allocated,
@@ -323,11 +338,15 @@ class CPUMemoryTracker:
         }
 
     def clear_events(self) -> None:
-        self.events.clear()
-        self.stats["peak_memory"] = 0
-        self.stats["total_events"] = 0
+        with self._events_lock:
+            self.events.clear()
+            self.stats["peak_memory"] = 0
+            self.stats["total_events"] = 0
 
     def export_events(self, filename: str, format: str = "csv") -> None:
+        with self._events_lock:
+            events_snapshot = list(self.events)
+
         records = [
             {
                 "timestamp": event.timestamp,
@@ -336,7 +355,7 @@ class CPUMemoryTracker:
                 "memory_change": event.memory_change,
                 "context": event.context,
             }
-            for event in self.events
+            for event in events_snapshot
         ]
 
         if not records:
