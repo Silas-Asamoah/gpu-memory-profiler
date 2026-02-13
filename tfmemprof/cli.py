@@ -23,6 +23,7 @@ from .utils import get_system_info, get_gpu_info, format_memory, generate_summar
 from .tracker import MemoryTracker
 from .analyzer import MemoryAnalyzer
 from .visualizer import MemoryVisualizer
+from gpumemprof.telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -33,6 +34,20 @@ def setup_logging(verbose: bool = False) -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
+
+
+def _normalize_telemetry_events(
+    records: list[dict[str, Any]], sampling_interval_ms: int
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for record in records:
+        event = telemetry_event_from_record(
+            record,
+            default_collector="tfmemprof.memory_tracker",
+            default_sampling_interval_ms=sampling_interval_ms,
+        )
+        normalized.append(telemetry_event_to_dict(event))
+    return normalized
 
 
 def cmd_info(args: argparse.Namespace) -> int:
@@ -216,6 +231,7 @@ def cmd_track(args: argparse.Namespace) -> int:
         results = tracker.stop_tracking()
 
         if args.output:
+            sampling_interval_ms = int(round(args.interval * 1000))
             output_data = {
                 'peak_memory': results.peak_memory,
                 'average_memory': results.average_memory,
@@ -223,7 +239,10 @@ def cmd_track(args: argparse.Namespace) -> int:
                 'memory_usage': results.memory_usage,
                 'timestamps': results.timestamps,
                 'alerts': results.alerts_triggered,
-                'events': results.events
+                'events': _normalize_telemetry_events(
+                    results.events,
+                    sampling_interval_ms=sampling_interval_ms,
+                ),
             }
 
             with open(args.output, 'w') as f:

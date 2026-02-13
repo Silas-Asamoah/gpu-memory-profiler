@@ -8,6 +8,7 @@ pytest-mock>=3.6.0
 pytest-xdist>=2.4.0
 pexpect>=4.9.0
 pytest-textual-snapshot>=1.1.0
+jsonschema>=4.0.0
 
 # Code quality
 black>=21.0.0
