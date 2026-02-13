@@ -13,6 +13,11 @@ import torch
 import psutil
 
 from .utils import format_bytes, get_gpu_info
+from .device_collectors import (
+    DeviceMemorySample,
+    build_device_memory_collector,
+    detect_torch_runtime_backend,
+)
 from .telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 logger = logging.getLogger(__name__)
@@ -29,6 +34,12 @@ class TrackingEvent:
     device_id: int
     context: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    active_memory: Optional[int] = None
+    inactive_memory: Optional[int] = None
+    device_used: Optional[int] = None
+    device_free: Optional[int] = None
+    device_total: Optional[int] = None
+    backend: str = "cuda"
 
 
 class MemoryTracker:
@@ -49,6 +60,9 @@ class MemoryTracker:
             enable_alerts: Whether to enable memory alerts
         """
         self.device = self._setup_device(device)
+        self.collector = build_device_memory_collector(self.device)
+        self.backend = self.collector.name()
+        self.collector_capabilities = self.collector.capabilities()
         self.sampling_interval = sampling_interval
         self.max_events = max_events
         self.enable_alerts = enable_alerts
@@ -82,21 +96,28 @@ class MemoryTracker:
             'last_memory_check': 0
         }
 
-        # Get GPU info for memory limits
-        self.gpu_info = get_gpu_info(self.device)
-        total_memory = self.gpu_info.get('total_memory', 0)
-        self.total_memory = int(total_memory) if isinstance(total_memory, (int, float)) else 0
+        # Get memory limits with backend-aware fallback.
+        self.gpu_info = get_gpu_info(self.device) if self.device.type == "cuda" else {}
+        initial_sample = self._safe_sample()
+        total_memory = initial_sample.total_bytes
+        if total_memory is None:
+            fallback_total = self.gpu_info.get("total_memory", 0)
+            total_memory = int(fallback_total) if isinstance(fallback_total, (int, float)) else 0
+        self.total_memory = int(total_memory)
 
     def _setup_device(self, device: Union[str, int, torch.device, None]) -> torch.device:
         """Setup and validate the device for tracking."""
         resolved_device: torch.device
 
         if device is None:
-            if torch.cuda.is_available():
+            backend = detect_torch_runtime_backend()
+            if backend in {"cuda", "rocm"}:
                 resolved_device = torch.device(f"cuda:{torch.cuda.current_device()}")
+            elif backend == "mps":
+                resolved_device = torch.device("mps")
             else:
                 raise RuntimeError(
-                    "CUDA is not available, cannot track GPU memory")
+                    "No supported GPU backend available (CUDA/ROCm/MPS)")
         elif isinstance(device, int):
             resolved_device = torch.device(f"cuda:{device}")
         elif isinstance(device, str):
@@ -104,11 +125,48 @@ class MemoryTracker:
         else:
             resolved_device = device
 
-        if resolved_device.type != 'cuda':
+        if resolved_device.type not in {"cuda", "mps"}:
             raise ValueError(
-                "Only CUDA devices are supported for GPU memory tracking")
+                "Only CUDA/ROCm or MPS devices are supported for GPU memory tracking")
+
+        if resolved_device.type == "cuda":
+            device_index = (
+                resolved_device.index
+                if resolved_device.index is not None
+                else torch.cuda.current_device()
+            )
+            if device_index >= torch.cuda.device_count():
+                raise ValueError(f"Device {resolved_device} is not available")
+            return torch.device(f"cuda:{device_index}")
+        if detect_torch_runtime_backend() != "mps":
+            raise RuntimeError("MPS backend is not available in this runtime")
 
         return resolved_device
+
+    def _safe_sample(self) -> DeviceMemorySample:
+        """Collect one backend sample with defensive fallback values."""
+        try:
+            return self.collector.sample()
+        except Exception as exc:
+            logger.debug("Could not sample %s memory: %s", self.backend, exc)
+            device_id = 0
+            if self.device.type == "cuda":
+                try:
+                    device_id = (
+                        self.device.index if self.device.index is not None else torch.cuda.current_device()
+                    )
+                except Exception:
+                    device_id = 0
+            return DeviceMemorySample(
+                allocated_bytes=0,
+                reserved_bytes=0,
+                used_bytes=0,
+                free_bytes=None,
+                total_bytes=None,
+                active_bytes=None,
+                inactive_bytes=None,
+                device_id=device_id,
+            )
 
     def start_tracking(self) -> None:
         """Start real-time memory tracking."""
@@ -148,8 +206,9 @@ class MemoryTracker:
         while not self._stop_event.wait(self.sampling_interval):
             try:
                 # Get current memory usage
-                current_allocated = torch.cuda.memory_allocated(self.device)
-                current_reserved = torch.cuda.memory_reserved(self.device)
+                sample = self._safe_sample()
+                current_allocated = sample.allocated_bytes
+                current_reserved = sample.reserved_bytes
 
                 # Calculate change
                 memory_change = current_allocated - last_allocated
@@ -159,20 +218,32 @@ class MemoryTracker:
                 if current_allocated > self.stats['peak_memory']:
                     self.stats['peak_memory'] = current_allocated
                     self._add_event(
-                        'peak', memory_change, f"New peak memory: {format_bytes(current_allocated)}")
+                        'peak',
+                        memory_change,
+                        f"New peak memory: {format_bytes(current_allocated)}",
+                        sample=sample,
+                    )
 
                 # Track allocations/deallocations
                 if memory_change > 0:
                     self.stats['total_allocations'] += 1
                     self.stats['total_allocation_bytes'] += memory_change
                     self._add_event(
-                        'allocation', memory_change, f"Memory allocated: {format_bytes(memory_change)}")
+                        'allocation',
+                        memory_change,
+                        f"Memory allocated: {format_bytes(memory_change)}",
+                        sample=sample,
+                    )
                 elif memory_change < 0:
                     self.stats['total_deallocations'] += 1
                     self.stats['total_deallocation_bytes'] += abs(
                         memory_change)
-                    self._add_event('deallocation', memory_change,
-                                    f"Memory freed: {format_bytes(abs(memory_change))}")
+                    self._add_event(
+                        'deallocation',
+                        memory_change,
+                        f"Memory freed: {format_bytes(abs(memory_change))}",
+                        sample=sample,
+                    )
 
                 # Check for alerts
                 if self.enable_alerts:
@@ -186,15 +257,12 @@ class MemoryTracker:
                 time.sleep(1.0)  # Back off on errors
 
     def _add_event(self, event_type: str, memory_change: int, context: str,
-                   metadata: Optional[Dict[str, Any]] = None) -> None:
+                   metadata: Optional[Dict[str, Any]] = None,
+                   sample: Optional[DeviceMemorySample] = None) -> None:
         """Add a tracking event."""
-        try:
-            current_allocated = torch.cuda.memory_allocated(self.device)
-            current_reserved = torch.cuda.memory_reserved(self.device)
-        except Exception as exc:
-            logger.debug("Could not query CUDA memory in _add_event: %s", exc)
-            current_allocated = 0
-            current_reserved = 0
+        snapshot = sample if sample is not None else self._safe_sample()
+        current_allocated = snapshot.allocated_bytes
+        current_reserved = snapshot.reserved_bytes
 
         event = TrackingEvent(
             timestamp=time.time(),
@@ -202,9 +270,15 @@ class MemoryTracker:
             memory_allocated=current_allocated,
             memory_reserved=current_reserved,
             memory_change=memory_change,
-            device_id=self.device.index if self.device.index is not None else torch.cuda.current_device(),
+            device_id=snapshot.device_id,
             context=context,
-            metadata=metadata
+            metadata=metadata,
+            active_memory=snapshot.active_bytes,
+            inactive_memory=snapshot.inactive_bytes,
+            device_used=snapshot.used_bytes,
+            device_free=snapshot.free_bytes,
+            device_total=snapshot.total_bytes,
+            backend=self.backend,
         )
 
         self.events.append(event)
@@ -343,15 +417,23 @@ class MemoryTracker:
             # Calculate additional statistics
             recent_events = [
                 e for e in self.events if e.timestamp > time.time() - 3600]  # Last hour
+            sample = self._safe_sample()
 
             current_stats.update({
                 'total_events': len(self.events),
                 'events_last_hour': len(recent_events),
-                'current_memory_allocated': torch.cuda.memory_allocated(self.device) if torch.cuda.is_available() else 0,
-                'current_memory_reserved': torch.cuda.memory_reserved(self.device) if torch.cuda.is_available() else 0,
-                'memory_utilization_percent': (torch.cuda.memory_allocated(self.device) / self.total_memory * 100) if self.total_memory > 0 else 0,
-                'average_allocation_size': self.stats['total_allocation_bytes'] / max(self.stats['total_allocations'], 1),
-                'average_deallocation_size': self.stats['total_deallocation_bytes'] / max(self.stats['total_deallocations'], 1),
+                'backend': self.backend,
+                'current_memory_allocated': sample.allocated_bytes,
+                'current_memory_reserved': sample.reserved_bytes,
+                'memory_utilization_percent': (
+                    (sample.used_bytes / self.total_memory * 100)
+                    if self.total_memory > 0
+                    else 0
+                ),
+                'average_allocation_size': self.stats['total_allocation_bytes']
+                / max(self.stats['total_allocations'], 1),
+                'average_deallocation_size': self.stats['total_deallocation_bytes']
+                / max(self.stats['total_deallocations'], 1),
             })
 
             # Time-based statistics
@@ -383,28 +465,56 @@ class MemoryTracker:
         host = socket.gethostname()
         pid = os.getpid()
         sampling_interval_ms = int(round(self.sampling_interval * 1000))
+        default_collector = str(
+            self.collector_capabilities.get("telemetry_collector", "gpumemprof.cuda_tracker")
+        )
+        capability_metadata = {
+            "backend": self.backend,
+            "supports_device_total": bool(
+                self.collector_capabilities.get("supports_device_total", False)
+            ),
+            "supports_device_free": bool(
+                self.collector_capabilities.get("supports_device_free", False)
+            ),
+            "sampling_source": str(
+                self.collector_capabilities.get("sampling_source", "unknown")
+            ),
+        }
 
         # Convert events to canonical telemetry records.
         records = []
         for event in self.events:
+            metadata = dict(event.metadata or {})
+            metadata.update(capability_metadata)
+            device_used = event.device_used
+            if device_used is None:
+                device_used = max(event.memory_allocated, event.memory_reserved)
+            event_total = event.device_total if event.device_total is not None else (
+                self.total_memory or None
+            )
             legacy = {
                 'timestamp': event.timestamp,
                 'event_type': event.event_type,
                 'memory_allocated': event.memory_allocated,
                 'memory_reserved': event.memory_reserved,
                 'memory_change': event.memory_change,
+                'allocator_active_bytes': event.active_memory,
+                'allocator_inactive_bytes': event.inactive_memory,
+                'device_used_bytes': device_used,
+                'device_free_bytes': event.device_free,
+                'device_total_bytes': event_total,
                 'device_id': event.device_id,
                 'context': event.context,
-                'metadata': event.metadata or {},
-                'total_memory': self.total_memory or None,
+                'metadata': metadata,
+                'total_memory': event_total,
                 'pid': pid,
                 'host': host,
-                'collector': 'gpumemprof.cuda_tracker',
+                'collector': default_collector,
                 'sampling_interval_ms': sampling_interval_ms,
             }
             telemetry_event = telemetry_event_from_record(
                 legacy,
-                default_collector='gpumemprof.cuda_tracker',
+                default_collector=default_collector,
                 default_sampling_interval_ms=sampling_interval_ms,
             )
             records.append(telemetry_event_to_dict(telemetry_event))
@@ -520,15 +630,27 @@ class MemoryWatchdog:
         self.cleanup_count += 1
 
         try:
-            # Basic cleanup
-            torch.cuda.empty_cache()
+            backend = self.tracker.backend
+            if backend in {"cuda", "rocm"}:
+                torch.cuda.empty_cache()
+                if aggressive:
+                    import gc
+                    gc.collect()
+                    torch.cuda.synchronize()
+                    torch.cuda.empty_cache()
+            elif backend == "mps":
+                import gc
+                import torch.mps as torch_mps
 
-            if aggressive:
-                # More aggressive cleanup
+                if hasattr(torch_mps, "empty_cache"):
+                    torch_mps.empty_cache()
+                if aggressive:
+                    gc.collect()
+                    if hasattr(torch_mps, "empty_cache"):
+                        torch_mps.empty_cache()
+            elif aggressive:
                 import gc
                 gc.collect()
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
 
             # Log cleanup event
             cleanup_type = "aggressive" if aggressive else "standard"

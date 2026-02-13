@@ -204,14 +204,21 @@ def get_system_info() -> Dict[str, Any]:
     """Get system information relevant to GPU profiling."""
     platform_info = _detect_platform_info()
     cuda_available = torch.cuda.is_available()
+    rocm_version = getattr(torch.version, "hip", None)
+    rocm_available = bool(cuda_available and rocm_version)
     mps_info = _get_mps_backend_info()
-    detected_backend = "cuda" if cuda_available else (
-        "mps" if mps_info["mps_available"] else "cpu")
+    detected_backend = (
+        "rocm"
+        if rocm_available
+        else ("cuda" if cuda_available else ("mps" if mps_info["mps_available"] else "cpu"))
+    )
     system_info = {
         "platform": platform_info["platform"],
         "architecture": platform_info["architecture"],
         "python_version": sys.version,
         "cuda_available": cuda_available,
+        "rocm_available": rocm_available,
+        "rocm_version": rocm_version if rocm_available else None,
         "mps_available": mps_info["mps_available"],
         "mps_built": mps_info["mps_built"],
         "detected_backend": detected_backend,
