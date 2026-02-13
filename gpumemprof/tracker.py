@@ -1,17 +1,19 @@
 """Real-time memory tracking and monitoring."""
 
 import logging
+import os
+import socket
 import time
 import threading
 from typing import Dict, List, Optional, Callable, Any, Union
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime
 
 import torch
 import psutil
 
 from .utils import format_bytes, get_gpu_info
+from .telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -378,26 +380,34 @@ class MemoryTracker:
         if not self.events:
             return
 
-        # Convert events to records
+        host = socket.gethostname()
+        pid = os.getpid()
+        sampling_interval_ms = int(round(self.sampling_interval * 1000))
+
+        # Convert events to canonical telemetry records.
         records = []
         for event in self.events:
-            record = {
+            legacy = {
                 'timestamp': event.timestamp,
-                'datetime': datetime.fromtimestamp(event.timestamp).isoformat(),
                 'event_type': event.event_type,
                 'memory_allocated': event.memory_allocated,
                 'memory_reserved': event.memory_reserved,
                 'memory_change': event.memory_change,
                 'device_id': event.device_id,
-                'context': event.context
+                'context': event.context,
+                'metadata': event.metadata or {},
+                'total_memory': self.total_memory or None,
+                'pid': pid,
+                'host': host,
+                'collector': 'gpumemprof.cuda_tracker',
+                'sampling_interval_ms': sampling_interval_ms,
             }
-
-            # Add metadata fields
-            if event.metadata:
-                for key, value in event.metadata.items():
-                    record[f'metadata_{key}'] = value
-
-            records.append(record)
+            telemetry_event = telemetry_event_from_record(
+                legacy,
+                default_collector='gpumemprof.cuda_tracker',
+                default_sampling_interval_ms=sampling_interval_ms,
+            )
+            records.append(telemetry_event_to_dict(telemetry_event))
 
         if format == 'csv':
             df = pd.DataFrame(records)
