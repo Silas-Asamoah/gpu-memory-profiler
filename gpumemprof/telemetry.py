@@ -392,7 +392,7 @@ def telemetry_event_from_record(
             "device_free_bytes": record.get("device_free_bytes"),
             "device_total_bytes": record.get("device_total_bytes"),
             "context": record.get("context"),
-            "metadata": dict(record.get("metadata", {})),
+            "metadata": record.get("metadata"),
         }
         validate_telemetry_record(v2_record)
         return TelemetryEventV2(**v2_record)
