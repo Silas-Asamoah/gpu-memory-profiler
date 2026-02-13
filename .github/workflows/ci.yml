@@ -65,7 +65,7 @@ jobs:
                   name: codecov-umbrella
 
     tui-pr-gate:
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/develop')
         runs-on: ubuntu-latest
 
         steps:

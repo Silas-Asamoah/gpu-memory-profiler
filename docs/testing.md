@@ -90,7 +90,7 @@ conda run -n tensor-torch-profiler python -m pytest tests/e2e/test_tui_pty.py -m
 
 CI gating strategy:
 
-- Pull requests (`main`): run the PR-safe TUI gate (`tui_pilot` + `tui_snapshot`).
+- Pull requests (`main`) and pushes to `develop`: run the PR-safe TUI gate (`tui_pilot` + `tui_snapshot`).
 - Pushes to `main` and nightly schedule: run the PTY smoke layer (`tui_pty`).
 
 Equivalent CI commands:
