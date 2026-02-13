@@ -6,6 +6,7 @@ pytest>=8.0.0
 pytest-cov>=2.10.0
 pytest-mock>=3.6.0
 pytest-xdist>=2.4.0
+pexpect>=4.9.0
 pytest-textual-snapshot>=1.1.0
 
 # Coverage reporting

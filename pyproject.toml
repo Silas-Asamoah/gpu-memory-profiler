@@ -53,6 +53,7 @@ dev = [
     "pytest-cov>=2.10.0",
     "pytest-mock>=3.6.0",
     "pytest-xdist>=2.4.0",
+    "pexpect>=4.9.0",
     "pytest-textual-snapshot>=1.1.0",
     "black>=21.0.0",
     "flake8>=3.8.0",
@@ -75,6 +76,7 @@ test = [
     "pytest-cov>=2.10.0",
     "pytest-mock>=3.6.0",
     "pytest-xdist>=2.4.0",
+    "pexpect>=4.9.0",
     "pytest-textual-snapshot>=1.1.0",
     "coverage>=5.5.0",
     "numpy>=1.19.0",
@@ -207,6 +209,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "tui_pilot: marks Textual Pilot interaction tests",
+    "tui_pty: marks PTY end-to-end smoke tests",
     "tui_snapshot: marks Textual visual snapshot tests",
 ]
 
