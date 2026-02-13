@@ -2,26 +2,29 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from ..context_profiler import (
     get_profile_results as get_pt_results,
     clear_results as clear_pt_results,
 )
 
-get_tf_summaries: Optional[Callable[..., List[Dict[str, Any]]]]
-clear_tf_profiles: Optional[Callable[[], None]]
-try:  # TensorFlow is optional
+try:
     from tfmemprof.context_profiler import (
         get_profile_summaries as _get_tf_summaries,
         clear_profiles as _clear_tf_profiles,
     )
-    get_tf_summaries = _get_tf_summaries
-    clear_tf_profiles = _clear_tf_profiles
-except Exception:  # pragma: no cover - optional dependency
-    get_tf_summaries = None
-    clear_tf_profiles = None
+    get_tf_summaries: Optional[Callable[..., List[Dict[str, Any]]]] = _get_tf_summaries
+    clear_tf_profiles: Optional[Callable[[], None]] = _clear_tf_profiles
+except ImportError as e:
+    raise ImportError(
+        "tfmemprof.context_profiler is required for TensorFlow profile support. "
+        "Ensure tfmemprof is properly installed."
+    ) from e
 
 
 @dataclass
@@ -40,7 +43,8 @@ def fetch_pytorch_profiles(limit: int = 15) -> List[ProfileRow]:
     """Return recent PyTorch profile rows."""
     try:
         results = get_pt_results(limit=limit)
-    except Exception:
+    except Exception as exc:
+        logger.debug("fetch_pytorch_profiles failed: %s", exc)
         return []
 
     rows: List[ProfileRow] = []
@@ -71,7 +75,8 @@ def clear_pytorch_profiles() -> bool:
     try:
         clear_pt_results()
         return True
-    except Exception:
+    except Exception as exc:
+        logger.debug("clear_pytorch_profiles failed: %s", exc)
         return False
 
 
@@ -82,7 +87,8 @@ def fetch_tensorflow_profiles(limit: int = 15) -> List[ProfileRow]:
 
     try:
         summaries = get_tf_summaries(limit=limit)
-    except Exception:
+    except Exception as exc:
+        logger.debug("fetch_tensorflow_profiles failed: %s", exc)
         return []
 
     rows: List[ProfileRow] = []
@@ -118,5 +124,6 @@ def clear_tensorflow_profiles() -> bool:
     try:
         clear_tf_profiles()
         return True
-    except Exception:
+    except Exception as exc:
+        logger.debug("clear_tensorflow_profiles failed: %s", exc)
         return False

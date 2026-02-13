@@ -177,7 +177,8 @@ class TFMemoryProfiler:
                 return f'/GPU:0'
             else:
                 return '/CPU:0'
-        except Exception:
+        except Exception as exc:
+            logging.debug("TF device detection failed: %s", exc)
             return '/CPU:0'
 
     def _setup_tf_memory(self) -> None:

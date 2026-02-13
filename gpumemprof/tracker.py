@@ -1,5 +1,6 @@
 """Real-time memory tracking and monitoring."""
 
+import logging
 import time
 import threading
 from typing import Dict, List, Optional, Callable, Any, Union
@@ -11,6 +12,8 @@ import torch
 import psutil
 
 from .utils import format_bytes, get_gpu_info
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -186,7 +189,8 @@ class MemoryTracker:
         try:
             current_allocated = torch.cuda.memory_allocated(self.device)
             current_reserved = torch.cuda.memory_reserved(self.device)
-        except:
+        except Exception as exc:
+            logger.debug("Could not query CUDA memory in _add_event: %s", exc)
             current_allocated = 0
             current_reserved = 0
 
@@ -209,8 +213,8 @@ class MemoryTracker:
             for callback in self.alert_callbacks:
                 try:
                     callback(event)
-                except Exception:
-                    pass  # Don't let callback errors break tracking
+                except Exception as exc:
+                    logger.debug("Alert callback error (suppressed): %s", exc)
 
     def _check_alerts(self, allocated: int, reserved: int, change: int) -> None:
         """Check for memory alerts and warnings."""

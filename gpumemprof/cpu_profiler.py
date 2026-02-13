@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 import threading
 import time
 from collections import deque
@@ -14,6 +15,8 @@ from typing import Any, Callable, Dict, List, Optional
 import psutil
 
 from gpumemprof.tracker import TrackingEvent
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -224,7 +227,8 @@ class CPUMemoryTracker:
         while not self._stop_event.wait(self.sampling_interval):
             try:
                 current_rss = self._current_rss()
-            except Exception:
+            except Exception as exc:
+                logger.debug("Error sampling RSS in tracking loop: %s", exc)
                 continue
 
             change = current_rss - last_rss

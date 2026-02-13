@@ -105,7 +105,8 @@ class MemoryTracker:
                 return '/GPU:0'
             else:
                 return '/CPU:0'
-        except Exception:
+        except Exception as exc:
+            logging.debug("Default device detection failed: %s", exc)
             return '/CPU:0'
 
     def _get_current_memory(self) -> float:
@@ -349,7 +350,8 @@ class MemoryWatchdog:
                     return float(current_bytes) / (1024 * 1024)
                 return 0.0
             return 0.0
-        except Exception:
+        except Exception as exc:
+            logging.debug("Watchdog could not get GPU memory usage: %s", exc)
             return 0.0
 
     def _cleanup_memory(self) -> None:

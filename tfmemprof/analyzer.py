@@ -137,8 +137,8 @@ class MemoryAnalyzer:
                             'correlation': avg_correlation,
                             'description': f'Detected periodic memory pattern (correlation: {avg_correlation:.3f})'
                         })
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.debug("Periodic pattern detection failed: %s", exc)
 
         # Detect step patterns
         if len(memory_data) > 10:

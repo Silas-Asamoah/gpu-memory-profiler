@@ -10,13 +10,17 @@ import numpy as np
 
 try:
     import torch
-except ImportError:  # pragma: no cover - optional dependency
-    torch = None  # type: ignore
+except ImportError as e:
+    raise ImportError(
+        "torch is required for this example. Install it with: pip install torch"
+    ) from e
 
 try:
     import tensorflow as tf
-except ImportError:  # pragma: no cover - optional dependency
-    tf = None  # type: ignore
+except ImportError as e:
+    raise ImportError(
+        "tensorflow is required for this example. Install it with: pip install tensorflow"
+    ) from e
 
 
 def seed_everything(seed: int = 42) -> None:

@@ -16,9 +16,11 @@ from examples.common import (
 def _torch_cuda_available() -> bool:
     """Return True if torch+CUDA are available without requiring a hard dependency."""
     try:
-        import torch  # Local import to avoid ImportError when torch isn't installed
-    except ModuleNotFoundError:  # pragma: no cover - optional dependency missing
-        return False
+        import torch
+    except (ImportError, ModuleNotFoundError) as e:
+        raise ImportError(
+            "torch is required for this example. Install it with: pip install torch"
+        ) from e
     return torch.cuda.is_available()
 
 

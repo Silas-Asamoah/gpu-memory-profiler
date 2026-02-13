@@ -8,10 +8,10 @@ try:
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
-except ImportError:  # pragma: no cover - optional dependency
-    torch = None  # type: ignore
-    nn = None  # type: ignore
-    F = None  # type: ignore
+except ImportError as e:
+    raise ImportError(
+        "torch is required for this example. Install it with: pip install torch"
+    ) from e
 
 from .device import get_torch_device, seed_everything
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ from typing import Any, Callable, Iterable, Sequence, List, Optional, cast
 
 # Suppress TensorFlow oneDNN warnings
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+
+logger = logging.getLogger(__name__)
 
 from textual import events
 from textual.app import App, ComposeResult
@@ -48,55 +51,52 @@ from gpumemprof.utils import get_system_info, get_gpu_info, format_bytes
 from tfmemprof.utils import get_system_info as get_tf_system_info
 from tfmemprof.utils import get_gpu_info as get_tf_gpu_info
 
-torch: Any
 try:
     import torch as _torch
+    torch: Any = _torch
+except ImportError as e:
+    raise ImportError(
+        "torch is required for the TUI application. Install it with: pip install torch"
+    ) from e
 
-    torch = _torch
-except Exception:
-    torch = None
-
-tf: Any
 try:
     import tensorflow as _tf
     # Suppress TensorFlow INFO and WARNING messages
     _tf.get_logger().setLevel("ERROR")
     # Also suppress oneDNN warnings via environment
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-    tf = _tf
-except Exception:
+    tf: Optional[Any] = _tf
+except ImportError:
     tf = None
 
-Figlet: Optional[Any]
 try:
     from pyfiglet import Figlet as _Figlet
-
-    Figlet = _Figlet
-except Exception:
+    Figlet: Optional[Any] = _Figlet
+except ImportError:
     Figlet = None
 
-GPUMemoryProfiler: Optional[Any]
 try:
     from gpumemprof import GPUMemoryProfiler as _GPUMemoryProfiler
+    GPUMemoryProfiler: Optional[Any] = _GPUMemoryProfiler
+except ImportError as e:
+    raise ImportError(
+        "GPUMemoryProfiler is required for the TUI application. "
+        "Ensure gpumemprof is properly installed."
+    ) from e
 
-    GPUMemoryProfiler = _GPUMemoryProfiler
-except Exception:
-    GPUMemoryProfiler = None
-
-CPUMemoryProfiler: Optional[Any]
 try:
     from gpumemprof.cpu_profiler import CPUMemoryProfiler as _CPUMemoryProfiler
+    CPUMemoryProfiler: Optional[Any] = _CPUMemoryProfiler
+except ImportError as e:
+    raise ImportError(
+        "CPUMemoryProfiler is required for the TUI application. "
+        "Ensure gpumemprof is properly installed."
+    ) from e
 
-    CPUMemoryProfiler = _CPUMemoryProfiler
-except Exception:
-    CPUMemoryProfiler = None
-
-TFMemoryProfiler: Optional[Any]
 try:
     from tfmemprof.profiler import TFMemoryProfiler as _TFMemoryProfiler
-
-    TFMemoryProfiler = _TFMemoryProfiler
-except Exception:
+    TFMemoryProfiler: Optional[Any] = _TFMemoryProfiler
+except ImportError:
     TFMemoryProfiler = None
 
 
@@ -110,21 +110,24 @@ WELCOME_MESSAGES = [
 def _safe_get_gpu_info() -> dict[str, Any]:
     try:
         return get_gpu_info()
-    except Exception:
+    except Exception as exc:
+        logger.debug("_safe_get_gpu_info failed: %s", exc)
         return {}
 
 
 def _safe_get_tf_system_info() -> dict[str, Any]:
     try:
         return get_tf_system_info()
-    except Exception:
+    except Exception as exc:
+        logger.debug("_safe_get_tf_system_info failed: %s", exc)
         return {}
 
 
 def _safe_get_tf_gpu_info() -> dict[str, Any]:
     try:
         return get_tf_gpu_info()
-    except Exception:
+    except Exception as exc:
+        logger.debug("_safe_get_tf_gpu_info failed: %s", exc)
         return {}
 
 
@@ -368,7 +371,8 @@ class AsciiWelcome(Static):
         if Figlet:
             try:
                 self._figlet = Figlet(font=self.font_name)
-            except Exception:
+            except Exception as exc:
+                logger.debug("Figlet initialization failed: %s", exc)
                 self._figlet = None
 
     def on_mount(self) -> None:
@@ -390,8 +394,8 @@ class AsciiWelcome(Static):
             try:
                 rendered = self._figlet.renderText(message)
                 return Text(rendered.rstrip(), style="bold cyan")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Figlet render failed, using fallback: %s", exc)
 
         fallback = dedent(
             f"""
@@ -1119,7 +1123,11 @@ class GPUMemoryProfilerTUI(App):
 
     async def run_tensorflow_sample(self) -> None:
         if TFMemoryProfiler is None or tf is None:
-            self.log_message("TensorFlow Sample", "TensorFlow profiler is unavailable in this environment.")
+            self.log_message(
+                "TensorFlow Sample",
+                "TensorFlow profiler is unavailable. Install tensorflow and tfmemprof: "
+                "pip install tensorflow tfmemprof"
+            )
             return
         await self._execute_task(
             "TensorFlow Sample",
@@ -1376,7 +1384,7 @@ class GPUMemoryProfilerTUI(App):
             return "-"
         try:
             return format_bytes(int(value))
-        except Exception:
+        except (TypeError, ValueError):
             return "-"
 
     def _append_monitor_events(self, events: list[TrackerEventView]) -> None:
@@ -1596,7 +1604,7 @@ class GPUMemoryProfilerTUI(App):
         if format == "html":
             try:
                 import plotly.graph_objects as go
-            except ImportError as exc:  # pragma: no cover - optional dependency
+            except ImportError as exc:
                 raise ImportError(
                     "Plotly is required for HTML output. Install gpu-memory-profiler[viz]."
                 ) from exc
@@ -1670,7 +1678,10 @@ class GPUMemoryProfilerTUI(App):
     @staticmethod
     def _tensorflow_sample_workload() -> Any:
         if TFMemoryProfiler is None or tf is None:
-            raise RuntimeError("TensorFlow profiler is unavailable.")
+            raise RuntimeError(
+                "TensorFlow profiler is unavailable. Install tensorflow and tfmemprof: "
+                "pip install tensorflow tfmemprof"
+            )
         profiler = TFMemoryProfiler()
         with profiler.profile_context("tf_sample"):
             tensor = tf.random.normal((2048, 2048))
