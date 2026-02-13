@@ -78,7 +78,9 @@ jobs:
             - name: Install dependencies
               run: |
                   python3 -m pip install --upgrade pip
-                  pip install -e .[dev,viz]
+                  # Lint does not require heavy runtime ML dependencies.
+                  pip install -e . --no-deps
+                  pip install black flake8 mypy rich
 
             - name: Run black
               run: |
