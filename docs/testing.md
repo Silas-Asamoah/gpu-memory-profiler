@@ -67,24 +67,51 @@ python3 -m pytest -n auto
 python3 -m pytest -n 4
 ```
 
-### Textual Snapshot Tests
+### TUI Testing Pyramid (Pilot, Snapshot, PTY)
 
-Use snapshot tests to detect unintended visual/layout regressions in the Textual
-TUI tabs.
+The Textual TUI suite is split into three marker-based layers:
+
+- `tui_pilot`: fast interaction tests using Textual Pilot (`tests/tui/test_app_pilot.py`).
+- `tui_snapshot`: deterministic visual/layout snapshots (`tests/tui/test_app_snapshots.py`).
+- `tui_pty`: end-to-end terminal smoke test using a real PTY (`tests/e2e/test_tui_pty.py`).
+
+Use these commands locally:
 
 ```bash
-# Validate snapshots against the committed SVG baselines
-conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot
+# Pilot layer
+conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_pilot.py -m tui_pilot -v
 
-# Intentionally update snapshots after approved UI changes
-conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot --snapshot-update
+# Snapshot layer
+conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot -v
+
+# PTY smoke layer
+conda run -n tensor-torch-profiler python -m pytest tests/e2e/test_tui_pty.py -m tui_pty -v
+```
+
+CI gating strategy:
+
+- Pull requests (`main`): run the PR-safe TUI gate (`tui_pilot` + `tui_snapshot`).
+- Pushes to `main` and nightly schedule: run the PTY smoke layer (`tui_pty`).
+
+Equivalent CI commands:
+
+```bash
+# PR gate
+python -m pytest tests/tui/ -m "tui_pilot or tui_snapshot" -v
+
+# Main/nightly PTY smoke
+python -m pytest tests/e2e/test_tui_pty.py -m tui_pty -v
 ```
 
 Snapshot files are stored at:
 
 `tests/tui/__snapshots__/test_app_snapshots/*.svg`
 
-Only update snapshot baselines when UI changes are intentional and reviewed.
+Only update snapshot baselines when UI changes are intentional and reviewed:
+
+```bash
+conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots.py -m tui_snapshot --snapshot-update
+```
 
 If you see `fixture 'snap_compare' not found` or plugin import errors, install
 test dependencies and re-run:
