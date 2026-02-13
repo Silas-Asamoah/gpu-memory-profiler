@@ -11,6 +11,13 @@ from .analyzer import MemoryAnalyzer
 from .utils import get_gpu_info, format_bytes, convert_bytes
 from .tracker import MemoryTracker
 from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
+from .telemetry import (
+    TelemetryEventV2,
+    load_telemetry_events,
+    telemetry_event_from_record,
+    telemetry_event_to_dict,
+    validate_telemetry_record,
+)
 
 try:
     from .visualizer import MemoryVisualizer
@@ -35,8 +42,13 @@ __all__ = [
     "MemoryVisualizer",
     "MemoryAnalyzer",
     "MemoryTracker",
+    "TelemetryEventV2",
     "CPUMemoryProfiler",
     "CPUMemoryTracker",
+    "telemetry_event_from_record",
+    "telemetry_event_to_dict",
+    "validate_telemetry_record",
+    "load_telemetry_events",
     "get_gpu_info",
     "format_bytes",
     "convert_bytes",
