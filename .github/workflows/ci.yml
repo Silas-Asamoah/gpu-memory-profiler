@@ -5,9 +5,12 @@ on:
         branches: [main, develop]
     pull_request:
         branches: [main]
+    schedule:
+        - cron: "0 3 * * *"
 
 jobs:
     test:
+        if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -52,7 +55,7 @@ jobs:
 
             - name: Run tests
               run: |
-                  python3 -m pytest tests/ -v --cov=gpumemprof --cov=tfmemprof --cov-report=xml
+                  python3 -m pytest tests/ -v -m "not tui_pilot and not tui_snapshot and not tui_pty" --cov=gpumemprof --cov=tfmemprof --cov-report=xml
 
             - name: Upload coverage to Codecov
               uses: codecov/codecov-action@v3
@@ -61,7 +64,70 @@ jobs:
                   flags: unittests
                   name: codecov-umbrella
 
+    tui-pr-gate:
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            - name: Cache pip dependencies
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cache/pip
+                  key: ${{ runner.os }}-pip-tui-pr-${{ hashFiles('pyproject.toml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pip-tui-pr-
+
+            - name: Install TUI test dependencies
+              run: |
+                  python3 -m pip install --upgrade pip
+                  pip install -e . --no-deps
+                  pip install -r requirements-ci-base.txt
+                  pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+
+            - name: Run TUI pilot and snapshot suites
+              run: |
+                  python3 -m pytest tests/tui/ -m "tui_pilot or tui_snapshot" -v
+
+    tui-pty-smoke:
+        if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            - name: Cache pip dependencies
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cache/pip
+                  key: ${{ runner.os }}-pip-tui-pty-${{ hashFiles('pyproject.toml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pip-tui-pty-
+
+            - name: Install PTY test dependencies
+              run: |
+                  python3 -m pip install --upgrade pip
+                  pip install -e . --no-deps
+                  pip install -r requirements-ci-base.txt
+                  pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+
+            - name: Run TUI PTY smoke suite
+              run: |
+                  python3 -m pytest tests/e2e/test_tui_pty.py -m tui_pty -v
+
     lint:
+        if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
         strategy:
             matrix:
@@ -98,6 +164,7 @@ jobs:
                   python3 -m mypy gpumemprof/ tfmemprof/
 
     build:
+        if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
         needs: [test, lint]
 
@@ -129,6 +196,7 @@ jobs:
                   path: dist/
 
     cli-test:
+        if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
         needs: [test, lint]
 
