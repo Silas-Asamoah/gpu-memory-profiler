@@ -12,6 +12,7 @@ Welcome to the official documentation for GPU Memory Profiler! Here you'll find 
 - [API Reference](api.md)
 - [Examples](examples.md)
 - [CPU Compatibility](cpu_compatibility.md)
+- [Telemetry Schema](telemetry_schema.md)
 - [Testing & Validation](testing.md)
 - [Troubleshooting](troubleshooting.md)
 - [Architecture](architecture.md)
