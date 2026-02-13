@@ -16,8 +16,8 @@ try:
         MemoryWatchdog as _MemoryWatchdog,
         TrackingEvent as _TrackingEvent,
     )
-    MemoryTracker: Optional[Any] = _MemoryTracker
-    MemoryWatchdog: Optional[Any] = _MemoryWatchdog
+    MemoryTracker: Any = _MemoryTracker
+    MemoryWatchdog: Any = _MemoryWatchdog
     TrackingEvent: Any = _TrackingEvent
 except ImportError as e:
     raise ImportError(
@@ -27,7 +27,7 @@ except ImportError as e:
 
 try:
     from gpumemprof.cpu_profiler import CPUMemoryTracker as _CPUMemoryTracker
-    CPUMemoryTracker: Optional[Any] = _CPUMemoryTracker
+    CPUMemoryTracker: Any = _CPUMemoryTracker
 except ImportError as e:
     raise ImportError(
         "CPUMemoryTracker is required for TrackerSession. "
