@@ -179,3 +179,35 @@ def test_legacy_conversion_can_be_disabled() -> None:
             {"timestamp": 1.0, "memory_allocated": 1},
             permissive_legacy=False,
         )
+
+
+def test_v2_record_missing_required_nullable_field_is_rejected() -> None:
+    record = telemetry_event_to_dict(_make_valid_event())
+    record.pop("context")
+
+    with pytest.raises(ValueError, match="Missing required telemetry fields"):
+        telemetry_event_from_record(record)
+
+
+def test_legacy_total_memory_null_is_accepted() -> None:
+    legacy = {
+        "timestamp": 1700000004.0,
+        "event_type": "allocation",
+        "memory_allocated": 1024,
+        "memory_reserved": 2048,
+        "memory_change": 256,
+        "device_id": 0,
+        "total_memory": None,
+    }
+
+    event = telemetry_event_from_record(
+        legacy,
+        default_collector="gpumemprof.cuda_tracker",
+        default_sampling_interval_ms=100,
+    )
+    record = telemetry_event_to_dict(event)
+
+    assert record["schema_version"] == 2
+    assert record["device_total_bytes"] is None
+    assert record["device_free_bytes"] is None
+    jsonschema_validate(instance=record, schema=_schema())

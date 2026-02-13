@@ -11,6 +11,27 @@ SCHEMA_VERSION_V2 = 2
 UNKNOWN_PID = -1
 UNKNOWN_HOST = "unknown"
 
+REQUIRED_V2_FIELDS = (
+    "schema_version",
+    "timestamp_ns",
+    "event_type",
+    "collector",
+    "sampling_interval_ms",
+    "pid",
+    "host",
+    "device_id",
+    "allocator_allocated_bytes",
+    "allocator_reserved_bytes",
+    "allocator_active_bytes",
+    "allocator_inactive_bytes",
+    "allocator_change_bytes",
+    "device_used_bytes",
+    "device_free_bytes",
+    "device_total_bytes",
+    "context",
+    "metadata",
+)
+
 
 @dataclass
 class TelemetryEventV2:
@@ -164,11 +185,17 @@ def _legacy_total_memory_bytes(record: Mapping[str, Any], metadata: Mapping[str,
 
     for key in ("total_memory", "device_total", "total_bytes"):
         if key in record:
-            return _coerce_int(record[key], key)
+            value = record[key]
+            if value is None:
+                return None
+            return _coerce_int(value, key)
 
     for key in ("total_memory", "device_total", "total_bytes"):
         if key in metadata:
-            return _coerce_int(metadata[key], key)
+            value = metadata[key]
+            if value is None:
+                return None
+            return _coerce_int(value, key)
 
     return None
 
@@ -259,28 +286,7 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
         ValueError: if the record is invalid or partial.
     """
 
-    required_fields = (
-        "schema_version",
-        "timestamp_ns",
-        "event_type",
-        "collector",
-        "sampling_interval_ms",
-        "pid",
-        "host",
-        "device_id",
-        "allocator_allocated_bytes",
-        "allocator_reserved_bytes",
-        "allocator_active_bytes",
-        "allocator_inactive_bytes",
-        "allocator_change_bytes",
-        "device_used_bytes",
-        "device_free_bytes",
-        "device_total_bytes",
-        "context",
-        "metadata",
-    )
-
-    missing = [name for name in required_fields if name not in record]
+    missing = [name for name in REQUIRED_V2_FIELDS if name not in record]
     if missing:
         raise ValueError(f"Missing required telemetry fields: {', '.join(missing)}")
 
@@ -374,25 +380,29 @@ def telemetry_event_from_record(
 
     schema_version = record.get("schema_version")
     if _is_int(schema_version) and int(schema_version) == SCHEMA_VERSION_V2:
+        missing = [name for name in REQUIRED_V2_FIELDS if name not in record]
+        if missing:
+            raise ValueError(f"Missing required telemetry fields: {', '.join(missing)}")
+
         v2_record = {
-            "schema_version": record.get("schema_version"),
-            "timestamp_ns": record.get("timestamp_ns"),
-            "event_type": record.get("event_type"),
-            "collector": record.get("collector"),
-            "sampling_interval_ms": record.get("sampling_interval_ms"),
-            "pid": record.get("pid"),
-            "host": record.get("host"),
-            "device_id": record.get("device_id"),
-            "allocator_allocated_bytes": record.get("allocator_allocated_bytes"),
-            "allocator_reserved_bytes": record.get("allocator_reserved_bytes"),
-            "allocator_active_bytes": record.get("allocator_active_bytes"),
-            "allocator_inactive_bytes": record.get("allocator_inactive_bytes"),
-            "allocator_change_bytes": record.get("allocator_change_bytes"),
-            "device_used_bytes": record.get("device_used_bytes"),
-            "device_free_bytes": record.get("device_free_bytes"),
-            "device_total_bytes": record.get("device_total_bytes"),
-            "context": record.get("context"),
-            "metadata": record.get("metadata"),
+            "schema_version": record["schema_version"],
+            "timestamp_ns": record["timestamp_ns"],
+            "event_type": record["event_type"],
+            "collector": record["collector"],
+            "sampling_interval_ms": record["sampling_interval_ms"],
+            "pid": record["pid"],
+            "host": record["host"],
+            "device_id": record["device_id"],
+            "allocator_allocated_bytes": record["allocator_allocated_bytes"],
+            "allocator_reserved_bytes": record["allocator_reserved_bytes"],
+            "allocator_active_bytes": record["allocator_active_bytes"],
+            "allocator_inactive_bytes": record["allocator_inactive_bytes"],
+            "allocator_change_bytes": record["allocator_change_bytes"],
+            "device_used_bytes": record["device_used_bytes"],
+            "device_free_bytes": record["device_free_bytes"],
+            "device_total_bytes": record["device_total_bytes"],
+            "context": record["context"],
+            "metadata": record["metadata"],
         }
         validate_telemetry_record(v2_record)
         return TelemetryEventV2(**v2_record)
