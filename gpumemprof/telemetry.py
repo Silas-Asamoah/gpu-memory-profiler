@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Mapping, Optional
 
-SCHEMA_VERSION_V2 = 2
+SCHEMA_VERSION_V2: Literal[2] = 2
 UNKNOWN_PID = -1
 UNKNOWN_HOST = "unknown"
 
@@ -379,7 +379,7 @@ def telemetry_event_from_record(
         raise ValueError("record must be a mapping")
 
     schema_version = record.get("schema_version")
-    if _is_int(schema_version) and int(schema_version) == SCHEMA_VERSION_V2:
+    if _is_int(schema_version) and schema_version == SCHEMA_VERSION_V2:
         missing = [name for name in REQUIRED_V2_FIELDS if name not in record]
         if missing:
             raise ValueError(f"Missing required telemetry fields: {', '.join(missing)}")
