@@ -29,6 +29,10 @@ Schema file:
 - `context`
 - `metadata`
 
+`TelemetryEvent v2` validation is strict:
+- Unknown top-level fields are rejected.
+- `metadata` must be a JSON object (`dict` in Python terms).
+
 ## Collector values
 
 - `gpumemprof.cuda_tracker`
@@ -38,6 +42,12 @@ Schema file:
 ## Legacy v1 to v2 conversion defaults
 
 Conversion is permissive by default in `gpumemprof.telemetry.telemetry_event_from_record`.
+Legacy conversion is attempted only when `schema_version` is absent.
+
+If `schema_version` is present:
+- It must be an integer.
+- It must be exactly `2`.
+- Any other value is rejected (no legacy fallback).
 
 - Missing `pid` -> `-1`
 - Missing `host` -> `"unknown"`

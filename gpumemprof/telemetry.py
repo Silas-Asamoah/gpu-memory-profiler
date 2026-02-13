@@ -31,6 +31,7 @@ REQUIRED_V2_FIELDS = (
     "context",
     "metadata",
 )
+REQUIRED_V2_FIELD_SET = frozenset(REQUIRED_V2_FIELDS)
 
 
 @dataclass
@@ -86,6 +87,19 @@ def _coerce_string(value: Any, field_name: str, *, allow_none: bool = False) -> 
     if not value.strip() and not allow_none:
         raise ValueError(f"{field_name} must be a non-empty string")
     return value
+
+
+def _coerce_required_string(value: Any, field_name: str) -> str:
+    coerced = _coerce_string(value, field_name)
+    if coerced is None:
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return coerced
+
+
+def _coerce_metadata_dict(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError("metadata must be an object")
+    return dict(value)
 
 
 def _extract_metadata(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -290,6 +304,10 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if missing:
         raise ValueError(f"Missing required telemetry fields: {', '.join(missing)}")
 
+    unknown = sorted(str(name) for name in record if name not in REQUIRED_V2_FIELD_SET)
+    if unknown:
+        raise ValueError(f"Unknown telemetry fields: {', '.join(unknown)}")
+
     schema_version = _coerce_int(record["schema_version"], "schema_version")
     if schema_version != SCHEMA_VERSION_V2:
         raise ValueError("schema_version must be 2")
@@ -298,10 +316,8 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if timestamp_ns < 0:
         raise ValueError("timestamp_ns must be >= 0")
 
-    event_type = _coerce_string(record["event_type"], "event_type")
-    collector = _coerce_string(record["collector"], "collector")
-    if event_type is None or collector is None:
-        raise ValueError("event_type and collector must be non-empty strings")
+    _coerce_required_string(record["event_type"], "event_type")
+    _coerce_required_string(record["collector"], "collector")
 
     sampling_interval_ms = _coerce_int(record["sampling_interval_ms"], "sampling_interval_ms")
     if sampling_interval_ms < 0:
@@ -311,9 +327,7 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if pid < -1:
         raise ValueError("pid must be >= -1")
 
-    host = _coerce_string(record["host"], "host")
-    if host is None:
-        raise ValueError("host must be non-empty")
+    _coerce_required_string(record["host"], "host")
 
     _coerce_int(record["device_id"], "device_id")
 
@@ -362,9 +376,7 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
 
     _coerce_string(record["context"], "context", allow_none=True)
 
-    metadata = record["metadata"]
-    if not isinstance(metadata, Mapping):
-        raise ValueError("metadata must be an object")
+    _coerce_metadata_dict(record["metadata"])
 
 
 def telemetry_event_from_record(
@@ -378,34 +390,41 @@ def telemetry_event_from_record(
     if not isinstance(record, Mapping):
         raise ValueError("record must be a mapping")
 
-    schema_version = record.get("schema_version")
-    if _is_int(schema_version) and schema_version == SCHEMA_VERSION_V2:
-        missing = [name for name in REQUIRED_V2_FIELDS if name not in record]
-        if missing:
-            raise ValueError(f"Missing required telemetry fields: {', '.join(missing)}")
+    if "schema_version" in record:
+        schema_version = _coerce_int(record["schema_version"], "schema_version")
+        if schema_version != SCHEMA_VERSION_V2:
+            raise ValueError(f"Unsupported schema_version: {schema_version}")
 
-        v2_record = {
-            "schema_version": record["schema_version"],
-            "timestamp_ns": record["timestamp_ns"],
-            "event_type": record["event_type"],
-            "collector": record["collector"],
-            "sampling_interval_ms": record["sampling_interval_ms"],
-            "pid": record["pid"],
-            "host": record["host"],
-            "device_id": record["device_id"],
-            "allocator_allocated_bytes": record["allocator_allocated_bytes"],
-            "allocator_reserved_bytes": record["allocator_reserved_bytes"],
-            "allocator_active_bytes": record["allocator_active_bytes"],
-            "allocator_inactive_bytes": record["allocator_inactive_bytes"],
-            "allocator_change_bytes": record["allocator_change_bytes"],
-            "device_used_bytes": record["device_used_bytes"],
-            "device_free_bytes": record["device_free_bytes"],
-            "device_total_bytes": record["device_total_bytes"],
-            "context": record["context"],
-            "metadata": record["metadata"],
-        }
-        validate_telemetry_record(v2_record)
-        return TelemetryEventV2(**v2_record)
+        validate_telemetry_record(record)
+
+        return TelemetryEventV2(
+            schema_version=SCHEMA_VERSION_V2,
+            timestamp_ns=_coerce_int(record["timestamp_ns"], "timestamp_ns"),
+            event_type=_coerce_required_string(record["event_type"], "event_type"),
+            collector=_coerce_required_string(record["collector"], "collector"),
+            sampling_interval_ms=_coerce_int(record["sampling_interval_ms"], "sampling_interval_ms"),
+            pid=_coerce_int(record["pid"], "pid"),
+            host=_coerce_required_string(record["host"], "host"),
+            device_id=_coerce_int(record["device_id"], "device_id"),
+            allocator_allocated_bytes=_coerce_int(
+                record["allocator_allocated_bytes"], "allocator_allocated_bytes"
+            ),
+            allocator_reserved_bytes=_coerce_int(
+                record["allocator_reserved_bytes"], "allocator_reserved_bytes"
+            ),
+            allocator_active_bytes=_coerce_optional_int(
+                record["allocator_active_bytes"], "allocator_active_bytes"
+            ),
+            allocator_inactive_bytes=_coerce_optional_int(
+                record["allocator_inactive_bytes"], "allocator_inactive_bytes"
+            ),
+            allocator_change_bytes=_coerce_int(record["allocator_change_bytes"], "allocator_change_bytes"),
+            device_used_bytes=_coerce_int(record["device_used_bytes"], "device_used_bytes"),
+            device_free_bytes=_coerce_optional_int(record["device_free_bytes"], "device_free_bytes"),
+            device_total_bytes=_coerce_optional_int(record["device_total_bytes"], "device_total_bytes"),
+            context=_coerce_string(record["context"], "context", allow_none=True),
+            metadata=_coerce_metadata_dict(record["metadata"]),
+        )
 
     if not permissive_legacy:
         raise ValueError("Legacy record conversion is disabled")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import UserDict
 import json
 from pathlib import Path
 
@@ -74,6 +75,22 @@ def test_validate_telemetry_record_rejects_negative_allocator_counter() -> None:
     record["allocator_allocated_bytes"] = -1
 
     with pytest.raises(ValueError, match="allocator_allocated_bytes must be >= 0"):
+        validate_telemetry_record(record)
+
+
+def test_validate_telemetry_record_rejects_unknown_fields() -> None:
+    record = telemetry_event_to_dict(_make_valid_event())
+    record["unknown_counter"] = 42
+
+    with pytest.raises(ValueError, match=r"Unknown telemetry fields: unknown_counter"):
+        validate_telemetry_record(record)
+
+
+def test_validate_telemetry_record_rejects_non_dict_metadata() -> None:
+    record = telemetry_event_to_dict(_make_valid_event())
+    record["metadata"] = UserDict({"origin": "wrapped"})
+
+    with pytest.raises(ValueError, match="metadata must be an object"):
         validate_telemetry_record(record)
 
 
@@ -187,6 +204,66 @@ def test_v2_record_missing_required_nullable_field_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="Missing required telemetry fields"):
         telemetry_event_from_record(record)
+
+
+def test_v2_record_with_unknown_field_is_rejected() -> None:
+    record = telemetry_event_to_dict(_make_valid_event())
+    record["unknown_counter"] = 42
+
+    with pytest.raises(ValueError, match=r"Unknown telemetry fields: unknown_counter"):
+        telemetry_event_from_record(record)
+
+
+def test_schema_version_must_be_integer_when_present() -> None:
+    legacy = {
+        "schema_version": "2",
+        "timestamp": 1700000001.0,
+        "event_type": "allocation",
+        "memory_allocated": 8_192,
+    }
+
+    with pytest.raises(ValueError, match="schema_version must be an integer"):
+        telemetry_event_from_record(legacy)
+
+
+def test_schema_version_bool_is_rejected_when_present() -> None:
+    legacy = {
+        "schema_version": True,
+        "timestamp": 1700000001.0,
+        "event_type": "allocation",
+        "memory_allocated": 8_192,
+    }
+
+    with pytest.raises(ValueError, match="schema_version must be an integer"):
+        telemetry_event_from_record(legacy)
+
+
+def test_unsupported_schema_version_is_rejected_without_legacy_fallback() -> None:
+    legacy = {
+        "schema_version": 3,
+        "timestamp": 1700000001.0,
+        "event_type": "allocation",
+        "memory_allocated": 8_192,
+    }
+
+    with pytest.raises(ValueError, match="Unsupported schema_version: 3"):
+        telemetry_event_from_record(legacy, permissive_legacy=True)
+
+
+def test_load_telemetry_events_rejects_unsupported_schema_version(tmp_path: Path) -> None:
+    payload = [
+        {
+            "schema_version": 3,
+            "timestamp": 1700000005.0,
+            "event_type": "allocation",
+            "memory_allocated": 1024,
+        }
+    ]
+    path = tmp_path / "unsupported_schema.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unsupported schema_version: 3"):
+        load_telemetry_events(path, permissive_legacy=True)
 
 
 def test_legacy_total_memory_null_is_accepted() -> None:
