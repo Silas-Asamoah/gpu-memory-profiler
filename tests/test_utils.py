@@ -30,7 +30,7 @@ def test_get_system_info_falls_back_to_platform_module(monkeypatch):
     assert system_info["architecture"] == "TestArch"
 
 
-def _patch_torch_backend(monkeypatch, cuda_available, mps_backend):
+def _patch_torch_backend(monkeypatch, cuda_available, mps_backend, hip_version=None):
     cuda = SimpleNamespace(
         is_available=lambda: cuda_available,
         device_count=lambda: 1,
@@ -43,7 +43,7 @@ def _patch_torch_backend(monkeypatch, cuda_available, mps_backend):
     dummy_torch = SimpleNamespace(
         cuda=cuda,
         backends=backends,
-        version=SimpleNamespace(cuda="12.1"),
+        version=SimpleNamespace(cuda="12.1", hip=hip_version),
     )
     monkeypatch.setattr(gpumemprof_utils, "torch", dummy_torch)
 
@@ -76,6 +76,21 @@ def test_get_system_info_reports_cpu_when_no_cuda_or_mps(monkeypatch):
     assert system_info["mps_built"] is False
     assert system_info["mps_available"] is False
     assert system_info["detected_backend"] == "cpu"
+
+
+def test_get_system_info_detects_rocm_backend(monkeypatch):
+    _patch_torch_backend(
+        monkeypatch,
+        cuda_available=True,
+        mps_backend=None,
+        hip_version="6.3.0",
+    )
+
+    system_info = gpumemprof_utils.get_system_info()
+
+    assert system_info["rocm_available"] is True
+    assert system_info["rocm_version"] == "6.3.0"
+    assert system_info["detected_backend"] == "rocm"
 
 
 def _build_dummy_tf(runtime_gpu_count, build_info):

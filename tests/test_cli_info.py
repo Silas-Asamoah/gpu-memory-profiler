@@ -109,6 +109,45 @@ def test_gpumemprof_info_keeps_cuda_output_when_available(monkeypatch, capsys):
     assert "Falling back to CPU-only profiling." not in output
 
 
+def test_gpumemprof_info_reports_rocm_backend_details(monkeypatch, capsys):
+    monkeypatch.setattr(
+        gpumemprof_cli,
+        "get_system_info",
+        lambda: {
+            "platform": "Linux",
+            "python_version": "3.10",
+            "cuda_available": True,
+            "cuda_version": "12.1",
+            "rocm_version": "6.3.0",
+            "cuda_device_count": 1,
+            "current_device": 0,
+            "detected_backend": "rocm",
+        },
+    )
+    monkeypatch.setattr(
+        gpumemprof_cli,
+        "torch",
+        SimpleNamespace(cuda=SimpleNamespace(current_device=lambda: 0)),
+    )
+    monkeypatch.setattr(
+        gpumemprof_cli,
+        "get_gpu_info",
+        lambda device_id: {
+            "device_name": "AMD GPU0",
+            "total_memory": 1024**3,
+            "allocated_memory": 0,
+            "reserved_memory": 0,
+            "multiprocessor_count": 1,
+        },
+    )
+
+    gpumemprof_cli.cmd_info(SimpleNamespace(device=None, detailed=False))
+    output = capsys.readouterr().out
+
+    assert "Detected Backend: rocm" in output
+    assert "ROCm Version: 6.3.0" in output
+
+
 def test_tfmemprof_info_reports_backend_diagnostics_for_apple(monkeypatch, capsys):
     monkeypatch.setattr(
         tfmemprof_cli,
