@@ -13,18 +13,18 @@ from ..context_profiler import (
     clear_results as clear_pt_results,
 )
 
-get_tf_summaries: Optional[Callable[..., List[Dict[str, Any]]]]
-clear_tf_profiles: Optional[Callable[[], None]]
-try:  # TensorFlow is optional
+try:
     from tfmemprof.context_profiler import (
         get_profile_summaries as _get_tf_summaries,
         clear_profiles as _clear_tf_profiles,
     )
-    get_tf_summaries = _get_tf_summaries
-    clear_tf_profiles = _clear_tf_profiles
-except ImportError:  # pragma: no cover - optional dependency
-    get_tf_summaries = None
-    clear_tf_profiles = None
+    get_tf_summaries: Optional[Callable[..., List[Dict[str, Any]]]] = _get_tf_summaries
+    clear_tf_profiles: Optional[Callable[[], None]] = _clear_tf_profiles
+except ImportError as e:
+    raise ImportError(
+        "tfmemprof.context_profiler is required for TensorFlow profile support. "
+        "Ensure tfmemprof is properly installed."
+    ) from e
 
 
 @dataclass

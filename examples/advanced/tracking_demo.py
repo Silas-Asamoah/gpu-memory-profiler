@@ -110,29 +110,32 @@ def export_results(tracker: MemoryTracker) -> None:
     tracker.export_events(str(csv_path), format="csv")
     tracker.export_events(str(json_path), format="json")
 
-    try:
-        timeline = tracker.get_memory_timeline(interval=0.5)
-        if timeline["timestamps"]:
+    timeline = tracker.get_memory_timeline(interval=0.5)
+    if timeline["timestamps"]:
+        try:
             import matplotlib.pyplot as plt
+        except (ImportError, ModuleNotFoundError) as e:
+            raise ImportError(
+                "matplotlib is required for plotting in this example. "
+                "Install it with: pip install matplotlib"
+            ) from e
 
-            times = [
-                t - timeline["timestamps"][0]
-                for t in timeline["timestamps"]
-            ]
-            allocated = [value / (1024**3) for value in timeline["allocated"]]
-            plt.figure(figsize=(10, 4))
-            plt.plot(times, allocated, label="Allocated GB", linewidth=2)
-            plt.xlabel("Time (s)")
-            plt.ylabel("Allocated memory (GB)")
-            plt.title("GPU memory usage over time")
-            plt.grid(True, alpha=0.3)
-            plt.tight_layout()
-            plot_path = output_dir / "memory_timeline.png"
-            plt.savefig(plot_path, dpi=200)
-            plt.close()
-            print_kv("Timeline plot", plot_path)
-    except Exception as exc:  # pragma: no cover - optional dependency
-        print(f"Plotting skipped: {exc}")
+        times = [
+            t - timeline["timestamps"][0]
+            for t in timeline["timestamps"]
+        ]
+        allocated = [value / (1024**3) for value in timeline["allocated"]]
+        plt.figure(figsize=(10, 4))
+        plt.plot(times, allocated, label="Allocated GB", linewidth=2)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Allocated memory (GB)")
+        plt.title("GPU memory usage over time")
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plot_path = output_dir / "memory_timeline.png"
+        plt.savefig(plot_path, dpi=200)
+        plt.close()
+        print_kv("Timeline plot", plot_path)
 
     print_kv("Events CSV", csv_path)
     print_kv("Events JSON", json_path)

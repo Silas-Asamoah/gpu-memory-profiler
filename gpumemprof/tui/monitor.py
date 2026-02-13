@@ -10,38 +10,37 @@ from ..utils import format_bytes
 
 logger = logging.getLogger(__name__)
 
-MemoryTracker: Optional[Any]
-MemoryWatchdog: Optional[Any]
-TrackingEvent: Any
 try:
     from gpumemprof.tracker import (
         MemoryTracker as _MemoryTracker,
         MemoryWatchdog as _MemoryWatchdog,
         TrackingEvent as _TrackingEvent,
     )
+    MemoryTracker: Optional[Any] = _MemoryTracker
+    MemoryWatchdog: Optional[Any] = _MemoryWatchdog
+    TrackingEvent: Any = _TrackingEvent
+except ImportError as e:
+    raise ImportError(
+        "gpumemprof.tracker is required for TrackerSession. "
+        "Ensure gpumemprof is properly installed."
+    ) from e
 
-    MemoryTracker = _MemoryTracker
-    MemoryWatchdog = _MemoryWatchdog
-    TrackingEvent = _TrackingEvent
-except ImportError:  # pragma: no cover - optional dependency
-    MemoryTracker = None
-    MemoryWatchdog = None
-    TrackingEvent = Any
-
-CPUMemoryTracker: Optional[Any]
 try:
     from gpumemprof.cpu_profiler import CPUMemoryTracker as _CPUMemoryTracker
+    CPUMemoryTracker: Optional[Any] = _CPUMemoryTracker
+except ImportError as e:
+    raise ImportError(
+        "CPUMemoryTracker is required for TrackerSession. "
+        "Ensure gpumemprof is properly installed."
+    ) from e
 
-    CPUMemoryTracker = _CPUMemoryTracker
-except ImportError:  # pragma: no cover - optional dependency
-    CPUMemoryTracker = None
-
-torch: Any
 try:
     import torch as _torch
-    torch = _torch
-except ImportError:  # pragma: no cover - optional dependency
-    torch = None
+    torch: Any = _torch
+except ImportError as e:
+    raise ImportError(
+        "torch is required for TrackerSession. Install it with: pip install torch"
+    ) from e
 
 
 class TrackerUnavailableError(RuntimeError):
@@ -71,11 +70,6 @@ class TrackerSession:
         max_events_per_poll: int = 50,
         max_events: int = 10_000,
     ) -> None:
-        if MemoryTracker is None and CPUMemoryTracker is None:
-            raise TrackerUnavailableError(
-                "Memory trackers are unavailable. Install torch with CUDA for GPU mode "
-                "or ensure the CPU tracker dependencies are installed."
-            )
         self.sampling_interval = sampling_interval
         self.auto_cleanup = auto_cleanup
         self.max_events_per_poll = max_events_per_poll
@@ -104,14 +98,11 @@ class TrackerSession:
         tracker: Optional[Any] = None
         backend = "gpu"
 
-        if MemoryTracker is not None:
-            try:
-                tracker = MemoryTracker(**tracker_kwargs)
-            except Exception as exc:
-                logger.debug("GPU MemoryTracker init failed, falling back to CPU: %s", exc)
-                tracker = None
-
-        if tracker is None and CPUMemoryTracker is not None:
+        # Try GPU tracker first, fall back to CPU tracker if initialization fails
+        try:
+            tracker = MemoryTracker(**tracker_kwargs)
+        except Exception as exc:
+            logger.debug("GPU MemoryTracker init failed, falling back to CPU: %s", exc)
             backend = "cpu"
             tracker = CPUMemoryTracker(
                 sampling_interval=tracker_kwargs["sampling_interval"],

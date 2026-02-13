@@ -51,56 +51,60 @@ from gpumemprof.utils import get_system_info, get_gpu_info, format_bytes
 from tfmemprof.utils import get_system_info as get_tf_system_info
 from tfmemprof.utils import get_gpu_info as get_tf_gpu_info
 
-torch: Any
 try:
     import torch as _torch
+    torch: Any = _torch
+except ImportError as e:
+    raise ImportError(
+        "torch is required for the TUI application. Install it with: pip install torch"
+    ) from e
 
-    torch = _torch
-except ImportError:  # pragma: no cover - optional dependency
-    torch = None
-
-tf: Any
 try:
     import tensorflow as _tf
     # Suppress TensorFlow INFO and WARNING messages
     _tf.get_logger().setLevel("ERROR")
     # Also suppress oneDNN warnings via environment
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-    tf = _tf
-except ImportError:  # pragma: no cover - optional dependency
-    tf = None
+    tf: Any = _tf
+except ImportError as e:
+    raise ImportError(
+        "tensorflow is required for the TUI application. Install it with: pip install tensorflow"
+    ) from e
 
-Figlet: Optional[Any]
 try:
     from pyfiglet import Figlet as _Figlet
+    Figlet: Optional[Any] = _Figlet
+except ImportError as e:
+    raise ImportError(
+        "pyfiglet is required for the TUI application. Install it with: pip install pyfiglet"
+    ) from e
 
-    Figlet = _Figlet
-except ImportError:  # pragma: no cover - optional dependency
-    Figlet = None
-
-GPUMemoryProfiler: Optional[Any]
 try:
     from gpumemprof import GPUMemoryProfiler as _GPUMemoryProfiler
+    GPUMemoryProfiler: Optional[Any] = _GPUMemoryProfiler
+except ImportError as e:
+    raise ImportError(
+        "GPUMemoryProfiler is required for the TUI application. "
+        "Ensure gpumemprof is properly installed."
+    ) from e
 
-    GPUMemoryProfiler = _GPUMemoryProfiler
-except ImportError:  # pragma: no cover - optional dependency
-    GPUMemoryProfiler = None
-
-CPUMemoryProfiler: Optional[Any]
 try:
     from gpumemprof.cpu_profiler import CPUMemoryProfiler as _CPUMemoryProfiler
+    CPUMemoryProfiler: Optional[Any] = _CPUMemoryProfiler
+except ImportError as e:
+    raise ImportError(
+        "CPUMemoryProfiler is required for the TUI application. "
+        "Ensure gpumemprof is properly installed."
+    ) from e
 
-    CPUMemoryProfiler = _CPUMemoryProfiler
-except ImportError:  # pragma: no cover - optional dependency
-    CPUMemoryProfiler = None
-
-TFMemoryProfiler: Optional[Any]
 try:
     from tfmemprof.profiler import TFMemoryProfiler as _TFMemoryProfiler
-
-    TFMemoryProfiler = _TFMemoryProfiler
-except ImportError:  # pragma: no cover - optional dependency
-    TFMemoryProfiler = None
+    TFMemoryProfiler: Optional[Any] = _TFMemoryProfiler
+except ImportError as e:
+    raise ImportError(
+        "TFMemoryProfiler is required for the TUI application. "
+        "Ensure tfmemprof is properly installed."
+    ) from e
 
 
 WELCOME_MESSAGES = [
@@ -1603,7 +1607,7 @@ class GPUMemoryProfilerTUI(App):
         if format == "html":
             try:
                 import plotly.graph_objects as go
-            except ImportError as exc:  # pragma: no cover - optional dependency
+            except ImportError as exc:
                 raise ImportError(
                     "Plotly is required for HTML output. Install gpu-memory-profiler[viz]."
                 ) from exc
