@@ -65,19 +65,15 @@ try:
     _tf.get_logger().setLevel("ERROR")
     # Also suppress oneDNN warnings via environment
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-    tf: Any = _tf
-except ImportError as e:
-    raise ImportError(
-        "tensorflow is required for the TUI application. Install it with: pip install tensorflow"
-    ) from e
+    tf: Optional[Any] = _tf
+except ImportError:
+    tf = None
 
 try:
     from pyfiglet import Figlet as _Figlet
     Figlet: Optional[Any] = _Figlet
-except ImportError as e:
-    raise ImportError(
-        "pyfiglet is required for the TUI application. Install it with: pip install pyfiglet"
-    ) from e
+except ImportError:
+    Figlet = None
 
 try:
     from gpumemprof import GPUMemoryProfiler as _GPUMemoryProfiler
@@ -100,11 +96,8 @@ except ImportError as e:
 try:
     from tfmemprof.profiler import TFMemoryProfiler as _TFMemoryProfiler
     TFMemoryProfiler: Optional[Any] = _TFMemoryProfiler
-except ImportError as e:
-    raise ImportError(
-        "TFMemoryProfiler is required for the TUI application. "
-        "Ensure tfmemprof is properly installed."
-    ) from e
+except ImportError:
+    TFMemoryProfiler = None
 
 
 WELCOME_MESSAGES = [
@@ -1130,7 +1123,11 @@ class GPUMemoryProfilerTUI(App):
 
     async def run_tensorflow_sample(self) -> None:
         if TFMemoryProfiler is None or tf is None:
-            self.log_message("TensorFlow Sample", "TensorFlow profiler is unavailable in this environment.")
+            self.log_message(
+                "TensorFlow Sample",
+                "TensorFlow profiler is unavailable. Install tensorflow and tfmemprof: "
+                "pip install tensorflow tfmemprof"
+            )
             return
         await self._execute_task(
             "TensorFlow Sample",
@@ -1681,7 +1678,10 @@ class GPUMemoryProfilerTUI(App):
     @staticmethod
     def _tensorflow_sample_workload() -> Any:
         if TFMemoryProfiler is None or tf is None:
-            raise RuntimeError("TensorFlow profiler is unavailable.")
+            raise RuntimeError(
+                "TensorFlow profiler is unavailable. Install tensorflow and tfmemprof: "
+                "pip install tensorflow tfmemprof"
+            )
         profiler = TFMemoryProfiler()
         with profiler.profile_context("tf_sample"):
             tensor = tf.random.normal((2048, 2048))

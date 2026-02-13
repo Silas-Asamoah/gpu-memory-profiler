@@ -70,6 +70,14 @@ class TrackerSession:
         max_events_per_poll: int = 50,
         max_events: int = 10_000,
     ) -> None:
+        # Defensive check: ensure at least one tracker is available
+        # (In normal operation, imports are required and will raise ImportError if missing.
+        # This check handles edge cases like testing scenarios where trackers are monkeypatched.)
+        if MemoryTracker is None and CPUMemoryTracker is None:
+            raise TrackerUnavailableError(
+                "Memory trackers are unavailable. Install torch with CUDA for GPU mode "
+                "or ensure the CPU tracker dependencies are installed."
+            )
         self.sampling_interval = sampling_interval
         self.auto_cleanup = auto_cleanup
         self.max_events_per_poll = max_events_per_poll
