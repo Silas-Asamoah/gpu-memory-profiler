@@ -5,6 +5,7 @@ import os
 import socket
 import time
 import threading
+from contextlib import contextmanager
 from typing import Dict, List, Optional, Callable, Any, Union
 from collections import deque
 from dataclasses import dataclass
@@ -18,6 +19,11 @@ from .device_collectors import (
     _resolve_device,
     build_device_memory_collector,
     detect_torch_runtime_backend,
+)
+from .oom_flight_recorder import (
+    OOMFlightRecorder,
+    OOMFlightRecorderConfig,
+    classify_oom_exception,
 )
 from .telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
@@ -50,7 +56,12 @@ class MemoryTracker:
                  device: Optional[Union[str, int, torch.device]] = None,
                  sampling_interval: float = 0.1,
                  max_events: int = 10000,
-                 enable_alerts: bool = True):
+                 enable_alerts: bool = True,
+                 enable_oom_flight_recorder: bool = False,
+                 oom_dump_dir: str = "oom_dumps",
+                 oom_buffer_size: Optional[int] = None,
+                 oom_max_dumps: int = 5,
+                 oom_max_total_mb: int = 256):
         """
         Initialize the memory tracker.
 
@@ -59,6 +70,11 @@ class MemoryTracker:
             sampling_interval: Sampling interval in seconds
             max_events: Maximum number of events to keep in memory
             enable_alerts: Whether to enable memory alerts
+            enable_oom_flight_recorder: Enable automatic OOM dump artifacts
+            oom_dump_dir: Directory used for OOM dump bundles
+            oom_buffer_size: Event ring-buffer size used for OOM dumps
+            oom_max_dumps: Maximum number of retained OOM dump bundles
+            oom_max_total_mb: Maximum retained OOM dump storage in MB
         """
         self.device = self._setup_device(device)
         self.collector = build_device_memory_collector(self.device)
@@ -67,6 +83,20 @@ class MemoryTracker:
         self.sampling_interval = sampling_interval
         self.max_events = max_events
         self.enable_alerts = enable_alerts
+        self.last_oom_dump_path: Optional[str] = None
+
+        recorder_buffer_size = oom_buffer_size if oom_buffer_size is not None else max_events
+        if recorder_buffer_size <= 0:
+            recorder_buffer_size = max_events
+        self._oom_flight_recorder = OOMFlightRecorder(
+            OOMFlightRecorderConfig(
+                enabled=enable_oom_flight_recorder,
+                dump_dir=oom_dump_dir,
+                buffer_size=recorder_buffer_size,
+                max_dumps=oom_max_dumps,
+                max_total_mb=oom_max_total_mb,
+            )
+        )
 
         # Tracking state
         self.events: deque[TrackingEvent] = deque(maxlen=max_events)
@@ -269,6 +299,7 @@ class MemoryTracker:
         )
 
         self.events.append(event)
+        self._oom_flight_recorder.record_event(self._tracking_event_payload(event))
 
         # Trigger callbacks for alerts
         if event_type in ['warning', 'critical', 'error']:
@@ -312,6 +343,97 @@ class MemoryTracker:
                 self._add_event('warning', change,
                                 f"High fragmentation: {fragmentation:.1%}",
                                 {'fragmentation': fragmentation})
+
+    @staticmethod
+    def _tracking_event_payload(event: TrackingEvent) -> Dict[str, Any]:
+        """Serialize a TrackingEvent into a stable JSON-safe payload."""
+        return {
+            "timestamp": event.timestamp,
+            "event_type": event.event_type,
+            "memory_allocated": event.memory_allocated,
+            "memory_reserved": event.memory_reserved,
+            "memory_change": event.memory_change,
+            "device_id": event.device_id,
+            "context": event.context,
+            "metadata": dict(event.metadata or {}),
+            "active_memory": event.active_memory,
+            "inactive_memory": event.inactive_memory,
+            "device_used": event.device_used,
+            "device_free": event.device_free,
+            "device_total": event.device_total,
+            "backend": event.backend,
+        }
+
+    def handle_exception(
+        self,
+        exc: BaseException,
+        context: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """Capture OOM diagnostics for recognized OOM exceptions."""
+        classification = classify_oom_exception(exc)
+        if not classification.is_oom or classification.reason is None:
+            return None
+        if not self._oom_flight_recorder.config.enabled:
+            return None
+
+        dump_metadata: Dict[str, Any] = {
+            "tracker_stats": self.get_statistics(),
+            "collector_capabilities": dict(self.collector_capabilities),
+            "total_memory_bytes": self.total_memory,
+            "sampling_interval_s": self.sampling_interval,
+        }
+        if metadata:
+            dump_metadata.update(metadata)
+
+        sample = self._safe_sample()
+        dump_metadata.update(
+            {
+                "sample_allocated_bytes": sample.allocated_bytes,
+                "sample_reserved_bytes": sample.reserved_bytes,
+                "sample_used_bytes": sample.used_bytes,
+                "sample_free_bytes": sample.free_bytes,
+                "sample_total_bytes": sample.total_bytes,
+                "sample_device_id": sample.device_id,
+            }
+        )
+        self._add_event(
+            "error",
+            0,
+            f"OOM detected ({classification.reason})",
+            metadata={"oom_reason": classification.reason},
+            sample=sample,
+        )
+
+        try:
+            dump_path = self._oom_flight_recorder.dump(
+                reason=classification.reason,
+                exception=exc,
+                context=context,
+                backend=self.backend,
+                metadata=dump_metadata,
+            )
+        except Exception as dump_exc:
+            logger.debug("OOM flight recorder dump failed: %s", dump_exc)
+            return None
+
+        self.last_oom_dump_path = dump_path
+        return dump_path
+
+    @contextmanager
+    def capture_oom(
+        self,
+        context: str = "runtime",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Capture OOM diagnostic bundle if a tracked block raises OOM."""
+        try:
+            yield
+        except Exception as exc:
+            dump_path = self.handle_exception(exc, context=context, metadata=metadata)
+            if dump_path:
+                logger.error("OOM flight recorder dump saved to: %s", dump_path)
+            raise
 
     def add_alert_callback(self, callback: Callable[[TrackingEvent], None]) -> None:
         """Add a callback function to be called on alerts."""
@@ -410,6 +532,8 @@ class MemoryTracker:
                 'total_events': len(self.events),
                 'events_last_hour': len(recent_events),
                 'backend': self.backend,
+                'oom_flight_recorder_enabled': self._oom_flight_recorder.config.enabled,
+                'last_oom_dump_path': self.last_oom_dump_path,
                 'current_memory_allocated': sample.allocated_bytes,
                 'current_memory_reserved': sample.reserved_bytes,
                 'memory_utilization_percent': (
