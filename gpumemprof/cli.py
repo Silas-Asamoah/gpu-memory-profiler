@@ -4,6 +4,7 @@ import argparse
 import sys
 import time
 import json
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional, Any, Union
 
@@ -75,6 +76,16 @@ Examples:
                               help='Memory warning threshold percentage (default: 80)')
     track_parser.add_argument('--critical-threshold', type=float, default=95.0,
                               help='Memory critical threshold percentage (default: 95)')
+    track_parser.add_argument('--oom-flight-recorder', action='store_true',
+                              help='Enable automatic OOM flight recorder dump artifacts')
+    track_parser.add_argument('--oom-dump-dir', type=str, default='oom_dumps',
+                              help='Directory used to write OOM dump bundles (default: oom_dumps)')
+    track_parser.add_argument('--oom-buffer-size', type=int, default=None,
+                              help='Ring buffer size for OOM event dumps (default: max tracker events)')
+    track_parser.add_argument('--oom-max-dumps', type=int, default=5,
+                              help='Maximum number of retained OOM dump bundles (default: 5)')
+    track_parser.add_argument('--oom-max-total-mb', type=int, default=256,
+                              help='Maximum retained OOM dump storage in MB (default: 256)')
 
     # Analyze command
     analyze_parser = subparsers.add_parser(
@@ -325,8 +336,21 @@ def cmd_track(args: argparse.Namespace) -> None:
         tracker = MemoryTracker(
             device=tracker_device,
             sampling_interval=interval,
-            enable_alerts=True
+            enable_alerts=True,
+            enable_oom_flight_recorder=args.oom_flight_recorder,
+            oom_dump_dir=args.oom_dump_dir,
+            oom_buffer_size=args.oom_buffer_size,
+            oom_max_dumps=args.oom_max_dumps,
+            oom_max_total_mb=args.oom_max_total_mb,
         )
+
+        if args.oom_flight_recorder:
+            print("OOM flight recorder enabled:")
+            print(f"  Dump directory: {args.oom_dump_dir}")
+            buffer_value = args.oom_buffer_size if args.oom_buffer_size is not None else tracker.max_events
+            print(f"  Buffer size: {buffer_value} events")
+            print(f"  Max dumps: {args.oom_max_dumps}")
+            print(f"  Max total size: {args.oom_max_total_mb} MB")
 
         # Set thresholds
         tracker.set_threshold('memory_warning_percent', args.warning_threshold)
@@ -351,34 +375,45 @@ def cmd_track(args: argparse.Namespace) -> None:
     tracker.start_tracking()
 
     start_time = time.time()
+    oom_context = (
+        tracker.capture_oom(
+            context="gpumemprof.track",
+            metadata={"command": "track", "runtime_backend": runtime_backend},
+        )
+        if isinstance(tracker, MemoryTracker)
+        else nullcontext()
+    )
     try:
-        while True:
-            elapsed = time.time() - start_time
+        with oom_context:
+            while True:
+                elapsed = time.time() - start_time
 
-            # Check duration limit
-            if duration and elapsed >= duration:
-                break
+                # Check duration limit
+                if duration and elapsed >= duration:
+                    break
 
-            # Print status every 10 seconds
-            if int(elapsed) % 10 == 0:
-                stats = tracker.get_statistics()
-                divisor = 1024**3 if gpu_runtime else 1024**2
-                unit = "GB" if gpu_runtime else "MB"
-                current_mem = stats.get('current_memory_allocated', 0) / divisor
-                peak_mem = stats.get('peak_memory', 0) / divisor
-                utilization = stats.get('memory_utilization_percent', 0)
-                print(
-                    f"Elapsed: {elapsed:.1f}s, Memory: {current_mem:.2f} {unit} "
-                    f"({utilization:.1f}%), Peak: {peak_mem:.2f} {unit}"
-                )
+                # Print status every 10 seconds
+                if int(elapsed) % 10 == 0:
+                    stats = tracker.get_statistics()
+                    divisor = 1024**3 if gpu_runtime else 1024**2
+                    unit = "GB" if gpu_runtime else "MB"
+                    current_mem = stats.get('current_memory_allocated', 0) / divisor
+                    peak_mem = stats.get('peak_memory', 0) / divisor
+                    utilization = stats.get('memory_utilization_percent', 0)
+                    print(
+                        f"Elapsed: {elapsed:.1f}s, Memory: {current_mem:.2f} {unit} "
+                        f"({utilization:.1f}%), Peak: {peak_mem:.2f} {unit}"
+                    )
 
-            time.sleep(1)
+                time.sleep(1)
 
     except KeyboardInterrupt:
         print("\nTracking stopped by user")
 
     finally:
         tracker.stop_tracking()
+        if isinstance(tracker, MemoryTracker) and tracker.last_oom_dump_path:
+            print(f"OOM flight recorder dump saved to: {tracker.last_oom_dump_path}")
 
     # Show final statistics
     print("\nTracking Summary:")
