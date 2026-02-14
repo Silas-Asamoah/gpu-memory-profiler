@@ -76,6 +76,11 @@ def _resolve_device(device: Union[str, int, torch.device, None]) -> torch.device
             return torch.device("mps")
         raise RuntimeError("No supported GPU backend is available")
     if isinstance(device, int):
+        backend = detect_torch_runtime_backend()
+        if backend not in {"cuda", "rocm"}:
+            raise ValueError(
+                "Integer device IDs are only supported for CUDA/ROCm backends"
+            )
         return torch.device(f"cuda:{device}")
     if isinstance(device, str):
         return torch.device(device)

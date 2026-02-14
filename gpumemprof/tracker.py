@@ -15,6 +15,7 @@ import psutil
 from .utils import format_bytes, get_gpu_info
 from .device_collectors import (
     DeviceMemorySample,
+    _resolve_device,
     build_device_memory_collector,
     detect_torch_runtime_backend,
 )
@@ -107,29 +108,15 @@ class MemoryTracker:
 
     def _setup_device(self, device: Union[str, int, torch.device, None]) -> torch.device:
         """Setup and validate the device for tracking."""
-        resolved_device: torch.device
-
-        if device is None:
-            backend = detect_torch_runtime_backend()
-            if backend in {"cuda", "rocm"}:
-                resolved_device = torch.device(f"cuda:{torch.cuda.current_device()}")
-            elif backend == "mps":
-                resolved_device = torch.device("mps")
-            else:
-                raise RuntimeError(
-                    "No supported GPU backend available (CUDA/ROCm/MPS)")
-        elif isinstance(device, int):
-            resolved_device = torch.device(f"cuda:{device}")
-        elif isinstance(device, str):
-            resolved_device = torch.device(device)
-        else:
-            resolved_device = device
+        resolved_device = _resolve_device(device)
 
         if resolved_device.type not in {"cuda", "mps"}:
             raise ValueError(
                 "Only CUDA/ROCm or MPS devices are supported for GPU memory tracking")
 
         if resolved_device.type == "cuda":
+            if not torch.cuda.is_available():
+                raise RuntimeError("CUDA/ROCm backend is not available in this runtime")
             device_index = (
                 resolved_device.index
                 if resolved_device.index is not None
