@@ -1,0 +1,282 @@
+"""Tests for tfmemprof diagnose command."""
+
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+import tfmemprof.cli as tfmemprof_cli
+import tfmemprof.diagnose as diagnose_module
+
+
+def _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False, risk_detected=False):
+    """Patch diagnose module's env/summary dependencies for predictable output."""
+    monkeypatch.setattr(
+        diagnose_module,
+        "get_system_info",
+        lambda: {
+            "platform": "Linux",
+            "python_version": "3.10",
+            "tensorflow_version": "2.15.0",
+            "gpu": {"available": gpu_available, "count": 1 if gpu_available else 0},
+            "backend": {"runtime_backend": "cuda" if gpu_available else "cpu"},
+        },
+    )
+    if gpu_available and risk_detected:
+        gpu_info = {
+            "available": True,
+            "count": 1,
+            "devices": [
+                {
+                    "id": 0,
+                    "name": "GPU 0",
+                    "current_memory_mb": 9000,
+                    "peak_memory_mb": 10000,
+                }
+            ],
+            "total_memory": 10000,
+        }
+    elif gpu_available:
+        gpu_info = {
+            "available": True,
+            "count": 1,
+            "devices": [
+                {
+                    "id": 0,
+                    "name": "GPU 0",
+                    "current_memory_mb": 500,
+                    "peak_memory_mb": 1000,
+                }
+            ],
+            "total_memory": 1000,
+        }
+    else:
+        gpu_info = {"available": False, "error": "No GPU devices found", "devices": []}
+
+    monkeypatch.setattr(diagnose_module, "get_gpu_info", lambda: gpu_info)
+    monkeypatch.setattr(
+        diagnose_module,
+        "get_backend_info",
+        lambda: {"runtime_backend": "cuda" if gpu_available else "cpu"},
+    )
+
+
+def _patch_tfmemprof_timeline_capture(monkeypatch):
+    """Patch run_timeline_capture to return fixed data without starting a tracker."""
+
+    def _fake_capture(device, duration_seconds, interval):
+        if duration_seconds <= 0:
+            return {"timestamps": [], "allocated": [], "reserved": []}
+        return {
+            "timestamps": [0.0, 0.5, 1.0],
+            "allocated": [0, 1000000, 2000000],
+            "reserved": [0, 1000000, 2000000],
+        }
+
+    monkeypatch.setattr(diagnose_module, "run_timeline_capture", _fake_capture)
+
+
+def _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False):
+    """Patch build_diagnostic_summary to return controlled (summary, risk_detected)."""
+
+    def _fake_build(device):
+        summary = {
+            "backend": "cuda",
+            "allocated_bytes": 0,
+            "reserved_bytes": 0,
+            "peak_bytes": 0,
+            "total_bytes": 1,
+            "utilization_ratio": 0.9 if risk_detected else 0.2,
+            "fragmentation_ratio": 0,
+            "num_ooms": 0,
+            "risk_flags": {
+                "oom_occurred": False,
+                "high_utilization": risk_detected,
+                "fragmentation_warning": False,
+            },
+            "suggestions": ["Suggestion 1"] if risk_detected else [],
+        }
+        return summary, risk_detected
+
+    monkeypatch.setattr(diagnose_module, "build_diagnostic_summary", _fake_build)
+
+
+def test_tfmemprof_diagnose_produces_artifact_bundle(monkeypatch, tmp_path):
+    """tfmemprof diagnose with duration=0 produces directory with required files."""
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+
+    args = SimpleNamespace(
+        output=str(tmp_path),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    exit_code = tfmemprof_cli.cmd_diagnose(args)
+
+    assert exit_code in (0, 2)
+    dirs = list(tmp_path.iterdir())
+    assert len(dirs) == 1
+    artifact_dir = dirs[0]
+    assert artifact_dir.is_dir()
+    assert "tfmemprof-diagnose-" in artifact_dir.name
+
+    assert (artifact_dir / "environment.json").exists()
+    assert (artifact_dir / "diagnostic_summary.json").exists()
+    assert (artifact_dir / "telemetry_timeline.json").exists()
+    assert (artifact_dir / "manifest.json").exists()
+
+    with open(artifact_dir / "manifest.json") as f:
+        manifest = json.load(f)
+    assert "files" in manifest
+    assert "exit_code" in manifest
+    assert "risk_detected" in manifest
+    for name in manifest["files"]:
+        assert (artifact_dir / name).exists()
+
+    with open(artifact_dir / "diagnostic_summary.json") as f:
+        summary = json.load(f)
+    assert "backend" in summary
+    assert "risk_flags" in summary
+    assert "suggestions" in summary
+
+
+def test_tfmemprof_diagnose_invalid_duration_returns_one(capsys):
+    """Invalid --duration < 0 returns 1."""
+    args = SimpleNamespace(
+        output=None,
+        device="/GPU:0",
+        duration=-1,
+        interval=0.5,
+    )
+    exit_code = tfmemprof_cli.cmd_diagnose(args)
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "duration" in err.lower()
+
+
+def test_tfmemprof_diagnose_invalid_interval_returns_one(capsys):
+    """Invalid --interval <= 0 returns 1."""
+    args = SimpleNamespace(
+        output=None,
+        device="/GPU:0",
+        duration=0,
+        interval=0,
+    )
+    exit_code = tfmemprof_cli.cmd_diagnose(args)
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "interval" in err.lower()
+
+
+def test_tfmemprof_diagnose_exit_code_zero_when_no_risk(monkeypatch, tmp_path):
+    """When risk is false, cmd_diagnose returns 0."""
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=True, risk_detected=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+
+    args = SimpleNamespace(
+        output=str(tmp_path),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    exit_code = tfmemprof_cli.cmd_diagnose(args)
+    assert exit_code == 0
+
+
+def test_tfmemprof_diagnose_exit_code_two_when_risk_detected(monkeypatch, tmp_path):
+    """When risk is detected, returns 2."""
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=True, risk_detected=True)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=True)
+
+    args = SimpleNamespace(
+        output=str(tmp_path),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    exit_code = tfmemprof_cli.cmd_diagnose(args)
+    assert exit_code == 2
+
+
+def test_tfmemprof_diagnose_stdout_contains_artifact_and_status(monkeypatch, tmp_path, capsys):
+    """Stdout summary contains artifact path and status."""
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+
+    args = SimpleNamespace(
+        output=str(tmp_path),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    tfmemprof_cli.cmd_diagnose(args)
+    out = capsys.readouterr().out
+
+    assert "Artifact:" in out
+    assert "Status:" in out
+    assert "tfmemprof-diagnose-" in out
+    assert "OK" in out or "MEMORY_RISK" in out or "FAILED" in out
+
+
+def test_tfmemprof_diagnose_default_output_creates_timestamped_dir(monkeypatch, tmp_path):
+    """With no --output, artifact is created in cwd with timestamped name."""
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+    monkeypatch.chdir(tmp_path)
+
+    args = SimpleNamespace(
+        output=None,
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    tfmemprof_cli.cmd_diagnose(args)
+
+    dirs = [d for d in tmp_path.iterdir() if d.is_dir()]
+    assert len(dirs) == 1
+    assert dirs[0].name.startswith("tfmemprof-diagnose-")
+
+
+def test_tfmemprof_diagnose_output_existing_dir_creates_timestamped_subdir(monkeypatch, tmp_path):
+    """When --output is an existing directory, create timestamped subdir inside."""
+    out_dir = tmp_path / "myout"
+    out_dir.mkdir()
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+
+    args = SimpleNamespace(
+        output=str(out_dir),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    tfmemprof_cli.cmd_diagnose(args)
+
+    subdirs = list(out_dir.iterdir())
+    assert len(subdirs) == 1
+    assert subdirs[0].name.startswith("tfmemprof-diagnose-")
+    assert (subdirs[0] / "manifest.json").exists()
+
+
+def test_tfmemprof_diagnose_invalid_output_returns_one(monkeypatch, tmp_path):
+    """When --output is an existing file (cannot create dir), returns 1."""
+    existing_file = tmp_path / "existing_file"
+    existing_file.write_text("x")
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+
+    args = SimpleNamespace(
+        output=str(existing_file),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    exit_code = tfmemprof_cli.cmd_diagnose(args)
+    assert exit_code == 1

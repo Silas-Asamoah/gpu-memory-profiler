@@ -471,6 +471,38 @@ Top Recommendations:
 2. No optimization needed at this time
 ```
 
+#### 5. `tfmemprof diagnose` - Diagnostic Bundle
+
+Produce a single portable diagnostic artifact for debugging memory failures (same behavior and capabilities as `gpumemprof diagnose`). One command for repro and export; suitable for local triage and CI/automation.
+
+**Options:**
+
+- `--output DIR` - Output directory for the artifact bundle (default: current directory)
+- `--device DEVICE` - TensorFlow device to monitor (default: /GPU:0)
+- `--duration SECONDS` - Seconds to run the tracker for telemetry timeline (default: 5; use 0 to skip)
+- `--interval SECONDS` - Sampling interval for timeline (default: 0.5)
+- `-v, --verbose` - Enable verbose logging
+
+**Exit codes:** Same as `gpumemprof diagnose`: 0 = success no risk, 1 = failure, 2 = success with memory risk.
+
+**Output layout:** Same as `gpumemprof diagnose`, but the artifact directory is named `tfmemprof-diagnose-YYYYMMDD-HHMMSS`. The same four files are produced: `environment.json`, `telemetry_timeline.json`, `diagnostic_summary.json`, `manifest.json`.
+
+**Examples:**
+
+```bash
+# Local: default output
+tfmemprof diagnose
+
+# Local: custom output and duration
+tfmemprof diagnose --output ./my-diag --duration 10
+
+# CI: capture and check exit code
+tfmemprof diagnose --duration 5 --output "$ARTIFACT_DIR"
+echo $?   # 0 = OK, 1 = failure, 2 = memory risk
+```
+
+**Output (stdout summary):** Same format as `gpumemprof diagnose` (Artifact path, Status, Findings).
+
 ## Common Use Cases
 
 ### 1. Quick System Check
