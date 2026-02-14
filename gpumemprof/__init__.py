@@ -18,6 +18,12 @@ from .telemetry import (
     telemetry_event_to_dict,
     validate_telemetry_record,
 )
+from .device_collectors import (
+    DeviceMemoryCollector,
+    DeviceMemorySample,
+    build_device_memory_collector,
+    detect_torch_runtime_backend,
+)
 
 try:
     from .visualizer import MemoryVisualizer
@@ -43,6 +49,10 @@ __all__ = [
     "MemoryAnalyzer",
     "MemoryTracker",
     "TelemetryEventV2",
+    "DeviceMemoryCollector",
+    "DeviceMemorySample",
+    "build_device_memory_collector",
+    "detect_torch_runtime_backend",
     "CPUMemoryProfiler",
     "CPUMemoryTracker",
     "telemetry_event_from_record",

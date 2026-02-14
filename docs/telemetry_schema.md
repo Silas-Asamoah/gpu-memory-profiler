@@ -36,8 +36,19 @@ Schema file:
 ## Collector values
 
 - `gpumemprof.cuda_tracker`
+- `gpumemprof.rocm_tracker`
+- `gpumemprof.mps_tracker`
 - `gpumemprof.cpu_tracker`
 - `tfmemprof.memory_tracker`
+
+## Backend capability metadata
+
+Tracker exports may include backend capability hints under `metadata`:
+
+- `backend`
+- `supports_device_total`
+- `supports_device_free`
+- `sampling_source`
 
 ## Legacy v1 to v2 conversion defaults
 

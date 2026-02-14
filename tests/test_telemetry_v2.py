@@ -147,6 +147,26 @@ def test_legacy_cpu_record_converts_with_defaults() -> None:
     jsonschema_validate(instance=record, schema=_schema())
 
 
+def test_legacy_record_uses_backend_metadata_for_collector() -> None:
+    legacy = {
+        "timestamp": 1700000001.0,
+        "event_type": "sample",
+        "memory_allocated": 4096,
+        "memory_reserved": 8192,
+        "memory_change": 0,
+        "metadata": {"backend": "mps"},
+    }
+
+    event = telemetry_event_from_record(
+        legacy,
+        default_collector="legacy.unknown",
+        default_sampling_interval_ms=100,
+    )
+    record = telemetry_event_to_dict(event)
+
+    assert record["collector"] == "gpumemprof.mps_tracker"
+
+
 def test_legacy_tf_record_converts_with_defaults() -> None:
     legacy = {
         "timestamp": 1700000002.5,

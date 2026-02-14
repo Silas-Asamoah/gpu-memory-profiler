@@ -255,10 +255,23 @@ def _legacy_collector(
     record: Mapping[str, Any],
     default_collector: str,
     device_id: int,
+    metadata: Mapping[str, Any],
 ) -> str:
     collector = record.get("collector")
     if isinstance(collector, str) and collector.strip():
         return collector
+
+    backend_value = record.get("backend", metadata.get("backend"))
+    if isinstance(backend_value, str):
+        backend = backend_value.strip().lower()
+        if backend == "mps":
+            return "gpumemprof.mps_tracker"
+        if backend == "rocm":
+            return "gpumemprof.rocm_tracker"
+        if backend == "cuda":
+            return "gpumemprof.cuda_tracker"
+        if backend == "cpu":
+            return "gpumemprof.cpu_tracker"
 
     if "memory_mb" in record:
         return "tfmemprof.memory_tracker"
@@ -452,7 +465,7 @@ def telemetry_event_from_record(
 
     pid = _legacy_pid(record, metadata)
     host = _legacy_host(record, metadata)
-    collector = _legacy_collector(record, default_collector, device_id)
+    collector = _legacy_collector(record, default_collector, device_id, metadata)
 
     context_value = record.get("context", record.get("message"))
     context = _coerce_string(context_value, "context", allow_none=True)
