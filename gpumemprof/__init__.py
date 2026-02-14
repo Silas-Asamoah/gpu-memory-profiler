@@ -24,6 +24,12 @@ from .device_collectors import (
     build_device_memory_collector,
     detect_torch_runtime_backend,
 )
+from .oom_flight_recorder import (
+    OOMExceptionClassification,
+    OOMFlightRecorder,
+    OOMFlightRecorderConfig,
+    classify_oom_exception,
+)
 
 try:
     from .visualizer import MemoryVisualizer
@@ -53,6 +59,10 @@ __all__ = [
     "DeviceMemorySample",
     "build_device_memory_collector",
     "detect_torch_runtime_backend",
+    "OOMFlightRecorder",
+    "OOMFlightRecorderConfig",
+    "OOMExceptionClassification",
+    "classify_oom_exception",
     "CPUMemoryProfiler",
     "CPUMemoryTracker",
     "telemetry_event_from_record",
