@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import torch
 
@@ -39,7 +39,7 @@ class DeviceMemoryCollector(ABC):
         """Collect a single normalized memory sample."""
 
     @abstractmethod
-    def capabilities(self) -> dict[str, Any]:
+    def capabilities(self) -> Dict[str, Any]:
         """Describe backend capability signals for telemetry metadata."""
 
 
@@ -125,7 +125,7 @@ class CudaDeviceCollector(DeviceMemoryCollector):
             device_id=device_index,
         )
 
-    def capabilities(self) -> dict[str, Any]:
+    def capabilities(self) -> Dict[str, Any]:
         return {
             "backend": self.name(),
             "supports_device_total": True,
@@ -146,7 +146,7 @@ class ROCmDeviceCollector(CudaDeviceCollector):
     def is_available(self) -> bool:
         return _is_rocm_runtime()
 
-    def capabilities(self) -> dict[str, Any]:
+    def capabilities(self) -> Dict[str, Any]:
         capabilities = super().capabilities()
         capabilities.update(
             {
@@ -185,6 +185,8 @@ class MPSDeviceCollector(DeviceMemoryCollector):
         total: Optional[int] = None
         if hasattr(torch_mps, "recommended_max_memory"):
             try:
+                # MPS does not expose a strict physical-total API here; this is the
+                # best runtime approximation currently available from torch.
                 raw_total = int(torch_mps.recommended_max_memory())
                 total = raw_total if raw_total > 0 else None
             except Exception:
@@ -202,7 +204,7 @@ class MPSDeviceCollector(DeviceMemoryCollector):
             device_id=0,
         )
 
-    def capabilities(self) -> dict[str, Any]:
+    def capabilities(self) -> Dict[str, Any]:
         import torch.mps as torch_mps
 
         supports_total = hasattr(torch_mps, "recommended_max_memory")

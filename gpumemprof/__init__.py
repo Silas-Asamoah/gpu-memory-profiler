@@ -22,6 +22,7 @@ from .device_collectors import (
     DeviceMemoryCollector,
     DeviceMemorySample,
     build_device_memory_collector,
+    detect_torch_runtime_backend,
 )
 
 try:
@@ -51,6 +52,7 @@ __all__ = [
     "DeviceMemoryCollector",
     "DeviceMemorySample",
     "build_device_memory_collector",
+    "detect_torch_runtime_backend",
     "CPUMemoryProfiler",
     "CPUMemoryTracker",
     "telemetry_event_from_record",
