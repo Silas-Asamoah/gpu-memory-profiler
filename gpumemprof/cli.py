@@ -137,10 +137,11 @@ def cmd_info(args: argparse.Namespace) -> None:
 
     # System info
     system_info = get_system_info()
+    detected_backend = str(system_info.get("detected_backend", "cpu"))
     print(f"Platform: {system_info.get('platform', 'Unknown')}")
     print(f"Python Version: {system_info.get('python_version', 'Unknown')}")
     print(f"CUDA Available: {system_info.get('cuda_available', False)}")
-    print(f"Detected Backend: {system_info.get('detected_backend', 'cpu')}")
+    print(f"Detected Backend: {detected_backend}")
 
     if not system_info.get('cuda_available', False):
         print(f"MPS Built: {system_info.get('mps_built', False)}")
@@ -158,6 +159,8 @@ def cmd_info(args: argparse.Namespace) -> None:
         return
 
     print(f"CUDA Version: {system_info.get('cuda_version', 'Unknown')}")
+    if detected_backend == "rocm":
+        print(f"ROCm Version: {system_info.get('rocm_version', 'Unknown')}")
     print(f"GPU Device Count: {system_info.get('cuda_device_count', 0)}")
     print(f"Current Device: {system_info.get('current_device', 0)}")
     print()
@@ -200,18 +203,30 @@ def cmd_monitor(args: argparse.Namespace) -> None:
     duration = args.duration
     interval = args.interval
 
-    cuda_available = torch.cuda.is_available()
+    runtime_backend = str(get_system_info().get("detected_backend", "cpu"))
+    gpu_runtime = runtime_backend in {"cuda", "rocm", "mps"}
 
     print(f"Starting memory monitoring for {duration} seconds...")
-    print(f"Mode: {'GPU' if cuda_available else 'CPU'}")
+    mode_label = f"GPU ({runtime_backend})" if gpu_runtime else "CPU"
+    print(f"Mode: {mode_label}")
     print(f"Sampling interval: {interval}s")
     print("Press Ctrl+C to stop early")
     print()
 
-    profiler: Union[GPUMemoryProfiler, CPUMemoryProfiler]
-    if cuda_available:
+    profiler: Optional[Union[GPUMemoryProfiler, CPUMemoryProfiler]] = None
+    tracker: Optional[MemoryTracker] = None
+    if runtime_backend in {"cuda", "rocm"}:
         profiler = GPUMemoryProfiler(device=device)
         profiler.start_monitoring(interval)
+    elif runtime_backend == "mps":
+        if device is not None:
+            print("Ignoring --device for MPS runtime (single logical device).")
+        tracker = MemoryTracker(
+            device="mps",
+            sampling_interval=interval,
+            enable_alerts=False,
+        )
+        tracker.start_tracking()
     else:
         profiler = CPUMemoryProfiler()
         profiler.start_monitoring(interval)
@@ -224,28 +239,51 @@ def cmd_monitor(args: argparse.Namespace) -> None:
                 if isinstance(profiler, GPUMemoryProfiler):
                     current_mem = torch.cuda.memory_allocated(
                         profiler.device) / (1024**3)
+                    unit = "GB"
+                elif tracker is not None:
+                    stats = tracker.get_statistics()
+                    current_mem = stats.get("current_memory_allocated", 0) / (1024**3)
+                    unit = "GB"
                 else:
-                    current_mem = profiler._take_snapshot().rss / (1024**3)
+                    current_mem = profiler._take_snapshot().rss / (1024**2) if profiler else 0.0
+                    unit = "MB"
                 elapsed = time.time() - start_time
                 print(
-                    f"Elapsed: {elapsed:.1f}s, Current Memory: {current_mem:.2f} GB")
+                    f"Elapsed: {elapsed:.1f}s, Current Memory: {current_mem:.2f} {unit}")
             time.sleep(1)
 
     except KeyboardInterrupt:
         print("\nMonitoring stopped by user")
 
     finally:
-        profiler.stop_monitoring()
+        if tracker is not None:
+            tracker.stop_tracking()
+        elif profiler is not None:
+            profiler.stop_monitoring()
 
     # Show summary
     print("\nMonitoring Summary:")
     print("-" * 30)
-    summary = profiler.get_summary()
+    if tracker is not None:
+        stats = tracker.get_statistics()
+        events = tracker.get_events()
+        first_alloc = events[0].memory_allocated if events else 0
+        last_alloc = events[-1].memory_allocated if events else 0
+        summary = {
+            "snapshots_collected": len(events),
+            "peak_memory_usage": stats.get("peak_memory", 0),
+            "memory_change_from_baseline": last_alloc - first_alloc,
+        }
+        unit = "GB"
+        divisor = 1024**3
+    else:
+        summary = profiler.get_summary() if profiler is not None else {}
+        unit = "GB" if gpu_runtime else "MB"
+        divisor = 1024**3 if gpu_runtime else 1024**2
+
     print(f"Snapshots collected: {summary.get('snapshots_collected', 0)}")
     peak = summary.get('peak_memory_usage', 0)
     change = summary.get('memory_change_from_baseline', 0)
-    unit = "GB" if cuda_available else "MB"
-    divisor = 1024**3 if cuda_available else 1024**2
     print(f"Peak memory usage: {peak / divisor:.2f} {unit}")
     print(f"Memory change from baseline: {change / divisor:.2f} {unit}")
 
@@ -268,6 +306,9 @@ def cmd_monitor(args: argparse.Namespace) -> None:
                 save_path=Path(args.output).stem
             )
             print(f"Data saved to: {output_path}")
+        elif tracker is not None:
+            tracker.export_events(args.output, args.format)
+            print(f"Events saved to: {args.output}")
         else:
             print("Skipping visualization export: CPU monitoring snapshots are not supported by MemoryVisualizer.")
 
@@ -285,12 +326,20 @@ def cmd_track(args: argparse.Namespace) -> None:
     print("Press Ctrl+C to stop")
     print()
 
-    cuda_available = torch.cuda.is_available()
+    runtime_backend = str(get_system_info().get("detected_backend", "cpu"))
+    gpu_runtime = runtime_backend in {"cuda", "rocm", "mps"}
     tracker: Union[MemoryTracker, CPUMemoryTracker]
     watchdog: Optional[MemoryWatchdog] = None
-    if cuda_available:
+    if gpu_runtime:
+        tracker_device: Optional[Union[str, int]]
+        if runtime_backend == "mps":
+            if device is not None:
+                print("Ignoring --device for MPS runtime (single logical device).")
+            tracker_device = "mps"
+        else:
+            tracker_device = device
         tracker = MemoryTracker(
-            device=device,
+            device=tracker_device,
             sampling_interval=interval,
             enable_alerts=True
         )
@@ -312,7 +361,7 @@ def cmd_track(args: argparse.Namespace) -> None:
             print("Memory watchdog enabled - automatic cleanup activated")
     else:
         tracker = CPUMemoryTracker(sampling_interval=interval)
-        print("Running CPU memory tracker (CUDA unavailable).")
+        print("Running CPU memory tracker (no GPU backend available).")
 
     # Start tracking
     tracker.start_tracking()
@@ -329,12 +378,15 @@ def cmd_track(args: argparse.Namespace) -> None:
             # Print status every 10 seconds
             if int(elapsed) % 10 == 0:
                 stats = tracker.get_statistics()
-                current_mem = stats.get(
-                    'current_memory_allocated', 0) / (1024**3)
-                peak_mem = stats.get('peak_memory', 0) / (1024**3)
+                divisor = 1024**3 if gpu_runtime else 1024**2
+                unit = "GB" if gpu_runtime else "MB"
+                current_mem = stats.get('current_memory_allocated', 0) / divisor
+                peak_mem = stats.get('peak_memory', 0) / divisor
                 utilization = stats.get('memory_utilization_percent', 0)
                 print(
-                    f"Elapsed: {elapsed:.1f}s, Memory: {current_mem:.2f} GB ({utilization:.1f}%), Peak: {peak_mem:.2f} GB")
+                    f"Elapsed: {elapsed:.1f}s, Memory: {current_mem:.2f} {unit} "
+                    f"({utilization:.1f}%), Peak: {peak_mem:.2f} {unit}"
+                )
 
             time.sleep(1)
 
@@ -348,8 +400,8 @@ def cmd_track(args: argparse.Namespace) -> None:
     print("\nTracking Summary:")
     print("-" * 30)
     stats = tracker.get_statistics()
-    divisor = 1024**3 if cuda_available else 1024**2
-    unit = "GB" if cuda_available else "MB"
+    divisor = 1024**3 if gpu_runtime else 1024**2
+    unit = "GB" if gpu_runtime else "MB"
     print(f"Total events: {stats.get('total_events', 0)}")
     print(f"Peak memory: {stats.get('peak_memory', 0) / divisor:.2f} {unit}")
 

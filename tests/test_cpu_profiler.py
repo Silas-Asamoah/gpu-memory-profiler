@@ -394,7 +394,9 @@ class TestCPUMemoryTracker:
             reader = csv.DictReader(f)
             rows = list(reader)
         assert len(rows) == 1
+        assert rows[0]["schema_version"] == "2"
         assert rows[0]["event_type"] == "allocation"
+        assert rows[0]["collector"] == "gpumemprof.cpu_tracker"
         assert rows[0]["context"] == "csv_test"
 
     @patch("gpumemprof.cpu_profiler.psutil.Process")
@@ -409,7 +411,13 @@ class TestCPUMemoryTracker:
         with open(filepath) as f:
             data = json.load(f)
         assert len(data) == 1
+        assert data[0]["schema_version"] == 2
         assert data[0]["event_type"] == "deallocation"
+        assert data[0]["collector"] == "gpumemprof.cpu_tracker"
+        assert isinstance(data[0]["sampling_interval_ms"], int)
+        assert isinstance(data[0]["pid"], int)
+        assert isinstance(data[0]["host"], str)
+        assert isinstance(data[0]["metadata"], dict)
 
     @patch("gpumemprof.cpu_profiler.psutil.Process")
     def test_export_events_unsupported_format(self, mock_cls, tmp_path):

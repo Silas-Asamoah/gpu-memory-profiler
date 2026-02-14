@@ -5,6 +5,8 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
+import socket
 import threading
 import time
 from collections import deque
@@ -15,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional
 import psutil
 
 from gpumemprof.tracker import TrackingEvent
+from gpumemprof.telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -351,14 +354,30 @@ class CPUMemoryTracker:
         with self._events_lock:
             events_snapshot = list(self.events)
 
+        host = socket.gethostname()
+        pid = os.getpid()
+        sampling_interval_ms = int(round(self.sampling_interval * 1000))
+
         records = [
-            {
-                "timestamp": event.timestamp,
-                "event_type": event.event_type,
-                "memory_allocated": event.memory_allocated,
-                "memory_change": event.memory_change,
-                "context": event.context,
-            }
+            telemetry_event_to_dict(
+                telemetry_event_from_record(
+                    {
+                        "timestamp": event.timestamp,
+                        "event_type": event.event_type,
+                        "memory_allocated": event.memory_allocated,
+                        "memory_reserved": event.memory_reserved,
+                        "memory_change": event.memory_change,
+                        "device_id": event.device_id,
+                        "context": event.context,
+                        "collector": "gpumemprof.cpu_tracker",
+                        "sampling_interval_ms": sampling_interval_ms,
+                        "pid": pid,
+                        "host": host,
+                    },
+                    default_collector="gpumemprof.cpu_tracker",
+                    default_sampling_interval_ms=sampling_interval_ms,
+                )
+            )
             for event in events_snapshot
         ]
 

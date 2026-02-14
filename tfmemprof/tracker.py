@@ -8,6 +8,8 @@ model training and inference, with configurable alerts and automatic cleanup.
 import time
 import threading
 import logging
+import os
+import socket
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Callable, Any
 import queue
@@ -24,6 +26,7 @@ except ImportError:
     tf = None
 
 from .utils import format_memory, get_gpu_info
+from gpumemprof.telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 
 @dataclass
@@ -97,6 +100,48 @@ class MemoryTracker:
             logging.info(
                 f"TensorFlow Memory Tracker initialized for {self.device}")
 
+    def _device_id(self) -> int:
+        """Best-effort device id extraction."""
+        if isinstance(self.device, str):
+            if "CPU" in self.device.upper():
+                return -1
+            if ":" in self.device:
+                tail = self.device.rsplit(":", 1)[-1]
+                if tail.isdigit():
+                    return int(tail)
+            if "/GPU" in self.device.upper():
+                return 0
+        return -1
+
+    def _build_telemetry_event_record(
+        self,
+        *,
+        timestamp: float,
+        memory_mb: float,
+        event_type: str = "sample",
+        context: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        sampling_interval_ms = int(round(self.sampling_interval * 1000))
+        legacy = {
+            "timestamp": timestamp,
+            "type": event_type,
+            "memory_mb": memory_mb,
+            "device_id": self._device_id(),
+            "context": context,
+            "metadata": metadata or {},
+            "collector": "tfmemprof.memory_tracker",
+            "sampling_interval_ms": sampling_interval_ms,
+            "pid": os.getpid(),
+            "host": socket.gethostname(),
+        }
+        event = telemetry_event_from_record(
+            legacy,
+            default_collector="tfmemprof.memory_tracker",
+            default_sampling_interval_ms=sampling_interval_ms,
+        )
+        return telemetry_event_to_dict(event)
+
     def _get_default_device(self) -> str:
         """Get default TensorFlow device."""
         try:
@@ -144,12 +189,13 @@ class MemoryTracker:
                     self.memory_usage.append(current_memory)
                     self.timestamps.append(current_time)
 
-                    # Log event
-                    self.events.append({
-                        'timestamp': current_time,
-                        'memory_mb': current_memory,
-                        'type': 'sample'
-                    })
+                    self.events.append(
+                        self._build_telemetry_event_record(
+                            timestamp=current_time,
+                            memory_mb=current_memory,
+                            event_type="sample",
+                        )
+                    )
 
                 # Check for alerts
                 if self.alert_threshold_mb and current_memory > self.alert_threshold_mb:

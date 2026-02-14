@@ -101,6 +101,39 @@ def get_system_info() -> dict:
     """Get comprehensive system information."""
 ```
 
+`get_system_info()` now reports backend diagnostics:
+
+- `detected_backend`: one of `cuda`, `rocm`, `mps`, or `cpu`
+- `rocm_available` / `rocm_version`
+- `mps_built` / `mps_available`
+
+#### Backend Collectors
+
+Backend-agnostic collector interfaces are available in `gpumemprof.device_collectors`:
+
+```python
+from gpumemprof import (
+    DeviceMemoryCollector,
+    DeviceMemorySample,
+    build_device_memory_collector,
+)
+```
+
+Collector contract:
+
+- `name() -> str`
+- `is_available() -> bool`
+- `sample() -> DeviceMemorySample`
+- `capabilities() -> dict`
+
+`capabilities()` includes:
+
+- `backend`
+- `supports_device_total`
+- `supports_device_free`
+- `sampling_source`
+- `telemetry_collector`
+
 #### `format_memory(bytes_value: int) -> str`
 
 Format memory values in human-readable format.

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Silas-Asamoah/gpu-memory-profiler/docs/schemas/telemetry_event_v2.schema.json",
+  "title": "TelemetryEvent v2",
+  "description": "Canonical telemetry event emitted by tracker/export paths.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "timestamp_ns",
+    "event_type",
+    "collector",
+    "sampling_interval_ms",
+    "pid",
+    "host",
+    "device_id",
+    "allocator_allocated_bytes",
+    "allocator_reserved_bytes",
+    "allocator_active_bytes",
+    "allocator_inactive_bytes",
+    "allocator_change_bytes",
+    "device_used_bytes",
+    "device_free_bytes",
+    "device_total_bytes",
+    "context",
+    "metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "timestamp_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "collector": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sampling_interval_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "pid": {
+      "type": "integer",
+      "minimum": -1
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "device_id": {
+      "type": "integer"
+    },
+    "allocator_allocated_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "allocator_reserved_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "allocator_active_bytes": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "allocator_inactive_bytes": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "allocator_change_bytes": {
+      "type": "integer"
+    },
+    "device_used_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "device_free_bytes": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "device_total_bytes": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "context": {
+      "type": ["string", "null"]
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}
