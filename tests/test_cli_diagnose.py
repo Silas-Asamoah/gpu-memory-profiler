@@ -1,11 +1,13 @@
 """Tests for gpumemprof diagnose command."""
 
 import json
+from datetime import datetime as real_datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 import gpumemprof.cli as gpumemprof_cli
 import gpumemprof.diagnose as diagnose_module
+import gpumemprof.tracker as tracker_module
 
 
 def _patch_diagnose_env(monkeypatch, cuda_available=False, risk_detected=False):
@@ -298,3 +300,91 @@ def test_diagnose_invalid_output_returns_one(monkeypatch, tmp_path):
     )
     exit_code = gpumemprof_cli.cmd_diagnose(args)
     assert exit_code == 1
+
+
+def test_run_timeline_capture_uses_memory_tracker_for_mps(monkeypatch):
+    """MPS runtime should use MemoryTracker, not CPUMemoryTracker."""
+    created = {}
+
+    class _FakeTracker:
+        def __init__(self, device=None, sampling_interval=0.5, enable_alerts=False):
+            created["device"] = device
+            created["sampling_interval"] = sampling_interval
+            created["enable_alerts"] = enable_alerts
+
+        def start_tracking(self):
+            created["started"] = True
+
+        def stop_tracking(self):
+            created["stopped"] = True
+
+        def get_memory_timeline(self, interval=0.5):
+            created["interval"] = interval
+            return {"timestamps": [0.0], "allocated": [1], "reserved": [2]}
+
+    monkeypatch.setattr(diagnose_module, "detect_torch_runtime_backend", lambda: "mps")
+    monkeypatch.setattr(tracker_module, "MemoryTracker", _FakeTracker)
+    monkeypatch.setattr(diagnose_module.time, "sleep", lambda _: None)
+
+    timeline = diagnose_module.run_timeline_capture(device=None, duration_seconds=0.1, interval=0.05)
+
+    assert created["device"] == "mps"
+    assert created["started"] is True
+    assert created["stopped"] is True
+    assert timeline["allocated"] == [1]
+    assert timeline["reserved"] == [2]
+
+
+def test_collect_environment_uses_mps_backend_sample(monkeypatch):
+    """MPS environment collection should include backend sample instead of CUDA error."""
+    class _Sample:
+        device_id = 0
+        allocated_bytes = 123
+        reserved_bytes = 456
+        total_bytes = 789
+
+    monkeypatch.setattr(
+        diagnose_module,
+        "get_system_info",
+        lambda: {"detected_backend": "mps"},
+    )
+    monkeypatch.setattr(diagnose_module, "get_gpu_info", lambda _: {"error": "CUDA is not available"})
+    monkeypatch.setattr(diagnose_module, "_collect_backend_sample", lambda _: ("mps", _Sample()))
+
+    env = diagnose_module.collect_environment(device=None)
+
+    assert env["gpu"]["backend"] == "mps"
+    assert env["gpu"]["allocated_memory"] == 123
+    assert env["fragmentation"]["note"]
+
+
+def test_diagnose_same_second_creates_unique_artifact_dirs(monkeypatch, tmp_path):
+    """Two runs in same second should not overwrite the same artifact directory."""
+    class _FixedDateTime:
+        @staticmethod
+        def utcnow():
+            return real_datetime(2026, 2, 15, 12, 0, 0)
+
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    _patch_diagnose_env(monkeypatch, cuda_available=False)
+    _patch_timeline_capture(monkeypatch)
+    monkeypatch.setattr(diagnose_module, "datetime", _FixedDateTime)
+
+    args = SimpleNamespace(
+        output=str(out_dir),
+        device=None,
+        duration=0,
+        interval=0.5,
+    )
+    code_one = gpumemprof_cli.cmd_diagnose(args)
+    code_two = gpumemprof_cli.cmd_diagnose(args)
+
+    subdirs = sorted([path.name for path in out_dir.iterdir() if path.is_dir()])
+    assert code_one in (0, 2)
+    assert code_two in (0, 2)
+    assert len(subdirs) == 2
+    assert subdirs[0].startswith("gpumemprof-diagnose-20260215-120000")
+    assert subdirs[1].startswith("gpumemprof-diagnose-20260215-120000")
+    assert subdirs[0] != subdirs[1]

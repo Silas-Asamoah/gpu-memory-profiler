@@ -1,6 +1,7 @@
 """Tests for tfmemprof diagnose command."""
 
 import json
+from datetime import datetime as real_datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -280,3 +281,69 @@ def test_tfmemprof_diagnose_invalid_output_returns_one(monkeypatch, tmp_path):
     )
     exit_code = tfmemprof_cli.cmd_diagnose(args)
     assert exit_code == 1
+
+
+def test_tfmemprof_build_summary_without_capacity_does_not_flag_high_utilization(monkeypatch):
+    """When device capacity is unknown, high-utilization risk should remain false."""
+    monkeypatch.setattr(
+        diagnose_module,
+        "get_system_info",
+        lambda: {"backend": {"runtime_backend": "cuda"}},
+    )
+    monkeypatch.setattr(
+        diagnose_module,
+        "get_backend_info",
+        lambda: {"runtime_backend": "cuda"},
+    )
+    monkeypatch.setattr(
+        diagnose_module,
+        "get_gpu_info",
+        lambda: {
+            "devices": [
+                {
+                    "id": 0,
+                    "current_memory_mb": 9000,
+                    "peak_memory_mb": 10000,
+                }
+            ]
+        },
+    )
+
+    summary, risk_detected = diagnose_module.build_diagnostic_summary("/GPU:0")
+
+    assert summary["total_bytes"] == 0
+    assert summary["risk_flags"]["high_utilization"] is False
+    assert risk_detected is False
+
+
+def test_tfmemprof_diagnose_same_second_creates_unique_artifact_dirs(monkeypatch, tmp_path):
+    """Two runs in same second should not overwrite the same artifact directory."""
+    class _FixedDateTime:
+        @staticmethod
+        def utcnow():
+            return real_datetime(2026, 2, 15, 12, 0, 0)
+
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    _patch_tfmemprof_diagnose_env(monkeypatch, gpu_available=False)
+    _patch_tfmemprof_timeline_capture(monkeypatch)
+    _patch_tfmemprof_build_summary(monkeypatch, risk_detected=False)
+    monkeypatch.setattr(diagnose_module, "datetime", _FixedDateTime)
+
+    args = SimpleNamespace(
+        output=str(out_dir),
+        device="/GPU:0",
+        duration=0,
+        interval=0.5,
+    )
+    code_one = tfmemprof_cli.cmd_diagnose(args)
+    code_two = tfmemprof_cli.cmd_diagnose(args)
+
+    subdirs = sorted([path.name for path in out_dir.iterdir() if path.is_dir()])
+    assert code_one in (0, 2)
+    assert code_two in (0, 2)
+    assert len(subdirs) == 2
+    assert subdirs[0].startswith("tfmemprof-diagnose-20260215-120000")
+    assert subdirs[1].startswith("tfmemprof-diagnose-20260215-120000")
+    assert subdirs[0] != subdirs[1]

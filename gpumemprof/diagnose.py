@@ -5,7 +5,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 from .utils import (
     check_memory_fragmentation,
@@ -13,6 +13,7 @@ from .utils import (
     get_system_info,
     suggest_memory_optimization,
 )
+from .device_collectors import build_device_memory_collector, detect_torch_runtime_backend
 
 # Risk thresholds (align with suggest_memory_optimization where applicable)
 HIGH_UTILIZATION_RATIO = 0.85
@@ -27,19 +28,76 @@ def _default_str(obj: Any) -> str:
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
+def _collect_backend_sample(device: Optional[int]) -> Tuple[Optional[str], Optional[Any]]:
+    """Collect one backend-aware sample when a GPU runtime is available."""
+    runtime_backend = detect_torch_runtime_backend()
+    if runtime_backend not in {"cuda", "rocm", "mps"}:
+        return None, None
+    try:
+        collector_device: Optional[Any]
+        if runtime_backend == "mps":
+            collector_device = "mps"
+        else:
+            collector_device = device
+        collector = build_device_memory_collector(collector_device)
+        return runtime_backend, collector.sample()
+    except Exception:
+        return runtime_backend, None
+
+
+def _create_artifact_dir(output: Optional[str], prefix: str) -> Path:
+    """Create a collision-safe artifact directory."""
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+
+    if output:
+        out_path = Path(output).resolve()
+        if out_path.exists() and out_path.is_dir():
+            base_dir = out_path
+        else:
+            out_path.mkdir(parents=True, exist_ok=False)
+            return out_path
+    else:
+        base_dir = Path.cwd().resolve()
+
+    base_name = f"{prefix}-{ts}"
+    suffix = 0
+    while True:
+        name = base_name if suffix == 0 else f"{base_name}-{suffix}"
+        artifact_dir = base_dir / name
+        try:
+            artifact_dir.mkdir(parents=True, exist_ok=False)
+            return artifact_dir
+        except FileExistsError:
+            suffix += 1
+
+
 def collect_environment(device: Optional[int] = None) -> Dict[str, Any]:
     """Collect system, GPU, and fragmentation data for the diagnostic bundle."""
     env: Dict[str, Any] = {}
-    env["system"] = get_system_info()
+    system_info = get_system_info()
+    env["system"] = system_info
+    runtime_backend = str(system_info.get("detected_backend", "cpu"))
 
     gpu_info = get_gpu_info(device)
+    if runtime_backend == "mps":
+        _, sample = _collect_backend_sample(device)
+        if sample is not None:
+            gpu_info = {
+                "backend": "mps",
+                "device_id": sample.device_id,
+                "allocated_memory": sample.allocated_bytes,
+                "reserved_memory": sample.reserved_bytes,
+                "total_memory": sample.total_bytes,
+            }
     env["gpu"] = gpu_info
 
-    if not gpu_info.get("error"):
+    if runtime_backend in {"cuda", "rocm"} and not gpu_info.get("error"):
         frag = check_memory_fragmentation(device)
-        env["fragmentation"] = frag
+    elif runtime_backend == "mps":
+        frag = {"note": "MPS fragmentation metrics are not available"}
     else:
-        env["fragmentation"] = {"error": "CUDA is not available"}
+        frag = {"error": "CUDA is not available"}
+    env["fragmentation"] = frag
 
     return env
 
@@ -57,11 +115,12 @@ def run_timeline_capture(
         return {"timestamps": [], "allocated": [], "reserved": []}
 
     try:
-        import torch
-        if torch.cuda.is_available():
+        runtime_backend = detect_torch_runtime_backend()
+        if runtime_backend in {"cuda", "rocm", "mps"}:
             from .tracker import MemoryTracker
+            tracker_device = "mps" if runtime_backend == "mps" else device
             tracker: Any = MemoryTracker(
-                device=device,
+                device=tracker_device,
                 sampling_interval=interval,
                 enable_alerts=False,
             )
@@ -93,29 +152,47 @@ def build_diagnostic_summary(device: Optional[int] = None) -> Tuple[Dict[str, An
     system_info = get_system_info()
     backend = system_info.get("detected_backend", "cpu")
     gpu_info = get_gpu_info(device)
-    frag_info = check_memory_fragmentation(device) if not gpu_info.get("error") else {}
+    frag_info: Dict[str, Any] = {}
 
     # Current memory state
-    allocated = gpu_info.get("allocated_memory", 0) or 0
-    reserved = gpu_info.get("reserved_memory", 0) or 0
-    total = gpu_info.get("total_memory") or 1
-    peak = gpu_info.get("max_memory_allocated", 0) or allocated
+    allocated = 0
+    reserved = 0
+    total = 0
+    peak = 0
+
+    if backend in {"cuda", "rocm"} and not gpu_info.get("error"):
+        frag_info = check_memory_fragmentation(device)
+        allocated = gpu_info.get("allocated_memory", 0) or 0
+        reserved = gpu_info.get("reserved_memory", 0) or 0
+        total = gpu_info.get("total_memory") or 0
+        peak = gpu_info.get("max_memory_allocated", 0) or allocated
+    elif backend == "mps":
+        _, sample = _collect_backend_sample(device)
+        if sample is not None:
+            allocated = sample.allocated_bytes
+            reserved = sample.reserved_bytes
+            total = sample.total_bytes or 0
+            peak = max(allocated, reserved)
 
     utilization_ratio = float(allocated / total) if total else 0.0
     fragmentation_ratio = float(frag_info.get("fragmentation_ratio", 0))
     num_ooms = 0
-    if "memory_stats" in gpu_info and isinstance(gpu_info["memory_stats"], dict):
+    if backend in {"cuda", "rocm"} and "memory_stats" in gpu_info and isinstance(gpu_info["memory_stats"], dict):
         num_ooms = gpu_info["memory_stats"].get("num_ooms", 0) or 0
 
     # Risk flags
     oom_occurred = num_ooms > 0
-    high_utilization = utilization_ratio >= HIGH_UTILIZATION_RATIO
+    high_utilization = total > 0 and utilization_ratio >= HIGH_UTILIZATION_RATIO
     fragmentation_warning = fragmentation_ratio >= FRAGMENTATION_WARNING_RATIO
     risk_detected = oom_occurred or high_utilization or fragmentation_warning
 
     suggestions: List[str] = []
-    if not gpu_info.get("error"):
+    if backend in {"cuda", "rocm"} and not gpu_info.get("error"):
         suggestions = suggest_memory_optimization(frag_info)
+    elif backend == "mps" and high_utilization:
+        suggestions = [
+            "High MPS memory utilization detected. Consider reducing batch size or using mixed precision."
+        ]
 
     summary: Dict[str, Any] = {
         "backend": backend,
@@ -148,20 +225,11 @@ def run_diagnose(
     Returns (artifact_dir, exit_code).
     exit_code: 0 = success no risk, 1 = failure, 2 = success with memory risk.
     """
-    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    if output:
-        out_path = Path(output).resolve()
-        if out_path.exists() and out_path.is_dir():
-            artifact_dir = out_path / f"gpumemprof-diagnose-{ts}"
-        else:
-            artifact_dir = out_path
-    else:
-        artifact_dir = Path.cwd().resolve() / f"gpumemprof-diagnose-{ts}"
-
     try:
-        artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_dir = _create_artifact_dir(output, "gpumemprof-diagnose")
     except OSError as e:
-        print(f"Error: Cannot create output directory {artifact_dir}: {e}", file=sys.stderr)
+        target = Path(output).resolve() if output else Path.cwd().resolve()
+        print(f"Error: Cannot create output directory {target}: {e}", file=sys.stderr)
         raise
 
     files_written: List[str] = []

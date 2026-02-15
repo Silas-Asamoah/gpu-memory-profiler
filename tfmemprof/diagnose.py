@@ -31,6 +31,32 @@ def _device_index(device: Optional[str]) -> int:
         return 0
 
 
+def _create_artifact_dir(output: Optional[str], prefix: str) -> Path:
+    """Create a collision-safe artifact directory."""
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+
+    if output:
+        out_path = Path(output).resolve()
+        if out_path.exists() and out_path.is_dir():
+            base_dir = out_path
+        else:
+            out_path.mkdir(parents=True, exist_ok=False)
+            return out_path
+    else:
+        base_dir = Path.cwd().resolve()
+
+    base_name = f"{prefix}-{ts}"
+    suffix = 0
+    while True:
+        name = base_name if suffix == 0 else f"{base_name}-{suffix}"
+        artifact_dir = base_dir / name
+        try:
+            artifact_dir.mkdir(parents=True, exist_ok=False)
+            return artifact_dir
+        except FileExistsError:
+            suffix += 1
+
+
 def collect_environment(device: Optional[str] = None) -> Dict[str, Any]:
     """Collect system and GPU data for the diagnostic bundle."""
     env: Dict[str, Any] = {}
@@ -127,17 +153,22 @@ def build_diagnostic_summary(device: Optional[str] = None) -> Tuple[Dict[str, An
         peak_mb = d.get("peak_memory_mb", 0) or 0
         allocated = int(current_mb * 1024 * 1024)
         peak = int(peak_mb * 1024 * 1024)
-        total_bytes = max(int(peak_mb * 1024 * 1024), 1)  # use peak as proxy for total
-        utilization_ratio = float(current_mb / peak_mb) if peak_mb > 0 else 0.0
+        total_memory_mb = d.get("total_memory_mb")
+        if isinstance(total_memory_mb, (int, float)) and total_memory_mb > 0:
+            total_bytes = int(total_memory_mb * 1024 * 1024)
+            utilization_ratio = float(current_mb / total_memory_mb)
+        else:
+            total_bytes = 0
+            utilization_ratio = 0.0
     else:
         allocated = 0
         peak = 0
-        total_bytes = 1
+        total_bytes = 0
         utilization_ratio = 0.0
 
     # Risk flags (no OOM/fragmentation from TF API)
     oom_occurred = num_ooms > 0
-    high_utilization = utilization_ratio >= HIGH_UTILIZATION_RATIO
+    high_utilization = total_bytes > 0 and utilization_ratio >= HIGH_UTILIZATION_RATIO
     fragmentation_warning = False  # TF does not expose
     risk_detected = oom_occurred or high_utilization or fragmentation_warning
 
@@ -174,20 +205,11 @@ def run_diagnose(
     Returns (artifact_dir, exit_code).
     exit_code: 0 = success no risk, 1 = failure, 2 = success with memory risk.
     """
-    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    if output:
-        out_path = Path(output).resolve()
-        if out_path.exists() and out_path.is_dir():
-            artifact_dir = out_path / f"tfmemprof-diagnose-{ts}"
-        else:
-            artifact_dir = out_path
-    else:
-        artifact_dir = Path.cwd().resolve() / f"tfmemprof-diagnose-{ts}"
-
     try:
-        artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_dir = _create_artifact_dir(output, "tfmemprof-diagnose")
     except OSError as e:
-        print(f"Error: Cannot create output directory {artifact_dir}: {e}", file=sys.stderr)
+        target = Path(output).resolve() if output else Path.cwd().resolve()
+        print(f"Error: Cannot create output directory {target}: {e}", file=sys.stderr)
         raise
 
     files_written: List[str] = []
