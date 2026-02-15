@@ -134,6 +134,38 @@ Collector contract:
 - `sampling_source`
 - `telemetry_collector`
 
+#### OOM Flight Recorder
+
+The PyTorch tracker supports an optional OOM flight recorder that stores a bounded
+ring buffer of recent events and writes an artifact bundle when OOM is detected.
+
+```python
+from gpumemprof import MemoryTracker
+
+tracker = MemoryTracker(
+    enable_oom_flight_recorder=True,
+    oom_dump_dir="oom_dumps",
+    oom_buffer_size=5000,
+    oom_max_dumps=10,
+    oom_max_total_mb=1024,
+)
+
+with tracker.capture_oom(context="train_loop"):
+    # training code
+    ...
+```
+
+Tracker OOM APIs:
+
+- `handle_exception(exc, context=None, metadata=None) -> Optional[str]`
+- `capture_oom(context="runtime", metadata=None)` (context manager)
+
+Helper exports:
+
+- `OOMFlightRecorderConfig`
+- `OOMExceptionClassification`
+- `classify_oom_exception(exc)`
+
 #### `format_memory(bytes_value: int) -> str`
 
 Format memory values in human-readable format.

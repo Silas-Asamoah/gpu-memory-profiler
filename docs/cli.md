@@ -134,6 +134,11 @@ Real-time memory tracking with alerts and automatic cleanup.
 - `--watchdog` - Enable automatic memory cleanup
 - `--warning-threshold PERCENT` - Memory warning threshold percentage (default: 80)
 - `--critical-threshold PERCENT` - Memory critical threshold percentage (default: 95)
+- `--oom-flight-recorder` - Enable automatic OOM artifact dump bundles
+- `--oom-dump-dir DIR` - Dump output directory for OOM bundles (default: `oom_dumps`)
+- `--oom-buffer-size N` - Ring-buffer event count for OOM pre-failure history
+- `--oom-max-dumps N` - Retain at most N OOM dump bundles (default: 5)
+- `--oom-max-total-mb MB` - Retain at most MB across all OOM dump bundles (default: 256)
 
 **Examples:**
 
@@ -146,6 +151,13 @@ gpumemprof track --watchdog --warning-threshold 70 --critical-threshold 90
 
 # Limited duration tracking
 gpumemprof track --duration 300 --output results.json --format json
+
+# Enable OOM flight recorder with custom retention controls
+gpumemprof track --oom-flight-recorder \
+  --oom-dump-dir ./oom_dumps \
+  --oom-buffer-size 5000 \
+  --oom-max-dumps 10 \
+  --oom-max-total-mb 1024
 ```
 
 **Output:**
