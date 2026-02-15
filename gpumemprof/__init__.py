@@ -7,7 +7,7 @@ __author__ = "GPU Memory Profiler Team"
 
 from .profiler import GPUMemoryProfiler, MemorySnapshot, ProfileResult
 from .context_profiler import profile_context, profile_function
-from .analyzer import MemoryAnalyzer
+from .analyzer import MemoryAnalyzer, GapFinding
 from .utils import get_gpu_info, format_bytes, convert_bytes
 from .tracker import MemoryTracker
 from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
@@ -47,6 +47,7 @@ __all__ = [
     "profile_function",
     "MemoryVisualizer",
     "MemoryAnalyzer",
+    "GapFinding",
     "MemoryTracker",
     "TelemetryEventV2",
     "DeviceMemoryCollector",
