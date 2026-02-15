@@ -23,6 +23,7 @@ from .utils import get_system_info, get_gpu_info, format_memory, generate_summar
 from .tracker import MemoryTracker
 from .analyzer import MemoryAnalyzer
 from .visualizer import MemoryVisualizer
+from .diagnose import run_diagnose
 from gpumemprof.telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 
@@ -382,6 +383,59 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_diagnose(args: argparse.Namespace) -> int:
+    """Produce a portable diagnostic bundle. Returns 0 (OK), 1 (failure), or 2 (memory risk)."""
+    if args.duration < 0:
+        print("Error: --duration must be >= 0", file=sys.stderr)
+        return 1
+    if args.interval <= 0:
+        print("Error: --interval must be > 0", file=sys.stderr)
+        return 1
+
+    command_line = " ".join(sys.argv)
+    try:
+        artifact_dir, exit_code = run_diagnose(
+            output=args.output,
+            device=args.device,
+            duration=args.duration,
+            interval=args.interval,
+            command_line=command_line,
+        )
+    except OSError:
+        return 1
+
+    # Structured stdout summary
+    print(f"Artifact: {artifact_dir}")
+    if exit_code == 0:
+        status = "OK"
+    elif exit_code == 2:
+        status = "MEMORY_RISK"
+    else:
+        status = "FAILED"
+    print(f"Status: {status} (exit_code={exit_code})")
+
+    try:
+        manifest_path = artifact_dir / "manifest.json"
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            if manifest.get("risk_detected"):
+                summary_path = artifact_dir / "diagnostic_summary.json"
+                if summary_path.exists():
+                    with open(summary_path) as f:
+                        summary = json.load(f)
+                    flags = summary.get("risk_flags", {})
+                    parts = [k for k, v in flags.items() if v]
+                    if parts:
+                        print(f"Findings: {', '.join(parts)}")
+        if exit_code == 0 and status == "OK":
+            print("Findings: no memory risk detected")
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    return exit_code
+
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -438,6 +492,18 @@ def main() -> int:
     analyze_parser.add_argument('--report',
                                 help='Generate comprehensive report file')
 
+    # Diagnose command
+    diagnose_parser = subparsers.add_parser(
+        'diagnose', help='Produce a portable diagnostic bundle for debugging memory failures')
+    diagnose_parser.add_argument('--output', type=str, default=None,
+                                 help='Output directory for the artifact bundle (default: cwd)')
+    diagnose_parser.add_argument('--device', type=str, default='/GPU:0',
+                                 help='TensorFlow device to monitor (default: /GPU:0)')
+    diagnose_parser.add_argument('--duration', type=float, default=5.0,
+                                 help='Seconds to run tracker for telemetry (default: 5, use 0 to skip)')
+    diagnose_parser.add_argument('--interval', type=float, default=0.5,
+                                 help='Sampling interval for timeline (default: 0.5)')
+
     args = parser.parse_args()
 
     setup_logging(args.verbose)
@@ -455,6 +521,8 @@ def main() -> int:
         return cmd_track(args)
     elif args.command == 'analyze':
         return cmd_analyze(args)
+    elif args.command == 'diagnose':
+        return cmd_diagnose(args)
     else:
         print(f"Unknown command: {args.command}")
         return 1

@@ -220,6 +220,73 @@ Top Recommendations:
 3. Use mixed precision training to reduce memory usage
 ```
 
+#### 5. `gpumemprof diagnose` - Diagnostic Bundle
+
+Produce a single portable diagnostic artifact for debugging memory failures. Use one command for repro and export instead of piecing together monitor/track outputs manually. Suitable for local triage and CI/automation.
+
+**Options:**
+
+- `--output DIR` - Output directory for the artifact bundle (default: current directory; see output layout below)
+- `--device DEVICE` - GPU device ID (default: current device; ignored when CUDA unavailable)
+- `--duration SECONDS` - Seconds to run the in-process tracker for telemetry timeline (default: 5; use 0 to skip timeline capture)
+- `--interval SECONDS` - Sampling interval for timeline aggregation (default: 0.5)
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|--------|
+| 0 | Success; no memory risk detected |
+| 1 | Runtime failure (invalid arguments, I/O error, unhandled exception) |
+| 2 | Success but memory risk detected (high utilization, fragmentation, or prior OOM) |
+
+**Output layout:**
+
+- If `--output` is omitted: a new directory is created in the current working directory named `gpumemprof-diagnose-YYYYMMDD-HHMMSS` (e.g. `gpumemprof-diagnose-20250213-143022`).
+- If `--output PATH` is given and `PATH` is an **existing directory**: a timestamped subdirectory is created inside it: `PATH/gpumemprof-diagnose-YYYYMMDD-HHMMSS`.
+- If `--output PATH` is given and `PATH` does not exist or is not a directory: `PATH` is created as the artifact directory.
+
+All artifact files live inside that single directory. Predictable filenames:
+
+| File | Description |
+|------|-------------|
+| `environment.json` | System info, GPU info (when available), and fragmentation data |
+| `telemetry_timeline.json` | Memory timeline from the short tracker run (timestamps, allocated, reserved); empty if `--duration 0` |
+| `diagnostic_summary.json` | Backend, current/peak memory, utilization/fragmentation ratios, risk flags, and suggestions |
+| `manifest.json` | Bundle manifest: version, created time, command line, list of files, exit code, risk_detected |
+
+**Examples:**
+
+```bash
+# Local: default output (timestamped dir in cwd)
+gpumemprof diagnose
+
+# Local: custom output directory
+gpumemprof diagnose --output ./my-diag --duration 10
+
+# Local: environment and summary only (no timeline)
+gpumemprof diagnose --duration 0 --output ./quick-diag
+
+# CI: capture artifact and fail job on error or memory risk
+gpumemprof diagnose --duration 5 --output "$ARTIFACT_DIR"
+echo $?   # 0 = OK, 1 = failure, 2 = memory risk
+```
+
+**Output (stdout summary):**
+
+```
+Artifact: /path/to/gpumemprof-diagnose-20250213-143022
+Status: OK (exit_code=0)
+Findings: no memory risk detected
+```
+
+Or when risk is detected:
+
+```
+Artifact: /path/to/gpumemprof-diagnose-20250213-143022
+Status: MEMORY_RISK (exit_code=2)
+Findings: oom_occurred, high_utilization, fragmentation_warning
+```
+
 ## TensorFlow CLI (tfmemprof)
 
 ### Overview
@@ -415,6 +482,38 @@ Top Recommendations:
 1. Current memory usage is optimal
 2. No optimization needed at this time
 ```
+
+#### 5. `tfmemprof diagnose` - Diagnostic Bundle
+
+Produce a single portable diagnostic artifact for debugging memory failures (same behavior and capabilities as `gpumemprof diagnose`). One command for repro and export; suitable for local triage and CI/automation.
+
+**Options:**
+
+- `--output DIR` - Output directory for the artifact bundle (default: current directory)
+- `--device DEVICE` - TensorFlow device to monitor (default: /GPU:0)
+- `--duration SECONDS` - Seconds to run the tracker for telemetry timeline (default: 5; use 0 to skip)
+- `--interval SECONDS` - Sampling interval for timeline (default: 0.5)
+- `-v, --verbose` - Enable verbose logging
+
+**Exit codes:** Same as `gpumemprof diagnose`: 0 = success no risk, 1 = failure, 2 = success with memory risk.
+
+**Output layout:** Same as `gpumemprof diagnose`, but the artifact directory is named `tfmemprof-diagnose-YYYYMMDD-HHMMSS`. The same four files are produced: `environment.json`, `telemetry_timeline.json`, `diagnostic_summary.json`, `manifest.json`.
+
+**Examples:**
+
+```bash
+# Local: default output
+tfmemprof diagnose
+
+# Local: custom output and duration
+tfmemprof diagnose --output ./my-diag --duration 10
+
+# CI: capture and check exit code
+tfmemprof diagnose --duration 5 --output "$ARTIFACT_DIR"
+echo $?   # 0 = OK, 1 = failure, 2 = memory risk
+```
+
+**Output (stdout summary):** Same format as `gpumemprof diagnose` (Artifact path, Status, Findings).
 
 ## Common Use Cases
 

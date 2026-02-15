@@ -16,6 +16,7 @@ from .tracker import MemoryTracker, MemoryWatchdog
 from .analyzer import MemoryAnalyzer
 from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
 from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
+from .diagnose import run_diagnose
 
 
 def main() -> None:
@@ -29,6 +30,7 @@ Examples:
   gpumemprof monitor --duration 60         # Monitor for 60 seconds
   gpumemprof track --output tracking.csv   # Track with CSV output
   gpumemprof analyze results.json          # Analyze profiling results
+  gpumemprof diagnose --output ./diag     # Produce diagnostic bundle
         """
     )
 
@@ -101,6 +103,18 @@ Examples:
     analyze_parser.add_argument('--plot-dir', type=str, default='plots',
                                 help='Directory for visualization plots (default: plots)')
 
+    # Diagnose command
+    diagnose_parser = subparsers.add_parser(
+        'diagnose', help='Produce a portable diagnostic bundle for debugging memory failures')
+    diagnose_parser.add_argument('--output', type=str, default=None,
+                                 help='Output directory for the artifact bundle (default: cwd)')
+    diagnose_parser.add_argument('--device', type=int, default=None,
+                                 help='GPU device ID (default: current device)')
+    diagnose_parser.add_argument('--duration', type=float, default=5.0,
+                                 help='Seconds to run tracker for telemetry (default: 5, use 0 to skip)')
+    diagnose_parser.add_argument('--interval', type=float, default=0.5,
+                                 help='Sampling interval for timeline (default: 0.5)')
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -117,6 +131,8 @@ Examples:
             cmd_track(args)
         elif args.command == 'analyze':
             cmd_analyze(args)
+        elif args.command == 'diagnose':
+            sys.exit(cmd_diagnose(args))
     except KeyboardInterrupt:
         print("\nOperation cancelled by user")
         sys.exit(0)
@@ -475,6 +491,60 @@ def cmd_analyze(args: argparse.Namespace) -> None:
         print(f"Number of results: {len(data['results'])}")
     if 'snapshots' in data:
         print(f"Number of snapshots: {len(data['snapshots'])}")
+
+
+def cmd_diagnose(args: argparse.Namespace) -> int:
+    """Produce a portable diagnostic bundle. Returns 0 (OK), 1 (failure), or 2 (memory risk)."""
+    if args.duration < 0:
+        print("Error: --duration must be >= 0", file=sys.stderr)
+        return 1
+    if args.interval <= 0:
+        print("Error: --interval must be > 0", file=sys.stderr)
+        return 1
+
+    command_line = " ".join(sys.argv)
+    try:
+        artifact_dir, exit_code = run_diagnose(
+            output=args.output,
+            device=args.device,
+            duration=args.duration,
+            interval=args.interval,
+            command_line=command_line,
+        )
+    except OSError:
+        return 1
+
+    # Structured stdout summary
+    print(f"Artifact: {artifact_dir}")
+    if exit_code == 0:
+        status = "OK"
+    elif exit_code == 2:
+        status = "MEMORY_RISK"
+    else:
+        status = "FAILED"
+    print(f"Status: {status} (exit_code={exit_code})")
+
+    # One-line findings from manifest/summary
+    try:
+        manifest_path = artifact_dir / "manifest.json"
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            if manifest.get("risk_detected"):
+                summary_path = artifact_dir / "diagnostic_summary.json"
+                if summary_path.exists():
+                    with open(summary_path) as f:
+                        summary = json.load(f)
+                    flags = summary.get("risk_flags", {})
+                    parts = [k for k, v in flags.items() if v]
+                    if parts:
+                        print(f"Findings: {', '.join(parts)}")
+        if exit_code == 0 and status == "OK":
+            print("Findings: no memory risk detected")
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    return exit_code
 
 
 if __name__ == '__main__':
