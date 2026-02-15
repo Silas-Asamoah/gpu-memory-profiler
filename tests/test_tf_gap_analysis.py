@@ -5,44 +5,29 @@ from __future__ import annotations
 import pytest
 
 from tfmemprof.analyzer import GapFinding, MemoryAnalyzer
-from gpumemprof.telemetry import SCHEMA_VERSION_V2, TelemetryEventV2
+from gpumemprof.telemetry import TelemetryEventV2
+from tests.gap_test_helpers import build_gap_event
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_BASE_NS = 1_700_000_000_000_000_000
-_INTERVAL_NS = 100_000_000  # 100 ms between samples
-_DEVICE_TOTAL = 16 * 1024**3  # 16 GiB device
-
-
 def _make_event(
     index: int,
     allocator_allocated: int,
     allocator_reserved: int,
     device_used: int,
-    device_total: int = _DEVICE_TOTAL,
+    device_total: int = 16 * 1024**3,
 ) -> TelemetryEventV2:
     """Build a minimal valid TelemetryEventV2 for gap analysis tests."""
-    return TelemetryEventV2(
-        schema_version=SCHEMA_VERSION_V2,
-        timestamp_ns=_BASE_NS + index * _INTERVAL_NS,
-        event_type="sample",
+    return build_gap_event(
+        index=index,
+        allocator_allocated=allocator_allocated,
+        allocator_reserved=allocator_reserved,
+        device_used=device_used,
         collector="tfmemprof.memory_tracker",
-        sampling_interval_ms=100,
-        pid=1,
-        host="test",
-        device_id=0,
-        allocator_allocated_bytes=allocator_allocated,
-        allocator_reserved_bytes=allocator_reserved,
-        allocator_active_bytes=None,
-        allocator_inactive_bytes=None,
-        allocator_change_bytes=0,
-        device_used_bytes=device_used,
-        device_free_bytes=device_total - device_used,
-        device_total_bytes=device_total,
-        context=None,
+        device_total=device_total,
     )
 
 

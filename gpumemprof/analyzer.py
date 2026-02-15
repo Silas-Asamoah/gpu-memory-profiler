@@ -1,13 +1,14 @@
 """Advanced analysis tools for memory profiling data."""
 
 import statistics
-from typing import List, Dict, Any, Optional, Tuple, Set
-from collections import defaultdict, Counter
-from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 
 import numpy as np
 from scipy import stats
 
+from .gap_analysis import GapFinding, analyze_hidden_memory_gaps
 from .profiler import ProfileResult, MemorySnapshot, GPUMemoryProfiler
 from .telemetry import TelemetryEventV2
 from .utils import format_bytes
@@ -36,15 +37,25 @@ class PerformanceInsight:
     recommendations: List[str]
 
 
-@dataclass
-class GapFinding:
-    """A classified finding from hidden-memory gap analysis."""
-    classification: str  # 'transient_spike' | 'persistent_drift' | 'fragmentation_like'
-    severity: str  # 'info', 'warning', 'critical'
-    confidence: float  # 0.0 to 1.0
-    evidence: Dict[str, Any]
-    description: str
-    remediation: List[str]
+_GAP_REMEDIATION_BY_CLASSIFICATION: Dict[str, List[str]] = {
+    "transient_spike": [
+        "Investigate non-allocator memory consumers active during spikes "
+        "(cuDNN workspace, NCCL buffers, other frameworks).",
+        "Use torch.cuda.memory_snapshot() around spike windows for detailed attribution.",
+        "Consider pinning cuDNN workspace size with torch.backends.cudnn.benchmark = False.",
+    ],
+    "persistent_drift": [
+        "Look for non-PyTorch CUDA allocations accumulating over time "
+        "(e.g. custom CUDA kernels, third-party libraries).",
+        "Monitor nvidia-smi used memory alongside torch allocator counters.",
+        "If gap stabilises after warmup, it may be one-time CUDA context overhead.",
+    ],
+    "fragmentation_like": [
+        "Call torch.cuda.empty_cache() periodically to release unused reserved blocks.",
+        "Reduce allocation churn by pre-allocating tensors or using memory pools.",
+        "Set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to reduce fragmentation.",
+    ],
+}
 
 
 class MemoryAnalyzer:
@@ -612,185 +623,12 @@ class MemoryAnalyzer:
         Returns:
             Prioritized list of gap findings (severity desc, confidence desc).
         """
-        # 1. Compute per-sample gap, skipping events without device_total.
-        gaps: List[float] = []
-        normalized: List[float] = []
-        timestamps_ns: List[int] = []
-        usable_events: List[TelemetryEventV2] = []
-
-        for ev in events:
-            if ev.device_total_bytes is None or ev.device_total_bytes <= 0:
-                continue
-            gap = ev.device_used_bytes - ev.allocator_reserved_bytes
-            gaps.append(float(gap))
-            normalized.append(gap / ev.device_total_bytes)
-            timestamps_ns.append(ev.timestamp_ns)
-            usable_events.append(ev)
-
-        if len(gaps) < 3:
-            return []
-
-        # 2. Early exit when gap is insignificant.
-        threshold = self.thresholds['gap_ratio_threshold']
-        if max(abs(v) for v in normalized) < threshold:
-            return []
-
-        # 3. Run classifiers.
-        findings: List[GapFinding] = []
-        findings.extend(self._detect_gap_transient_spikes(gaps, normalized, timestamps_ns))
-        findings.extend(self._detect_gap_persistent_drift(gaps, normalized, timestamps_ns))
-        findings.extend(self._detect_gap_fragmentation_pattern(usable_events, gaps, normalized))
-
-        # 4. Rank: severity (critical > warning > info), then confidence desc.
-        severity_order = {'critical': 0, 'warning': 1, 'info': 2}
-        findings.sort(key=lambda f: (severity_order.get(f.severity, 9), -f.confidence))
-        return findings
-
-    def _detect_gap_transient_spikes(
-        self,
-        gaps: List[float],
-        normalized: List[float],
-        timestamps_ns: List[int],
-    ) -> List[GapFinding]:
-        """Detect transient spikes in the gap series using z-score."""
-        arr = np.asarray(gaps, dtype=float)
-        mean = float(np.mean(arr))
-        std = float(np.std(arr))
-        if std == 0:
-            return []
-
-        z_threshold = self.thresholds['gap_spike_zscore']
-        spike_indices = [i for i in range(len(arr)) if (arr[i] - mean) / std > z_threshold]
-
-        if not spike_indices:
-            return []
-
-        max_idx = int(np.argmax(arr))
-        max_gap = float(arr[max_idx])
-        max_z = (max_gap - mean) / std
-
-        severity = 'critical' if max_z > 2 * z_threshold else 'warning'
-        confidence = min(1.0, max_z / (3 * z_threshold))
-
-        return [GapFinding(
-            classification='transient_spike',
-            severity=severity,
-            confidence=round(confidence, 3),
-            evidence={
-                'spike_count': len(spike_indices),
-                'max_gap_bytes': max_gap,
-                'max_zscore': round(max_z, 3),
-                'mean_gap_bytes': round(mean, 1),
-                'std_gap_bytes': round(std, 1),
-            },
-            description=(
-                f"Detected {len(spike_indices)} transient spike(s) in the "
-                f"device-vs-allocator gap (max z-score {max_z:.1f})."
-            ),
-            remediation=[
-                "Investigate non-allocator memory consumers active during spikes "
-                "(cuDNN workspace, NCCL buffers, other frameworks).",
-                "Use torch.cuda.memory_snapshot() around spike windows for detailed attribution.",
-                "Consider pinning cuDNN workspace size with torch.backends.cudnn.benchmark = False.",
-            ],
-        )]
-
-    def _detect_gap_persistent_drift(
-        self,
-        gaps: List[float],
-        normalized: List[float],
-        timestamps_ns: List[int],
-    ) -> List[GapFinding]:
-        """Detect persistent upward drift in the gap via linear regression."""
-        if len(gaps) < 5:
-            return []
-
-        x = np.asarray(timestamps_ns, dtype=float)
-        x = x - x[0]  # relative time
-        y = np.asarray(gaps, dtype=float)
-
-        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-        r_squared = r_value ** 2
-
-        if slope <= 0 or r_squared < self.thresholds['gap_drift_r_squared']:
-            return []
-
-        severity = 'critical' if r_squared > 0.85 else 'warning'
-        confidence = round(min(1.0, r_squared), 3)
-
-        # Express slope in bytes per second (timestamps are nanoseconds).
-        slope_bytes_per_sec = slope * 1e9
-
-        return [GapFinding(
-            classification='persistent_drift',
-            severity=severity,
-            confidence=confidence,
-            evidence={
-                'slope_bytes_per_sec': round(slope_bytes_per_sec, 1),
-                'r_squared': round(r_squared, 4),
-                'p_value': round(p_value, 6),
-                'gap_start_bytes': round(float(y[0]), 1),
-                'gap_end_bytes': round(float(y[-1]), 1),
-            },
-            description=(
-                f"Device-vs-allocator gap is drifting upward at "
-                f"{format_bytes(int(abs(slope_bytes_per_sec)))}/s "
-                f"(R²={r_squared:.2f})."
-            ),
-            remediation=[
-                "Look for non-PyTorch CUDA allocations accumulating over time "
-                "(e.g. custom CUDA kernels, third-party libraries).",
-                "Monitor nvidia-smi used memory alongside torch allocator counters.",
-                "If gap stabilises after warmup, it may be one-time CUDA context overhead.",
-            ],
-        )]
-
-    def _detect_gap_fragmentation_pattern(
-        self,
-        events: List[TelemetryEventV2],
-        gaps: List[float],
-        normalized: List[float],
-    ) -> List[GapFinding]:
-        """Detect fragmentation-like behaviour: high reserved-allocated ratio."""
-        frag_ratios: List[float] = []
-        for ev in events:
-            reserved = ev.allocator_reserved_bytes
-            allocated = ev.allocator_allocated_bytes
-            if reserved > 0:
-                frag_ratios.append((reserved - allocated) / reserved)
-
-        if not frag_ratios:
-            return []
-
-        avg_frag = float(np.mean(frag_ratios))
-        max_frag = float(np.max(frag_ratios))
-
-        if avg_frag < self.thresholds['gap_fragmentation_ratio']:
-            return []
-
-        severity = 'critical' if avg_frag > 0.5 else 'warning'
-        confidence = round(min(1.0, avg_frag / 0.6), 3)
-
-        return [GapFinding(
-            classification='fragmentation_like',
-            severity=severity,
-            confidence=confidence,
-            evidence={
-                'avg_fragmentation_ratio': round(avg_frag, 4),
-                'max_fragmentation_ratio': round(max_frag, 4),
-                'avg_gap_bytes': round(float(np.mean(gaps)), 1),
-                'sample_count': len(frag_ratios),
-            },
-            description=(
-                f"Allocator fragmentation averaging {avg_frag:.0%} suggests "
-                f"reserved-but-unused memory is inflating the device footprint."
-            ),
-            remediation=[
-                "Call torch.cuda.empty_cache() periodically to release unused reserved blocks.",
-                "Reduce allocation churn by pre-allocating tensors or using memory pools.",
-                "Set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to reduce fragmentation.",
-            ],
-        )]
+        return analyze_hidden_memory_gaps(
+            events=events,
+            thresholds=self.thresholds,
+            format_memory=format_bytes,
+            remediation_by_classification=_GAP_REMEDIATION_BY_CLASSIFICATION,
+        )
 
     def generate_optimization_report(self,
                                      results: Optional[List[ProfileResult]] = None,
@@ -842,7 +680,7 @@ class MemoryAnalyzer:
         # Hidden-memory gap analysis (only when telemetry events are supplied).
         if events is not None:
             gap_findings = self.analyze_memory_gaps(events)
-            report['gap_analysis'] = [f.__dict__ for f in gap_findings]
+            report['gap_analysis'] = [asdict(f) for f in gap_findings]
 
         return report
 
