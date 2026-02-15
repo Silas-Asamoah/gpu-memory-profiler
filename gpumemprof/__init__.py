@@ -10,7 +10,12 @@ from .context_profiler import profile_context, profile_function
 from .analyzer import MemoryAnalyzer, GapFinding
 from .utils import get_gpu_info, format_bytes, convert_bytes
 from .tracker import MemoryTracker
-from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
+from .oom_flight_recorder import (
+    OOMExceptionClassification,
+    OOMFlightRecorder,
+    OOMFlightRecorderConfig,
+    classify_oom_exception,
+)
 from .telemetry import (
     TelemetryEventV2,
     load_telemetry_events,
@@ -24,6 +29,7 @@ from .device_collectors import (
     build_device_memory_collector,
     detect_torch_runtime_backend,
 )
+from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
 
 try:
     from .visualizer import MemoryVisualizer
@@ -49,6 +55,10 @@ __all__ = [
     "MemoryAnalyzer",
     "GapFinding",
     "MemoryTracker",
+    "OOMFlightRecorder",
+    "OOMFlightRecorderConfig",
+    "OOMExceptionClassification",
+    "classify_oom_exception",
     "TelemetryEventV2",
     "DeviceMemoryCollector",
     "DeviceMemorySample",
