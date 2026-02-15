@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -64,7 +65,7 @@ def classify_oom_exception(exc: BaseException) -> OOMExceptionClassification:
     exc_name = exc_type.__name__.lower()
     exc_module = exc_type.__module__.lower()
 
-    if "resourceexhaustederror" in exc_name:
+    if exc_name.endswith("resourceexhaustederror"):
         return OOMExceptionClassification(True, "tensorflow.ResourceExhaustedError")
 
     if exc_name == "outofmemoryerror" and "torch" in exc_module:
@@ -85,15 +86,19 @@ class OOMFlightRecorder:
         self.config = config
         bounded_size = max(1, int(config.buffer_size))
         self._events: deque[dict[str, Any]] = deque(maxlen=bounded_size)
+        self._events_lock = threading.Lock()
         self._dump_sequence = 0
+        self._sequence_lock = threading.Lock()
 
     def record_event(self, event: dict[str, Any]) -> None:
         """Append one event payload to the in-memory ring buffer."""
-        self._events.append(dict(event))
+        with self._events_lock:
+            self._events.append(dict(event))
 
     def snapshot_events(self) -> list[dict[str, Any]]:
         """Return buffered events in chronological order."""
-        return [dict(event) for event in self._events]
+        with self._events_lock:
+            return [dict(event) for event in self._events]
 
     def dump(
         self,
@@ -159,25 +164,27 @@ class OOMFlightRecorder:
         safe_backend = re.sub(r"[^a-zA-Z0-9_-]+", "_", backend) or "unknown"
 
         while True:
-            self._dump_sequence += 1
-            candidate = root / (
-                f"oom_dump_{timestamp_utc}_{os.getpid()}_{safe_backend}_{self._dump_sequence}"
-            )
+            with self._sequence_lock:
+                self._dump_sequence += 1
+                candidate = root / (
+                    f"oom_dump_{timestamp_utc}_{os.getpid()}_{safe_backend}_{self._dump_sequence}"
+                )
             if not candidate.exists():
                 return candidate
 
     def _prune_retention(self, root: Path) -> None:
-        bundles = self._list_bundles(root)
+        # Retention consistently uses oldest->newest ordering.
+        bundles = self._list_bundles_oldest_first(root)
 
         if self.config.max_dumps > 0 and len(bundles) > self.config.max_dumps:
-            for stale in bundles[self.config.max_dumps :]:
+            for stale in bundles[: -self.config.max_dumps]:
                 shutil.rmtree(stale, ignore_errors=True)
 
         max_total_bytes = self.config.max_total_mb * 1024 * 1024
         if max_total_bytes <= 0:
             return
 
-        bundles = sorted(self._list_bundles(root), key=lambda path: path.stat().st_mtime)
+        bundles = self._list_bundles_oldest_first(root)
         total_bytes = sum(self._bundle_size_bytes(path) for path in bundles)
 
         while bundles and total_bytes > max_total_bytes:
@@ -192,7 +199,7 @@ class OOMFlightRecorder:
             json.dump(payload, handle, indent=2, default=str)
 
     @staticmethod
-    def _list_bundles(root: Path) -> list[Path]:
+    def _list_bundles_oldest_first(root: Path) -> list[Path]:
         return sorted(
             [
                 path
@@ -200,7 +207,6 @@ class OOMFlightRecorder:
                 if path.is_dir() and path.name.startswith("oom_dump_")
             ],
             key=lambda path: path.stat().st_mtime,
-            reverse=True,
         )
 
     @staticmethod

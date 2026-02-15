@@ -51,6 +51,7 @@ def test_cmd_track_passes_oom_config_to_memorytracker(monkeypatch) -> None:
         def __init__(self, **kwargs):
             created.update(kwargs)
             self.max_events = 10_000
+            self.oom_buffer_size = kwargs.get("oom_buffer_size") or self.max_events
             self.last_oom_dump_path = None
 
         def set_threshold(self, name, value):

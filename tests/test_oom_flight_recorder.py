@@ -23,9 +23,6 @@ class _ResourceExhaustedError(RuntimeError):
 class _TrackerHarness:
     """Minimal harness that exercises MemoryTracker OOM methods without a GPU."""
 
-    handle_exception = MemoryTracker.handle_exception
-    capture_oom = MemoryTracker.capture_oom
-
     def __init__(self, dump_dir: Path, *, enabled: bool = True, buffer_size: int = 8) -> None:
         self.backend = "cuda"
         self.collector_capabilities = {"telemetry_collector": "gpumemprof.cuda_tracker"}
@@ -67,6 +64,12 @@ class _TrackerHarness:
             "backend": self.backend,
         }
         self._oom_flight_recorder.record_event(payload)
+
+    def handle_exception(self, exc, context=None, metadata=None):
+        return MemoryTracker.handle_exception(self, exc, context=context, metadata=metadata)
+
+    def capture_oom(self, context="runtime", metadata=None):
+        return MemoryTracker.capture_oom(self, context=context, metadata=metadata)
 
 
 def test_classify_oom_runtime_error_pattern() -> None:
@@ -202,8 +205,7 @@ def test_retention_enforces_total_size_limit(tmp_path: Path) -> None:
 def test_handle_exception_writes_dump_for_simulated_oom(tmp_path: Path) -> None:
     harness = _TrackerHarness(tmp_path / "oom_dumps")
 
-    dump_path = MemoryTracker.handle_exception(
-        harness,
+    dump_path = harness.handle_exception(
         RuntimeError("CUDA out of memory during allocation"),
         context="simulated-oom",
         metadata={"source": "test"},
@@ -217,8 +219,7 @@ def test_handle_exception_writes_dump_for_simulated_oom(tmp_path: Path) -> None:
 def test_handle_exception_ignores_non_oom(tmp_path: Path) -> None:
     harness = _TrackerHarness(tmp_path / "oom_dumps")
 
-    dump_path = MemoryTracker.handle_exception(
-        harness,
+    dump_path = harness.handle_exception(
         ValueError("not oom"),
         context="non-oom",
     )
@@ -231,7 +232,7 @@ def test_capture_oom_context_triggers_dump_then_reraises(tmp_path: Path) -> None
     harness = _TrackerHarness(tmp_path / "oom_dumps")
 
     with pytest.raises(RuntimeError, match="out of memory"):
-        with MemoryTracker.capture_oom(harness, context="capture-oom", metadata={"source": "ctx"}):
+        with harness.capture_oom(context="capture-oom", metadata={"source": "ctx"}):
             raise RuntimeError("CUDA out of memory in context")
 
     assert harness.last_oom_dump_path is not None

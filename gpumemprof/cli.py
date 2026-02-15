@@ -347,7 +347,7 @@ def cmd_track(args: argparse.Namespace) -> None:
         if args.oom_flight_recorder:
             print("OOM flight recorder enabled:")
             print(f"  Dump directory: {args.oom_dump_dir}")
-            buffer_value = args.oom_buffer_size if args.oom_buffer_size is not None else tracker.max_events
+            buffer_value = tracker.oom_buffer_size
             print(f"  Buffer size: {buffer_value} events")
             print(f"  Max dumps: {args.oom_max_dumps}")
             print(f"  Max total size: {args.oom_max_total_mb} MB")
@@ -375,16 +375,15 @@ def cmd_track(args: argparse.Namespace) -> None:
     tracker.start_tracking()
 
     start_time = time.time()
-    oom_context = (
-        tracker.capture_oom(
-            context="gpumemprof.track",
-            metadata={"command": "track", "runtime_backend": runtime_backend},
-        )
-        if isinstance(tracker, MemoryTracker)
-        else nullcontext()
-    )
     try:
-        with oom_context:
+        with (
+            tracker.capture_oom(
+                context="gpumemprof.track",
+                metadata={"command": "track", "runtime_backend": runtime_backend},
+            )
+            if isinstance(tracker, MemoryTracker)
+            else nullcontext()
+        ):
             while True:
                 elapsed = time.time() - start_time
 

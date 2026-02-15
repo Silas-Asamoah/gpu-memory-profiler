@@ -136,6 +136,11 @@ class MemoryTracker:
             total_memory = int(fallback_total) if isinstance(fallback_total, (int, float)) else 0
         self.total_memory = int(total_memory)
 
+    @property
+    def oom_buffer_size(self) -> int:
+        """Resolved OOM ring-buffer size."""
+        return self._oom_flight_recorder.config.buffer_size
+
     def _setup_device(self, device: Union[str, int, torch.device, None]) -> torch.device:
         """Setup and validate the device for tracking."""
         resolved_device = _resolve_device(device)
@@ -218,7 +223,6 @@ class MemoryTracker:
     def _tracking_loop(self) -> None:
         """Main tracking loop running in background thread."""
         last_allocated = 0
-        consecutive_warnings = 0
 
         while not self._stop_event.wait(self.sampling_interval):
             try:
