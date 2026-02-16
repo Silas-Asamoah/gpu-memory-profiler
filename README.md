@@ -121,10 +121,10 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 
 Start at the docs home page and follow the same structure locally or when hosted:
 
--   **[Documentation Home](docs/index.md)**
+-   **[Documentation Home (local)](docs/index.md)**
+-   **[Documentation Home (hosted)](https://gpu-memory-profiler.readthedocs.io/en/latest/)**
 
 Key guides:
-
 -   [CLI Usage](docs/cli.md)
 -   [CPU Compatibility](docs/cpu_compatibility.md)
 -   [Compatibility Matrix (v0.2)](docs/compatibility_matrix.md)

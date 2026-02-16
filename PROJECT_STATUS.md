@@ -39,6 +39,7 @@
 - Example docs now include scenario matrix guidance.
 - Release checklist rewritten for v0.2 criteria and command-level QA gates.
 - CI includes capability matrix smoke execution in `cli-test`.
+- Hosted-docs wiring (Sphinx gate + Read the Docs config) is now part of the release track.
 
 ## QA Evidence Model for v0.2
 
@@ -46,7 +47,13 @@ Release confidence is based on:
 
 1. Command-level QA gate in `tensor-torch-profiler` env.
 2. Capability matrix smoke/full reports.
-3. CI checks (unit/integration, TUI gates, build/twine).
+3. CI checks (unit/integration, TUI gates, docs gate, build/twine).
+
+## Hosted Docs Rollout Status
+
+- CI now includes a required warning-clean Sphinx docs build.
+- Read the Docs configuration is tracked in-repo via `.readthedocs.yaml`.
+- `latest` and `stable` docs health is explicitly tracked in `RELEASE_CHECKLIST.md`.
 
 ## Known Local Risk (Tracked)
 
@@ -57,7 +64,7 @@ Release confidence is based on:
 ## Remaining Steps to Publish
 
 1. Run the full `RELEASE_CHECKLIST.md` and archive artifacts.
-2. Confirm CI green on final release PR.
-3. Tag and publish `v0.2.0`.
-4. Post-release smoke install + quickstart verification.
-
+2. Confirm CI green on final release PR (including docs gate).
+3. Confirm Read the Docs `latest` build is green and `stable` policy is ready.
+4. Tag and publish `v0.2.0`.
+5. Post-release smoke install + quickstart verification.
