@@ -12,6 +12,7 @@ installation
 usage
 cli
 api
+reference/index
 examples
 examples/test_guides/README
 cpu_compatibility
