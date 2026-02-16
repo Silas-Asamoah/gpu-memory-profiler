@@ -14,10 +14,10 @@ from examples.common import (
     run_tf_train_step,
     seed_everything,
 )
-from tfmemprof import TensorFlowProfiler
+from tfmemprof import TFMemoryProfiler
 
 
-def profile_tensor_allocation(profiler: TensorFlowProfiler, repeats: int = 3) -> None:
+def profile_tensor_allocation(profiler: TFMemoryProfiler, repeats: int = 3) -> None:
     for idx in range(repeats):
 
         @profiler.profile_function
@@ -30,14 +30,14 @@ def profile_tensor_allocation(profiler: TensorFlowProfiler, repeats: int = 3) ->
         allocate_batch()
 
 
-def profile_training_steps(profiler: TensorFlowProfiler, model: tf.keras.Model) -> None:
+def profile_training_steps(profiler: TFMemoryProfiler, model: tf.keras.Model) -> None:
     for epoch in range(2):
         with profiler.profile_context(f"tf_epoch_{epoch+1}"):
             loss_value = run_tf_train_step(model)
             print_kv(f"Epoch {epoch+1} loss", f"{loss_value:.4f}")
 
 
-def profile_inference(profiler: TensorFlowProfiler, model: tf.keras.Model) -> None:
+def profile_inference(profiler: TFMemoryProfiler, model: tf.keras.Model) -> None:
     inputs, _ = generate_tf_batch(batch_size=64)
     with profiler.profile_context("tf_inference"):
         logits = model(inputs, training=False)
@@ -63,7 +63,7 @@ def main() -> None:
     for key, value in env.items():
         print_kv(key, value)
 
-    profiler = TensorFlowProfiler(enable_tensor_tracking=True)
+    profiler = TFMemoryProfiler(enable_tensor_tracking=True)
 
     print_section("Tensor Allocation Profiling")
     profile_tensor_allocation(profiler)
