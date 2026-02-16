@@ -307,10 +307,12 @@ Minimal overhead design with configurable sampling:
 
 ```python
 # Low overhead mode
-profiler = GPUMemoryProfiler(sampling_interval=5.0)
+profiler = GPUMemoryProfiler()
+profiler.start_monitoring(interval=5.0)
 
 # High precision mode
-profiler = GPUMemoryProfiler(sampling_interval=0.1)
+profiler = GPUMemoryProfiler()
+profiler.start_monitoring(interval=0.1)
 ```
 
 ## Configuration Management
@@ -360,7 +362,9 @@ try:
     profiler = GPUMemoryProfiler()
 except CUDAError:
     # Fall back to CPU mode
-    profiler = GPUMemoryProfiler(cpu_only=True)
+    from gpumemprof import CPUMemoryProfiler
+
+    profiler = CPUMemoryProfiler()
 ```
 
 ## Testing Architecture

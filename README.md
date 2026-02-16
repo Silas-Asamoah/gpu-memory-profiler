@@ -93,14 +93,17 @@ pre-commit install
 ```python
 from gpumemprof import GPUMemoryProfiler
 profiler = GPUMemoryProfiler()
-@profiler.profile_function
+
 def train_step(model, data, target):
     output = model(data)
     loss = ...
     loss.backward()
     return loss
-results = profiler.get_results()
-print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
+
+profile = profiler.profile_function(train_step, model, data, target)
+summary = profiler.get_summary()
+print(f"Profiled call: {profile.function_name}")
+print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
 ```
 
 ### TensorFlow Example
@@ -119,7 +122,7 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 -   **[Full Documentation & Guides](docs/index.md)**
 -   [CLI Usage](docs/cli.md)
 -   [CPU Compatibility](docs/cpu_compatibility.md)
--   [Compatibility Matrix](docs/compatibility_matrix.md)
+-   [Compatibility Matrix (v0.2)](docs/compatibility_matrix.md)
 -   [GPU Setup (drivers + frameworks)](docs/gpu_setup.md)
 -   [Testing Guides](docs/pytorch_testing_guide.md), [TensorFlow](docs/tensorflow_testing_guide.md)
 -   [Example Test Guides (Markdown)](docs/examples/test_guides/README.md)

@@ -208,19 +208,18 @@ from gpumemprof import GPUMemoryProfiler
 # Initialize profiler
 profiler = GPUMemoryProfiler()
 
-@profiler.profile_function
 def gpu_operation():
     x = torch.randn(1000, 1000, device='cuda')
     y = torch.matmul(x, x.T)
     return torch.sum(y)
 
 # Run profiled function
-result = gpu_operation()
+profile = profiler.profile_function(gpu_operation)
 
-# Get results
-results = profiler.get_results()
-print(f"Peak GPU memory: {results.peak_memory_mb:.2f} MB")
-print(f"Execution time: {results.duration:.4f} seconds")
+# Get summary
+summary = profiler.get_summary()
+print(f"Peak GPU memory: {summary['peak_memory_usage'] / (1024**2):.2f} MB")
+print(f"Execution time: {profile.execution_time:.4f} seconds")
 ```
 
 #### Context Profiling
@@ -249,9 +248,9 @@ with profiler.profile_context("model_training"):
     optimizer.step()
 
 # View results
-results = profiler.get_results()
-for context, stats in results.function_profiles.items():
-    print(f"{context}: {stats['total_duration']:.3f}s, {stats['total_memory_used']:.2f} MB")
+summary = profiler.get_summary()
+for context, stats in summary["function_summaries"].items():
+    print(f"{context}: {stats['total_time']:.3f}s, {stats['total_memory_allocated'] / (1024**2):.2f} MB")
 ```
 
 #### Real-Time Monitoring
@@ -589,15 +588,15 @@ for epoch in range(5):
         print(f"Epoch {epoch+1}/5, Loss: {loss.item():.4f}")
 
 # Generate report
-results = profiler.get_results()
+summary = profiler.get_summary()
 print(f"\nTraining completed!")
-print(f"Peak GPU memory: {results.peak_memory_mb:.2f} MB")
-print(f"Average memory: {results.average_memory_mb:.2f} MB")
+print(f"Peak GPU memory: {summary['peak_memory_usage'] / (1024**2):.2f} MB")
+print(f"Function calls: {summary['total_function_calls']}")
 
 # Create visualizations
-visualizer = MemoryVisualizer()
-visualizer.plot_memory_timeline(results, save_path='training_memory.png')
-visualizer.export_data(results, format='json', filepath='training_results.json')
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False, save_path='training_memory.png')
+visualizer.export_data(format='json', save_path='training_results')
 ```
 
 #### CPU Version
@@ -642,13 +641,13 @@ for epoch in range(5):
         print(f"Epoch {epoch+1}/5, Loss: {loss.item():.4f}")
 
 # Generate report
-results = profiler.get_results()
+results = profiler.get_summary()
 print(f"\nCPU Training completed!")
-print(f"Peak CPU memory: {results['peak_memory_mb']:.2f} MB")
+print(f"Peak CPU memory: {results['peak_memory_usage'] / (1024**2):.2f} MB")
 
 # Show context breakdown
-for context, stats in results['function_profiles'].items():
-    print(f"{context}: {stats['total_duration']:.3f}s, {stats['total_memory_used']:.2f} MB")
+for context, stats in results['function_summaries'].items():
+    print(f"{context}: {stats['total_time']:.3f}s, {stats['total_memory_allocated'] / (1024**2):.2f} MB")
 ```
 
 ### Example 2: Memory Leak Detection
@@ -805,12 +804,12 @@ gpumemprof monitor --interval 1.0 --duration 30
 # Monitor for 30 seconds, sample every 1 second
 
 # Background tracking
-gpumemprof track --output results.json --threshold 2048
-# Track with 2GB alert threshold, save to file
+gpumemprof track --output results.json --warning-threshold 70 --critical-threshold 90
+# Track with warning/critical thresholds, save to file
 
 # Analysis
-gpumemprof analyze --input results.json --detect-leaks --visualize
-# Analyze saved results, detect leaks, create plots
+gpumemprof analyze results.json --visualization --plot-dir analysis_plots
+# Analyze saved results and create plots
 ```
 
 ### CPU CLI Alternative
@@ -1038,12 +1037,13 @@ with profiler.profile_context("batch_operations"):
 
 ```python
 # 1. Increase sampling interval
-tracker = CPUMemoryTracker(interval=0.5)  # Sample every 500ms
+tracker = CPUMemoryTracker(sampling_interval=0.5)  # Sample every 500ms
 
 # 2. Limit tracked operations
-@profiler.profile_function
 def important_function():  # Only profile critical functions
     pass
+
+profile = profiler.profile_function(important_function)
 
 # 3. Use process-level tracking
 import psutil
@@ -1183,7 +1183,7 @@ print(f"Average CPU: {summary.get('cpu', {}).get('average_percent', 0):.1f}%")
 
 ```python
 import mlflow
-from gpumemprof import GPUMemoryProfiler
+from gpumemprof import GPUMemoryProfiler, MemoryVisualizer
 
 # Start MLflow run
 with mlflow.start_run():
@@ -1195,25 +1195,26 @@ with mlflow.start_run():
             loss = train_one_epoch()
 
         # Log metrics to MLflow
-        results = profiler.get_results()
-        mlflow.log_metric("gpu_memory_mb", results.peak_memory_mb, step=epoch)
+        results = profiler.get_summary()
+        mlflow.log_metric("gpu_memory_mb", results["peak_memory_usage"] / (1024**2), step=epoch)
         mlflow.log_metric("train_loss", loss, step=epoch)
 
     # Log final profiling results
-    final_results = profiler.get_results()
-    mlflow.log_metric("peak_gpu_memory", final_results.peak_memory_mb)
-    mlflow.log_metric("avg_gpu_memory", final_results.average_memory_mb)
+    final_results = profiler.get_summary()
+    mlflow.log_metric("peak_gpu_memory", final_results["peak_memory_usage"] / (1024**2))
+    mlflow.log_metric("total_profiled_calls", final_results["total_function_calls"])
 
     # Export and log profiling data
-    profiler.export_data('profiling_results.json')
-    mlflow.log_artifact('profiling_results.json')
+    visualizer = MemoryVisualizer(profiler)
+    export_path = visualizer.export_data(format="json", save_path="profiling_results")
+    mlflow.log_artifact(export_path)
 ```
 
 #### Weights & Biases Integration
 
 ```python
 import wandb
-from gpumemprof import GPUMemoryProfiler
+from gpumemprof import GPUMemoryProfiler, MemoryVisualizer
 
 # Initialize wandb
 wandb.init(project="memory-profiling")
@@ -1225,17 +1226,17 @@ for epoch in range(10):
         loss = train_one_epoch()
 
     # Log to wandb
-    results = profiler.get_results()
+    results = profiler.get_summary()
     wandb.log({
         "epoch": epoch,
         "loss": loss,
-        "gpu_memory_mb": results.peak_memory_mb,
-        "memory_efficiency": results.efficiency_score
+        "gpu_memory_mb": results["peak_memory_usage"] / (1024**2),
+        "profiled_calls": results["total_function_calls"],
     })
 
 # Upload profiling visualization
-visualizer = MemoryVisualizer()
-visualizer.plot_memory_timeline(profiler.get_results(), save_path='memory_plot.png')
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False, save_path='memory_plot.png')
 wandb.log({"memory_timeline": wandb.Image('memory_plot.png')})
 ```
 
@@ -1265,9 +1266,9 @@ class AutoOptimizer:
                     loss = outputs.sum()
                     loss.backward()
 
-                results = self.profiler.get_results()
-                memory_used = results.peak_memory_mb
-                duration = results.duration
+                results = self.profiler.get_summary()
+                memory_used = results["peak_memory_usage"] / (1024**2)
+                duration = max(results["total_execution_time"], 1e-6)
                 throughput = batch_size / duration
 
                 print(f"  Memory: {memory_used:.1f}MB, Throughput: {throughput:.1f} samples/s")

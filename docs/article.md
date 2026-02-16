@@ -147,20 +147,22 @@ from gpumemprof import GPUMemoryProfiler
 profiler = GPUMemoryProfiler()
 
 # Profile a function
-@profiler.profile_function
 def train_step(model, data, target):
     output = model(data)
     loss = torch.nn.functional.cross_entropy(output, target)
     loss.backward()
     return loss
 
+profile = profiler.profile_function(train_step, model, data, target)
+
 # Use context manager
 with profiler.profile_context("forward_pass"):
     output = model(input_tensor)
 
 # Get results
-results = profiler.get_results()
-print(f"Peak memory usage: {results.peak_memory_mb:.2f} MB")
+results = profiler.get_summary()
+print(f"Profiled function: {profile.function_name}")
+print(f"Peak memory usage: {results['peak_memory_usage'] / (1024**2):.2f} MB")
 ```
 
 ### PyTorch-Specific Features
@@ -208,7 +210,6 @@ optimizer = torch.optim.Adam(model.parameters())
 for epoch in range(10):
     with profiler.profile_context(f"epoch_{epoch}"):
 
-        @profiler.profile_function
         def training_step():
             x = torch.randn(64, 1000).cuda()
             y = torch.randn(64, 100).cuda()
@@ -224,13 +225,15 @@ for epoch in range(10):
 
             return loss.item()
 
+        profiler.profile_function(training_step)
         loss = training_step()
         print(f"Epoch {epoch}, Loss: {loss:.4f}")
 
 # Analyze results
-results = profiler.get_results()
-visualizer = MemoryVisualizer()
-visualizer.plot_memory_timeline(results)
+results = profiler.get_summary()
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False)
+print(f"Peak memory usage: {results['peak_memory_usage'] / (1024**2):.2f} MB")
 ```
 
 _[Image Placeholder: Screenshot of PyTorch profiling output showing function breakdown]_
@@ -570,13 +573,13 @@ For power users and automation, we provide comprehensive command-line interfaces
 gpumemprof info
 
 # Monitor memory usage in real-time
-gpumemprof monitor --interval 1.0 --threshold 2048
+gpumemprof monitor --interval 1.0 --duration 120 --output monitor.csv
 
 # Background tracking with alerts
-gpumemprof track --output results.json --threshold 4096
+gpumemprof track --output results.json --warning-threshold 70 --critical-threshold 90
 
 # Analyze saved results
-gpumemprof analyze --input results.json --detect-leaks --visualize
+gpumemprof analyze results.json --visualization --plot-dir plots
 ```
 
 ### TensorFlow CLI (`tfmemprof`)
@@ -600,7 +603,7 @@ tfmemprof analyze --input tf_results.json --optimize --report report.md
 echo "Starting training with memory monitoring..."
 
 # Start background tracking
-gpumemprof track --output training_memory.json --threshold 8000 &
+gpumemprof track --output training_memory.json --warning-threshold 75 --critical-threshold 92 &
 TRACKER_PID=$!
 
 # Run your training
@@ -610,13 +613,13 @@ python train_model.py
 kill $TRACKER_PID
 
 # Generate analysis report
-gpumemprof analyze --input training_memory.json \
-                   --detect-leaks \
-                   --optimize \
-                   --visualize \
-                   --report memory_report.md
+gpumemprof analyze training_memory.json \
+                   --visualization \
+                   --plot-dir training_plots \
+                   --output memory_report.txt \
+                   --format txt
 
-echo "Training complete! Check memory_report.md for analysis."
+echo "Training complete! Check memory_report.txt for analysis."
 ```
 
 _[Image Placeholder: Terminal screenshots showing CLI commands in action]_
@@ -673,7 +676,8 @@ Our analyzer gives your code a score from 0-10 based on:
 
 ```python
 analyzer = MemoryAnalyzer()
-efficiency_score = analyzer.analyze_efficiency(results)
+report = analyzer.generate_optimization_report(profiler.results)
+efficiency_score = report["optimization_score"]
 print(f"Memory efficiency score: {efficiency_score:.1f}/10")
 ```
 
@@ -682,11 +686,10 @@ print(f"Memory efficiency score: {efficiency_score:.1f}/10")
 Understand how memory usage affects training speed:
 
 ```python
-correlation = analyzer.correlate_with_performance(results)
-print("Functions with poor memory/performance ratio:")
-for func, stats in correlation['function_efficiency'].items():
-    if stats['efficiency_score'] < 0.5:
-        print(f"- {func}: {stats['efficiency_score']:.2f}")
+insights = analyzer.generate_performance_insights(profiler.results)
+print("Top performance insights:")
+for insight in insights[:3]:
+    print(f"- {insight.description}")
 ```
 
 #### 3. Fragmentation Analysis
@@ -694,8 +697,9 @@ for func, stats in correlation['function_efficiency'].items():
 Detect when your GPU memory becomes fragmented:
 
 ```python
-fragmentation = analyzer.analyze_fragmentation(results)
-if fragmentation['fragmentation_score'] > 0.3:
+patterns = analyzer.analyze_memory_patterns(profiler.results)
+fragmentation_patterns = [p for p in patterns if p.pattern_type == "fragmentation"]
+if fragmentation_patterns:
     print("High memory fragmentation detected!")
     print("Consider using smaller batch sizes or clearing cache more frequently.")
 ```
@@ -737,17 +741,17 @@ from gpumemprof import GPUMemoryProfiler
 profiler = GPUMemoryProfiler()
 
 # 3. Add profiling to your code
-@profiler.profile_function
 def train_step():
     # Your training code here
     pass
 
 # 4. Run your training
-train_step()
+profile = profiler.profile_function(train_step)
 
 # 5. Get results
-results = profiler.get_results()
-print(f"Peak memory: {results.peak_memory_mb} MB")
+results = profiler.get_summary()
+print(f"Profiled function: {profile.function_name}")
+print(f"Peak memory: {results['peak_memory_usage'] / (1024**2):.2f} MB")
 ```
 
 #### For TensorFlow Users
@@ -783,7 +787,6 @@ model = nn.Linear(1000, 100).cuda()
 optimizer = torch.optim.Adam(model.parameters())
 
 # Step 2: Profile your training
-@profiler.profile_function
 def training_loop():
     for i in range(100):
         # Generate random data
@@ -800,18 +803,18 @@ def training_loop():
         optimizer.step()
 
 # Step 3: Run training
-training_loop()
+profiler.profile_function(training_loop)
 
 # Step 4: Analyze results
-results = profiler.get_results()
+results = profiler.get_summary()
 
 # Step 5: Generate visualizations
-visualizer = MemoryVisualizer()
-visualizer.plot_memory_timeline(results, save_path="my_memory_timeline.png")
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False, save_path="my_memory_timeline.png")
 
 # Step 6: Get optimization suggestions
 analyzer = MemoryAnalyzer()
-suggestions = analyzer.suggest_optimizations(results)
+suggestions = analyzer.generate_optimization_report(profiler.results)["recommendations"]
 
 print("Optimization suggestions:")
 for i, suggestion in enumerate(suggestions, 1):
@@ -891,10 +894,10 @@ profiler = GPUMemoryProfiler()
 train_model()
 
 # Log memory metrics to MLflow
-results = profiler.get_results()
-mlflow.log_metric("peak_memory_mb", results.peak_memory_mb)
-mlflow.log_metric("avg_memory_mb", results.average_memory_mb)
-mlflow.log_metric("memory_efficiency", analyzer.analyze_efficiency(results))
+results = profiler.get_summary()
+mlflow.log_metric("peak_memory_mb", results["peak_memory_usage"] / (1024**2))
+mlflow.log_metric("total_profiled_calls", results["total_function_calls"])
+mlflow.log_metric("net_memory_change_mb", results["net_memory_change"] / (1024**2))
 ```
 
 _[Image Placeholder: Integration examples with popular ML platforms]_
@@ -925,7 +928,7 @@ except RuntimeError as e:
 
         # Get specific recommendations
         analyzer = MemoryAnalyzer()
-        suggestions = analyzer.suggest_optimizations(results)
+        suggestions = analyzer.generate_optimization_report(profiler.results)["recommendations"]
         print("Try these optimizations:")
         for suggestion in suggestions:
             print(f"- {suggestion}")

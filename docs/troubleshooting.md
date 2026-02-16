@@ -161,12 +161,16 @@ with torch.no_grad():
 from gpumemprof import GPUMemoryProfiler
 
 profiler = GPUMemoryProfiler()
-profiler.enable_leak_detection(threshold=100, window_size=10)
+profiler.start_monitoring(interval=0.5)
 
 # Your code here
-leaks = profiler.detect_leaks()
-if leaks:
-    print(f"Memory leaks detected: {leaks}")
+with profiler.profile_context("training_step"):
+    train_step()
+
+profiler.stop_monitoring()
+summary = profiler.get_summary()
+print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
+print(f"Memory change: {summary['memory_change_from_baseline'] / (1024**3):.2f} GB")
 ```
 
 ### CLI Issues
@@ -229,14 +233,20 @@ matplotlib.use('Agg')  # Use non-interactive backend
 2. **Save plots to files:**
 
 ```python
-profiler.plot_memory_timeline()
+from gpumemprof import MemoryVisualizer
+
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False)
 plt.savefig('timeline.png')
 ```
 
 3. **Use Plotly for web-based plots:**
 
 ```python
-profiler.create_dashboard()  # Opens in browser
+from gpumemprof import MemoryVisualizer
+
+visualizer = MemoryVisualizer(profiler)
+visualizer.export_data(format='json', save_path='dashboard_data')
 ```
 
 #### Problem: Dash visualization fails
@@ -265,20 +275,23 @@ pip install dash
 1. **Increase sampling interval:**
 
 ```python
-profiler = GPUMemoryProfiler(sampling_interval=2.0)  # Sample every 2 seconds
+profiler = GPUMemoryProfiler()
+profiler.start_monitoring(interval=2.0)  # Sample every 2 seconds
 ```
 
 2. **Disable visualization during training:**
 
 ```python
-profiler = GPUMemoryProfiler(enable_visualization=False)
+profiler = GPUMemoryProfiler(track_tensors=False)
 ```
 
 3. **Use context profiling selectively:**
 
 ```python
 # Only profile specific functions
-@profiler.profile_function
+from gpumemprof import profile_function
+
+@profile_function
 def critical_function():
     pass
 ```
@@ -369,9 +382,9 @@ profiler = GPUMemoryProfiler()
 ### Verbose CLI Output
 
 ```bash
-# Add --verbose flag
-gpumemprof info --verbose
-gpumemprof monitor --duration 10 --verbose
+# Use detailed/system output commands
+gpumemprof info --detailed
+gpumemprof monitor --duration 10
 ```
 
 ### Check System Information
@@ -395,14 +408,14 @@ print(info)
 2. **Run diagnostics:**
 
 ```python
-from gpumemprof import get_system_info
-from tfmemprof import validate_tensorflow_setup
+from gpumemprof import get_system_info as get_torch_system_info
+from tfmemprof import get_system_info as get_tf_system_info
 
 # Check PyTorch setup
-print(get_system_info())
+print(get_torch_system_info())
 
 # Check TensorFlow setup
-print(validate_tensorflow_setup())
+print(get_tf_system_info())
 ```
 
 3. **Test with minimal example:**
@@ -412,12 +425,14 @@ from gpumemprof import GPUMemoryProfiler
 import torch
 
 profiler = GPUMemoryProfiler()
-@profiler.profile_function
+
 def test():
     return torch.randn(100, 100).cuda()
 
-result = test()
-print(profiler.get_results())
+profile = profiler.profile_function(test)
+summary = profiler.get_summary()
+print(profile.to_dict())
+print(summary)
 ```
 
 ### Reporting Issues
