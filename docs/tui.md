@@ -40,10 +40,12 @@ gpu-profiler
   export the same data as a Matplotlib PNG or Plotly HTML file (saved under
   `./visualizations`) for richer analysis.
 - **CLI & Actions tab** – Rich instructions plus quick-run buttons that execute
-  `gpumemprof` / `tfmemprof` commands directly inside the TUI. A command input
-  box (with Run/Cancel controls) lets you stream any shell command into the
-  inline log. When CUDA isn’t present, those commands automatically switch to
-  the CPU profiling backend, so you can still prototype workflows locally.
+  `gpumemprof` / `tfmemprof` commands directly inside the TUI. Dedicated launch
+  helpers include buttons for `gpumemprof diagnose`, the OOM scenario runner,
+  and the capability-matrix smoke command. A command input box (with Run/Cancel
+  controls) lets you stream any shell command into the inline log. When CUDA
+  isn’t present, those commands automatically switch to CPU/MPS-compatible paths
+  so you can still prototype workflows locally.
 
 When you click **Start Live Tracking** in the Monitoring tab, the TUI spins up
 `gpumemprof.tracker.MemoryTracker` in the background, pipes every event into the
@@ -72,6 +74,13 @@ Want to automate CLI workflows? Use the command input at the bottom of the CLI
 tab (or the quick buttons) to launch `gpumemprof`/`tfmemprof` commands without
 leaving the dashboard—the RichLog streams stdout/stderr live, and **Cancel
 Command** terminates long-running jobs.
+
+For release QA, use these CLI tab quick actions:
+
+- **gpumemprof diagnose**: writes a fresh diagnostic artifact bundle.
+- **OOM Scenario**: runs the safe simulated OOM flight-recorder workflow.
+- **Capability Matrix**: launches the smoke matrix with `--skip-tui` so it can
+  run from inside the dashboard without nesting PTY sessions.
 
 Watching for leaks? The monitoring tab now includes a live alert history plus
 sliders for warning/critical thresholds (GPU mode) so you can tune signal/noise
@@ -104,4 +113,3 @@ designed to accommodate this future addition without breaking compatibility.
 
 For more sample commands, see the Markdown test guides under
 `docs/examples/test_guides/README.md`.
-

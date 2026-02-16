@@ -35,6 +35,20 @@ pytest tests/test_utils.py
 
 Both steps run quickly and unblock CI jobs that lack GPUs.
 
+## Launch Matrix (Recommended)
+
+Run one command to validate current launch capabilities:
+
+```bash
+python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated
+```
+
+This writes a machine-readable report under:
+
+`artifacts/examples/capability_matrix/<timestamp>/report.json`
+
+On macOS, `--target both` exercises CPU + MPS paths together.
+
 ## PyTorch GPU Checklist
 
 ```bash
@@ -67,6 +81,15 @@ python -m examples.cli.quickstart
 This runs the same commands exercised in CI (`gpumemprof --help`, `info`,
 optional `monitor`, and the equivalent `tfmemprof` commands).
 
+### Scenario Modules (Telemetry + OOM + Diagnose)
+
+```bash
+python -m examples.scenarios.cpu_telemetry_scenario
+python -m examples.scenarios.mps_telemetry_scenario
+python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
+python -m examples.scenarios.tf_end_to_end_scenario
+```
+
 Prefer an interactive dashboard? Launch the Textual TUI:
 
 ```bash
@@ -95,4 +118,3 @@ it to a real GPU) and rerun the PyTorch/TensorFlow checklists above.
 - `docs/pytorch_testing_guide.md`
 - `docs/tensorflow_testing_guide.md`
 - `docs/testing.md`
-

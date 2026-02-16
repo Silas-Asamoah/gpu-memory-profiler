@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- [Future features will be listed here]
+- Launch QA scenario modules under `examples/scenarios/` for CPU telemetry, MPS telemetry, OOM flight recorder coverage, and TensorFlow end-to-end telemetry/diagnose checks.
+- Capability matrix orchestrator (`python -m examples.cli.capability_matrix`) with smoke/full modes, target selection (`auto|cpu|mps|both`), OOM mode controls, and machine-readable reports.
+- Scenario smoke tests (`tests/test_examples_scenarios.py`) and updated TUI pilot coverage for launch quick actions.
+- Updated TUI snapshot baselines for intentional CLI & Actions tab changes.
 
 ### Changed
 
@@ -17,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migration note: users on Python 3.8/3.9 should upgrade to Python 3.10+ or pin `gpu-memory-profiler<0.2.0`.
 - Refresh docs/API examples to match current CLI and profiler behavior.
 - Publish a versioned compatibility matrix for v0.2 and link it from top-level docs.
+- Stabilize benchmark harness defaults (`--iterations 200`) and align benchmark/testing documentation to this baseline.
+- Expand TUI CLI/Playbook guidance and quick actions to highlight diagnose, OOM scenario, and capability matrix workflows.
+- Refresh release-facing docs (`README`, examples guides, `RELEASE_CHECKLIST`, `PROJECT_STATUS`) for v0.2 launch readiness.
 
 ### Deprecated
 
@@ -29,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Remove stale docs references to unsupported CLI options and non-existent profiler APIs.
+- Fix `examples.basic.tensorflow_demo` constructor/API mismatch so the demo runs against the current TensorFlow profiler implementation.
 
 ### Security
 

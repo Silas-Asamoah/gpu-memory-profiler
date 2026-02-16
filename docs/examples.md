@@ -94,7 +94,7 @@ with profile_context("validation"):
 
 ```python
 import tensorflow as tf
-from tfmemprof import TensorFlowProfiler
+from tfmemprof import TFMemoryProfiler
 
 # Create model
 model = tf.keras.Sequential([
@@ -104,7 +104,7 @@ model = tf.keras.Sequential([
 ])
 
 # Initialize profiler
-profiler = TensorFlowProfiler()
+profiler = TFMemoryProfiler()
 
 # Profile training
 with profiler.profile_context("training"):
@@ -119,9 +119,9 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 ### Keras Model Profiling
 
 ```python
-from tfmemprof import TensorFlowProfiler
+from tfmemprof import TFMemoryProfiler
 
-profiler = TensorFlowProfiler()
+profiler = TFMemoryProfiler()
 
 # Profile model creation
 with profiler.profile_context("model_creation"):
@@ -153,9 +153,9 @@ profiler.plot_memory_timeline()
 
 ```python
 import tensorflow as tf
-from tfmemprof import TensorFlowProfiler
+from tfmemprof import TFMemoryProfiler
 
-profiler = TensorFlowProfiler()
+profiler = TFMemoryProfiler()
 
 @tf.function
 def train_step(model, optimizer, x, y):
@@ -200,6 +200,39 @@ tfmemprof monitor --duration 600 --output tf_monitoring.json
 
 # Track with alerts
 tfmemprof track --threshold 3000 --output tf_tracking.json
+```
+
+## Launch QA Scenario Matrix
+
+For v0.2 launch validation, use the scenario matrix orchestrator:
+
+```bash
+python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated
+```
+
+This command runs:
+
+- CPU telemetry export + schema validation
+- MPS telemetry export + analyze roundtrip (when MPS is available)
+- OOM flight-recorder scenario (safe simulated mode by default)
+- TensorFlow monitor/track/analyze/diagnose end-to-end scenario
+- `gpumemprof diagnose` artifact check
+- benchmark harness budget gate
+- optional TUI PTY smoke (skip with `--skip-tui`)
+
+Switch to full mode to include extra demos:
+
+```bash
+python -m examples.cli.capability_matrix --mode full --target both --oom-mode simulated
+```
+
+### Individual Scenario Modules
+
+```bash
+python -m examples.scenarios.cpu_telemetry_scenario
+python -m examples.scenarios.mps_telemetry_scenario
+python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
+python -m examples.scenarios.tf_end_to_end_scenario
 ```
 
 ## Complete Working Examples
