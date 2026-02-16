@@ -13,6 +13,7 @@ usage
 cli
 api
 examples
+examples/test_guides/README
 cpu_compatibility
 compatibility_matrix
 benchmark_harness
@@ -20,6 +21,8 @@ telemetry_schema
 testing
 troubleshooting
 architecture
+gpu_setup
+tui
 pytorch_testing_guide
 tensorflow_testing_guide
 article

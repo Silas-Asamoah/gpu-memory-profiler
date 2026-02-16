@@ -62,8 +62,11 @@ autodoc_mock_imports = [
 ]
 
 myst_enable_extensions = ["colon_fence"]
+suppress_warnings = [
+    "myst.xref_missing",
+    "misc.highlighting_failure",
+]
 
 html_theme = "sphinx_rtd_theme"
 html_static_path: list[str] = []
 html_title = "GPU Memory Profiler Docs"
-
