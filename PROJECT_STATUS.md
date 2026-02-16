@@ -1,209 +1,63 @@
 # GPU Memory Profiler - Project Status
 
-## 🎯 Current Status: **Production Ready for Open Source Release**
+## Current Status: v0.2 Launch Candidate
 
-**Version**: 0.1.0  
-**Release Date**: June 2025  
-**Status**: Ready for GitHub release and PyPI publication
+**Version Target**: `0.2.0`  
+**Branch**: `release/v0.2-readiness`  
+**State**: Launch QA hardening in progress
 
----
+## Completed in This Launch Hardening Pass
 
-## ✅ **COMPLETED TASKS**
+### 1. Scenario-Coverage Expansion
 
-### 📚 **Documentation (100% Complete)**
+- Added launch scenario modules under `examples/scenarios/`:
+  - `cpu_telemetry_scenario.py`
+  - `mps_telemetry_scenario.py`
+  - `oom_flight_recorder_scenario.py`
+  - `tf_end_to_end_scenario.py`
+- Added launch orchestrator:
+  - `examples/cli/capability_matrix.py`
+- Added shared matrix utilities:
+  - `examples/common/capability_matrix_utils.py`
 
--   ✅ Professional README.md with badges and quick start
--   ✅ Complete `/docs/` directory with 13 comprehensive guides
--   ✅ Open source standards: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
--   ✅ CHANGELOG.md with v0.1.0 release notes
--   ✅ All personal information updated (GitHub usernames, emails, dates)
+### 2. Example Reliability Improvements
 
-### 🏗️ **Codebase Structure (100% Complete)**
+- Fixed TensorFlow basic demo API drift in `examples/basic/tensorflow_demo.py`.
+- Stabilized benchmark harness defaults for less noisy local/CI budget checks.
 
--   ✅ Clean root directory structure
--   ✅ Organized examples in `/examples/` with Markdown testing guides under `docs/examples/test_guides/`
--   ✅ Removed redundant `tensor_torch_profiler/` directory
--   ✅ Proper package structure: `gpumemprof/` and `tfmemprof/`
--   ✅ All development artifacts cleaned up
+### 3. TUI Launch Workflow Alignment
 
-### ⚙️ **Development Configuration (100% Complete)**
+- Updated TUI playbook and CLI action content to surface launch-critical workflows:
+  - diagnose command
+  - OOM scenario command
+  - capability matrix smoke command
+- Updated TUI pilot/snapshot coverage and snapshot baselines for these intentional UI changes.
 
--   ✅ Code quality tools: `.editorconfig`, `.flake8`, `.pre-commit-config.yaml`
--   ✅ Package configuration: `pyproject.toml`
--   ✅ Comprehensive `.gitignore` for all platforms
--   ✅ Updated `pytest.ini` for proper testing
+### 4. Documentation and Release Process Refresh
 
-### 📦 **Package Configuration (100% Complete)**
+- README now documents launch scenario workflows and capability matrix usage.
+- Example docs now include scenario matrix guidance.
+- Release checklist rewritten for v0.2 criteria and command-level QA gates.
+- CI includes capability matrix smoke execution in `cli-test`.
 
--   ✅ Production-ready `setup.py` with proper metadata
--   ✅ Version 0.1.0 set in all files
--   ✅ CLI entry points: `gpumemprof` and `tfmemprof`
--   ✅ Organized requirements: `requirements.txt` and `requirements-dev.txt`
+## QA Evidence Model for v0.2
 
-### 🔄 **CI/CD Pipeline (100% Complete)**
+Release confidence is based on:
 
--   ✅ GitHub Actions CI workflow (`.github/workflows/ci.yml`)
--   ✅ Automated release workflow (`.github/workflows/release.yml`)
--   ✅ Multi-Python version testing (3.8-3.12)
--   ✅ Automated linting, testing, and building
--   ✅ PyPI deployment automation
+1. Command-level QA gate in `tensor-torch-profiler` env.
+2. Capability matrix smoke/full reports.
+3. CI checks (unit/integration, TUI gates, build/twine).
 
-### 📋 **Release Management (100% Complete)**
+## Known Local Risk (Tracked)
 
--   ✅ Comprehensive release checklist (`RELEASE_CHECKLIST.md`)
--   ✅ Emergency rollback plan
--   ✅ Success criteria defined
--   ✅ Pre-release, release day, and post-release tasks outlined
+- In this local macOS environment, `pytest` startup can segfault in `tensor-torch-profiler`.
+- This is tracked as an environment-specific risk and does not replace CI gating.
+- v0.2 sign-off is based on CI + command-level QA evidence until local env issue is resolved.
 
----
+## Remaining Steps to Publish
 
-## 🚀 **READY FOR RELEASE**
+1. Run the full `RELEASE_CHECKLIST.md` and archive artifacts.
+2. Confirm CI green on final release PR.
+3. Tag and publish `v0.2.0`.
+4. Post-release smoke install + quickstart verification.
 
-### **What's Included in v0.1.0**
-
-1. **Complete PyTorch Profiler** (`gpumemprof`)
-
-    - Real-time GPU memory monitoring
-    - Memory leak detection
-    - Interactive visualizations
-    - Context-aware profiling
-    - CLI interface
-
-2. **Complete TensorFlow Profiler** (`tfmemprof`)
-
-    - TensorFlow-specific memory monitoring
-    - Keras model profiling
-    - Session-based tracking
-    - CLI interface
-
-3. **Comprehensive Documentation**
-
-    - Installation, usage, API reference
-    - Examples and troubleshooting
-    - Testing guides for both frameworks
-    - CPU compatibility guide
-
-4. **Production Infrastructure**
-    - Automated testing and CI/CD
-    - Code quality enforcement
-    - Release automation
-    - Community guidelines
-
----
-
-## 📊 **Quality Metrics**
-
-### **Code Coverage**
-
--   Unit tests for core functionality
--   Integration tests for CLI tools
--   Framework-specific test suites
-
-### **Code Quality**
-
--   Black formatting compliance
--   Flake8 linting standards
--   MyPy type checking
--   Pre-commit hooks configured
-
-### **Documentation Coverage**
-
--   100% API documentation
--   Complete usage examples
--   Troubleshooting guides
--   Installation instructions
-
----
-
-## 🎯 **Next Steps for Release**
-
-### **Immediate Actions (Pre-Release)**
-
-1. **Run final tests**: `pytest -v`
-2. **Test CLI installation**: `pip install -e .`
-3. **Verify examples work**: Test all files in `/examples/`
-4. **Check documentation links**: Ensure all internal links work
-
-### **Release Day Actions**
-
-1. **Create git tag**: `git tag -a v0.1.0 -m "Initial release"`
-2. **Push to GitHub**: `git push origin v0.1.0`
-3. **Create GitHub release**: Use CHANGELOG.md content
-4. **Monitor CI/CD**: Ensure all workflows pass
-
-### **Post-Release Actions**
-
-1. **Monitor feedback**: Check GitHub issues and discussions
-2. **Community engagement**: Respond to questions and contributions
-3. **Plan v0.2.0**: Based on community feedback
-
----
-
-## 🔧 **Technical Specifications**
-
-### **Supported Platforms**
-
--   **Python**: 3.10, 3.11, 3.12
--   **Frameworks**: PyTorch 1.8+, TensorFlow 2.4+
--   **OS**: Linux, macOS, Windows
--   **GPU**: NVIDIA CUDA (optional, CPU mode available)
-
-### **Dependencies**
-
--   **Core**: torch, tensorflow, numpy, matplotlib, pandas, psutil
--   **Visualization**: plotly, dash, seaborn
--   **Development**: pytest, black, flake8, mypy, pre-commit
-
-### **Package Structure**
-
-```
-gpu-memory-profiler/
-├── gpumemprof/          # PyTorch profiler
-├── tfmemprof/           # TensorFlow profiler
-├── examples/            # Usage examples
-├── tests/               # Test suite
-├── docs/                # Documentation
-├── .github/workflows/   # CI/CD pipelines
-└── [config files]       # Development tools
-```
-
----
-
-## 🏆 **Success Criteria**
-
-### **Release Success Metrics**
-
--   [ ] Package installs without errors
--   [ ] All tests pass on CI/CD
--   [ ] CLI tools work correctly
--   [ ] Documentation is accessible and helpful
--   [ ] No critical bugs in first 24 hours
--   [ ] Community can successfully use the tool
-
-### **Community Success Metrics**
-
--   [ ] GitHub stars and forks
--   [ ] PyPI download statistics
--   [ ] Community contributions
--   [ ] Positive feedback and reviews
--   [ ] Adoption in real projects
-
----
-
-## 📞 **Support & Contact**
-
-### **Maintainers**
-
--   **Prince Agyei Tuffour**: [GitHub](https://github.com/nanaagyei)
--   **Silas Bempong**: [GitHub](https://github.com/Silas-Asamoah)
-
-### **Support Channels**
-
--   **GitHub Issues**: [Create an issue](https://github.com/nanaagyei/gpu-memory-profiler/issues)
--   **Email**: prince.agyei.tuffour@gmail.com
--   **Documentation**: [docs/index.md](docs/index.md)
-
----
-
-**Last Updated**: June 2025  
-**Status**: ✅ **READY FOR RELEASE**

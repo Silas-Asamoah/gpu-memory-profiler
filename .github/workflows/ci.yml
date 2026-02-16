@@ -225,3 +225,9 @@ jobs:
                   CUDA_VISIBLE_DEVICES: ""
               run: |
                   python3 -m examples.cli.quickstart
+
+            - name: Run capability matrix smoke test
+              env:
+                  CUDA_VISIBLE_DEVICES: ""
+              run: |
+                  python3 -m examples.cli.capability_matrix --mode smoke --target auto --oom-mode simulated --skip-tui

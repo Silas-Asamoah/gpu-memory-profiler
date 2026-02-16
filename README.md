@@ -109,8 +109,8 @@ print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
 ### TensorFlow Example
 
 ```python
-from tfmemprof import TensorFlowProfiler
-profiler = TensorFlowProfiler()
+from tfmemprof import TFMemoryProfiler
+profiler = TFMemoryProfiler()
 with profiler.profile_context("training"):
     model.fit(x_train, y_train, epochs=5)
 results = profiler.get_results()
@@ -129,6 +129,30 @@ print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 -   [Terminal UI (Textual)](docs/tui.md)
 -   [In-depth Article](docs/article.md)
 -   [Example scripts](examples/basic)
+-   [Launch scenario scripts](examples/scenarios)
+
+## Launch QA Scenarios (CPU + MPS + Telemetry + OOM)
+
+Run the capability matrix for a launch-oriented smoke pass:
+
+```bash
+python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated
+```
+
+Run the full matrix (includes extra demos):
+
+```bash
+python -m examples.cli.capability_matrix --mode full --target both --oom-mode simulated
+```
+
+Key scenario modules:
+
+```bash
+python -m examples.scenarios.cpu_telemetry_scenario
+python -m examples.scenarios.mps_telemetry_scenario
+python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
+python -m examples.scenarios.tf_end_to_end_scenario
+```
 
 ## Terminal UI
 
@@ -176,9 +200,10 @@ to update GPU `MemoryTracker` thresholds on the fly, and use the inline alert
 history to review exactly when spikes occurred.
 
 Need to run automation without opening another terminal? Use the CLI tab’s
-command input (or the quick action buttons) to execute `gpumemprof` /
-`tfmemprof` commands in-place; stdout/stderr stream straight into the log and
-you can cancel long-running jobs with a single click.
+command input (or quick action buttons) to execute `gpumemprof` /
+`tfmemprof` commands in-place, trigger `gpumemprof diagnose`, run the OOM
+flight-recorder scenario, and launch the capability-matrix smoke checks with a
+single click.
 
 ## CPU Compatibility
 
@@ -199,7 +224,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CO
 
 ---
 
-**Version:** 0.1.0
+**Version:** 0.2.0 (launch candidate)
 
 ```
 
