@@ -61,16 +61,24 @@ conda run -n tensor-torch-profiler python -m examples.cli.benchmark_harness --ch
 ## 6. CI Gate
 
 - [ ] CI test matrix passes on `main` PR checks
+- [ ] Docs job (`sphinx -W`) passes in GitHub Actions
 - [ ] TUI PR gate (`tui_pilot` + `tui_snapshot`) passes
 - [ ] CLI job validates quickstart + capability matrix smoke
 - [ ] Build and `twine check` pass
 
-## 7. Known Risk Tracking
+## 7. Hosted Docs Gate (Read the Docs)
+
+- [ ] Read the Docs project is created and connected to this repository
+- [ ] `latest` docs build succeeds from `release/v0.2-readiness`
+- [ ] `stable` points to tag `v0.2.0` after release tag publish
+- [ ] Hosted docs URL in `README.md` resolves and is reachable
+
+## 8. Known Risk Tracking
 
 - [ ] Local `pytest` segfault in `tensor-torch-profiler` documented as environment-specific risk
 - [ ] Release decision explicitly uses CI + command-level QA evidence for v0.2 sign-off
 
-## 8. Release Execution
+## 9. Release Execution
 
 ```bash
 git tag -a v0.2.0 -m "Release v0.2.0"
@@ -80,4 +88,3 @@ git push origin v0.2.0
 - [ ] GitHub release created with v0.2 notes
 - [ ] PyPI publication completed
 - [ ] Post-release smoke install verified
-
