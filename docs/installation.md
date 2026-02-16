@@ -170,10 +170,11 @@ python3 -m pytest tests/ -v
 
 After installation:
 
-1. Read the [Quick Start Guide](usage.md)
-2. Check out the [Examples](../examples/)
-3. Explore the [CLI Usage](cli.md)
-4. Review the [API Documentation](api.md)
+1. Open the [Documentation Home](index.md) for the full docs navigation.
+2. Read the [Quick Start Guide](usage.md).
+3. Explore the [CLI Usage](cli.md).
+4. Review the [API Documentation](api.md).
+5. Check out the [Examples](../examples/).
 
 ## Support
 
