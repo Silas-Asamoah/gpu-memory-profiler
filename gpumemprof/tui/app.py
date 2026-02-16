@@ -280,7 +280,13 @@ def _build_framework_markdown(framework: str) -> str:
                ```bash
                python -m examples.advanced.tracking_demo
                ```
-            3. **CLI helpers**
+            3. **Telemetry + diagnostics**
+               ```bash
+               python -m examples.scenarios.mps_telemetry_scenario
+               python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
+               gpumemprof diagnose --duration 0 --output ./artifacts/diag
+               ```
+            4. **CLI helpers**
                ```bash
                gpumemprof info
                gpumemprof track --duration 60 --output tracking.json
@@ -305,6 +311,11 @@ def _build_framework_markdown(framework: str) -> str:
            tfmemprof monitor --duration 30 --interval 0.5
            tfmemprof track --output tf_results.json
            ```
+        3. **Telemetry + diagnostics**
+           ```bash
+           python -m examples.scenarios.tf_end_to_end_scenario
+           tfmemprof diagnose --duration 0 --output ./artifacts/tf-diag
+           ```
 
         The [TensorFlow Testing Guide](docs/tensorflow_testing_guide.md) includes
         deeper recipes, including mixed precision and multi-GPU notes.
@@ -321,10 +332,15 @@ def _build_cli_markdown() -> str:
         gpumemprof info
         gpumemprof monitor --duration 30 --interval 0.5
         gpumemprof track --duration 60 --output tracking.json
+        gpumemprof diagnose --duration 0 --output artifacts/diag
 
         tfmemprof info
         tfmemprof monitor --duration 30 --interval 0.5
         tfmemprof track --duration 60 --output tf_tracking.json
+        tfmemprof diagnose --duration 0 --output artifacts/tf_diag
+
+        python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
+        python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated --skip-tui
         
         # Optional: fuller dashboard
         gpu-profiler
@@ -1016,8 +1032,15 @@ class GPUMemoryProfilerTUI(App):
                             id="btn-log-tensorflow",
                             variant="success",
                         ),
+                        Button(
+                            "gpumemprof diagnose",
+                            id="btn-log-diagnose",
+                            variant="warning",
+                        ),
                         Button("PyTorch Sample", id="btn-run-pytorch", variant="primary"),
                         Button("TensorFlow Sample", id="btn-run-tf", variant="primary"),
+                        Button("OOM Scenario", id="btn-run-oom-scenario", variant="warning"),
+                        Button("Capability Matrix", id="btn-run-cap-matrix", variant="success"),
                         id="cli-buttons",
                     ),
                     Horizontal(
@@ -1059,10 +1082,22 @@ class GPUMemoryProfilerTUI(App):
             await self.run_cli_command(
                 "tfmemprof monitor --duration 30 --interval 0.5"
             )
+        elif button_id == "btn-log-diagnose":
+            await self.run_cli_command(
+                "gpumemprof diagnose --duration 0 --output artifacts/tui_diagnose"
+            )
         elif button_id == "btn-run-pytorch":
             await self.run_pytorch_sample()
         elif button_id == "btn-run-tf":
             await self.run_tensorflow_sample()
+        elif button_id == "btn-run-oom-scenario":
+            await self.run_cli_command(
+                "python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated"
+            )
+        elif button_id == "btn-run-cap-matrix":
+            await self.run_cli_command(
+                "python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated --skip-tui"
+            )
         elif button_id == "btn-cli-run":
             await self.run_cli_command(self.cli_command_input.value)
         elif button_id == "btn-cli-cancel":
