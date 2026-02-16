@@ -356,7 +356,7 @@ from gpumemprof import MemoryTracker
 # Start real-time tracking
 tracker = MemoryTracker(
     sampling_interval=0.1,    # Check every 100ms
-    alert_threshold_mb=8000   # Alert at 8GB
+    enable_alerts=True
 )
 
 tracker.start_tracking()
@@ -365,7 +365,7 @@ tracker.start_tracking()
 train_model()
 
 tracker.stop_tracking()
-results = tracker.get_tracking_results()
+results = tracker.get_statistics()
 ```
 
 **What it monitors:**
@@ -916,19 +916,20 @@ RuntimeError: CUDA out of memory. Tried to allocate 2.00 GiB
 
 ```python
 # Use our profiler to find the exact memory bottleneck
-tracker = MemoryTracker(alert_threshold_mb=1024)
+tracker = MemoryTracker(enable_alerts=True)
 tracker.start_tracking()
 
 try:
     train_model()
 except RuntimeError as e:
     if "out of memory" in str(e):
-        results = tracker.stop_tracking()
-        print(f"Peak memory before crash: {results.peak_memory:.1f} MB")
+        tracker.stop_tracking()
+        stats = tracker.get_statistics()
+        print(f"Peak memory before crash: {stats.get('peak_memory', 0) / (1024**2):.1f} MB")
 
         # Get specific recommendations
         analyzer = MemoryAnalyzer()
-        suggestions = analyzer.generate_optimization_report(profiler.results)["recommendations"]
+        suggestions = analyzer.generate_optimization_report()["recommendations"]
         print("Try these optimizations:")
         for suggestion in suggestions:
             print(f"- {suggestion}")

@@ -261,7 +261,6 @@ from gpumemprof import MemoryTracker
 # Setup tracker with alerts
 tracker = MemoryTracker(
     sampling_interval=0.1,     # Sample every 100ms
-    alert_threshold_mb=2000,   # Alert at 2GB
     enable_alerts=True
 )
 
@@ -279,9 +278,10 @@ finally:
     tracker.stop_tracking()
 
 # Analyze results
-results = tracker.get_tracking_results()
-print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
-print(f"Alerts: {len(results.alerts)}")
+stats = tracker.get_statistics()
+alert_events = tracker.get_events(event_type='warning') + tracker.get_events(event_type='critical')
+print(f"Peak memory: {stats.get('peak_memory', 0) / (1024**2):.2f} MB")
+print(f"Alerts: {len(alert_events)}")
 ```
 
 ### GPU Command Line Tools
@@ -297,7 +297,7 @@ python -m gpumemprof.cli monitor --interval 1.0 --duration 30
 python -m gpumemprof.cli track --output gpu_results.json --duration 60
 
 # Analyze results
-python -m gpumemprof.cli analyze --input gpu_results.json --detect-leaks --visualize
+python -m gpumemprof.cli analyze gpu_results.json --visualization
 ```
 
 ---
@@ -655,7 +655,7 @@ for context, stats in results['function_summaries'].items():
 #### GPU Version
 
 ```python
-from gpumemprof import MemoryTracker, MemoryAnalyzer
+from gpumemprof import MemoryTracker
 
 # Setup tracking
 tracker = MemoryTracker(sampling_interval=0.05)
@@ -679,17 +679,15 @@ try:
 finally:
     tracker.stop_tracking()
 
-# Analyze for leaks
-analyzer = MemoryAnalyzer()
-tracking_results = tracker.get_tracking_results()
-leaks = analyzer.detect_memory_leaks(tracking_results)
-
-if leaks:
-    print(f"Memory leaks detected: {len(leaks)}")
-    for leak in leaks:
-        print(f"- {leak['type']}: {leak['description']}")
-else:
-    print("No memory leaks detected")
+# Analyze for suspicious growth
+events = tracker.get_events()
+if len(events) > 1:
+    growth_mb = (events[-1].memory_allocated - events[0].memory_allocated) / (1024**2)
+    print(f"Memory growth during run: {growth_mb:.2f} MB")
+    if growth_mb > 100:
+        print("Potential memory leak detected")
+    else:
+        print("No significant memory growth")
 
 # Cleanup (fix the leak)
 del leaked_tensors
@@ -699,7 +697,7 @@ torch.cuda.empty_cache()
 #### CPU Version
 
 ```python
-
+from gpumemprof.cpu_profiler import CPUMemoryTracker
 
 # Setup CPU tracking
 tracker = CPUMemoryTracker(sampling_interval=0.05)
@@ -725,12 +723,11 @@ finally:
     tracker.stop_tracking()
 
 # Analyze results
-results = tracker.get_tracking_results()
-samples = results['memory_samples']
+samples = tracker.get_events(event_type='allocation')
 
 if len(samples) > 1:
-    initial_memory = samples[0]['memory_mb']
-    final_memory = samples[-1]['memory_mb']
+    initial_memory = samples[0].memory_allocated / (1024**2)
+    final_memory = samples[-1].memory_allocated / (1024**2)
     growth = final_memory - initial_memory
 
     print(f"Memory growth: {growth:.2f} MB")

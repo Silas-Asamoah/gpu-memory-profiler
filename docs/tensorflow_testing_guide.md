@@ -264,13 +264,13 @@ for context, stats in results.function_profiles.items():
 #### Real-Time Monitoring
 
 ```python
-from tfmemprof import MemoryTracker
+from tfmemprof import TensorFlowMemoryTracker
 
 # Setup tracker with TensorFlow-specific alerts
-tracker = MemoryTracker(
+tracker = TensorFlowMemoryTracker(
     sampling_interval=0.1,     # Sample every 100ms
     alert_threshold_mb=3000,   # Alert at 3GB
-    enable_alerts=True
+    enable_logging=True
 )
 
 # Start tracking
@@ -288,10 +288,9 @@ try:
             )
         print(f"TensorFlow iteration {i+1}/10")
 finally:
-    tracker.stop_tracking()
+    results = tracker.stop_tracking()
 
 # Analyze results
-results = tracker.get_tracking_results()
 print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 ```
 
@@ -844,7 +843,11 @@ model = tf.keras.Sequential([
 batch_size = 16  # Smaller batches for CPU
 
 # 4. Increase sampling interval
-tracker = TFCPUMemoryTracker(interval=1.0)  # Sample every second
+tracker = TensorFlowMemoryTracker(
+    sampling_interval=1.0,
+    device='/CPU:0',
+    enable_logging=False,
+)
 ```
 
 ---
