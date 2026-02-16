@@ -257,7 +257,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Benchmark profiler overhead and enforce v0.2 budgets.",
     )
-    parser.add_argument("--iterations", type=int, default=60)
+    parser.add_argument("--iterations", type=int, default=200)
     parser.add_argument("--allocation-kb", type=int, default=512)
     parser.add_argument("--default-interval", type=float, default=0.1)
     parser.add_argument("--lowfreq-interval", type=float, default=0.5)

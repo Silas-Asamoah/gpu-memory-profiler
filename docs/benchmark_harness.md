@@ -8,6 +8,7 @@ This benchmark harness measures profiler overhead and artifact growth with expli
 
 ```bash
 python -m examples.cli.benchmark_harness \
+  --iterations 200 \
   --output artifacts/benchmarks/latest.json
 ```
 
@@ -16,11 +17,14 @@ python -m examples.cli.benchmark_harness \
 ```bash
 python -m examples.cli.benchmark_harness \
   --check \
+  --iterations 200 \
   --budgets docs/benchmarks/v0.2_budgets.json \
   --output artifacts/benchmarks/latest.json
 ```
 
 Use `--check` in local validation scripts to fail fast when budget regressions are introduced.
+The default iterations are tuned for stable local/CI signals; keep `--iterations 200`
+unless you are intentionally profiling harness variability.
 
 ## What It Measures
 
