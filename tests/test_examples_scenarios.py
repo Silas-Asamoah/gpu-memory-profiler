@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from examples.scenarios.cpu_telemetry_scenario import run_scenario as run_cpu_telemetry
-from examples.scenarios.mps_telemetry_scenario import run_scenario as run_mps_telemetry
-from examples.scenarios.oom_flight_recorder_scenario import run_scenario as run_oom_scenario
-from examples.scenarios.tf_end_to_end_scenario import run_scenario as run_tf_e2e
+import pytest
 
 
 def test_cpu_telemetry_scenario_writes_exports(tmp_path: Path) -> None:
+    from examples.scenarios.cpu_telemetry_scenario import run_scenario as run_cpu_telemetry
+
     output_dir = tmp_path / "cpu"
     summary = run_cpu_telemetry(
         output_dir=output_dir,
@@ -23,6 +22,8 @@ def test_cpu_telemetry_scenario_writes_exports(tmp_path: Path) -> None:
 
 
 def test_mps_telemetry_scenario_passes_or_skips(tmp_path: Path) -> None:
+    from examples.scenarios.mps_telemetry_scenario import run_scenario as run_mps_telemetry
+
     output_dir = tmp_path / "mps"
     summary = run_mps_telemetry(
         output_dir=output_dir,
@@ -36,6 +37,8 @@ def test_mps_telemetry_scenario_passes_or_skips(tmp_path: Path) -> None:
 
 
 def test_oom_flight_recorder_scenario_simulated_passes_or_skips(tmp_path: Path) -> None:
+    from examples.scenarios.oom_flight_recorder_scenario import run_scenario as run_oom_scenario
+
     output_dir = tmp_path / "oom"
     summary = run_oom_scenario(
         output_dir=output_dir,
@@ -51,6 +54,9 @@ def test_oom_flight_recorder_scenario_simulated_passes_or_skips(tmp_path: Path) 
 
 
 def test_tf_end_to_end_scenario_writes_outputs(tmp_path: Path) -> None:
+    pytest.importorskip("tensorflow")
+    from examples.scenarios.tf_end_to_end_scenario import run_scenario as run_tf_e2e
+
     output_dir = tmp_path / "tf"
     summary = run_tf_e2e(
         output_dir=output_dir,
@@ -65,4 +71,3 @@ def test_tf_end_to_end_scenario_writes_outputs(tmp_path: Path) -> None:
     assert (output_dir / "tf_track.json").exists()
     assert (output_dir / "tf_diagnose" / "manifest.json").exists()
     assert (output_dir / "tf_e2e_summary.json").exists()
-

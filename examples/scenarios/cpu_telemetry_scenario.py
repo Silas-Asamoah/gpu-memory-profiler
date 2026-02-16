@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-from examples.common import print_header, print_kv, print_section
+from examples.common.formatting import print_header, print_kv, print_section
 from gpumemprof.cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
 from gpumemprof.telemetry import validate_telemetry_record
 
@@ -133,4 +133,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
