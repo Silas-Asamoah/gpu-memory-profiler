@@ -140,6 +140,13 @@ tests/
 For manual smoke tests (CPU-only, PyTorch GPU, TensorFlow GPU, CLI) see
 `docs/examples/test_guides/README.md`.
 
+CI also validates the documented CLI examples directly. In `.github/workflows/ci.yml`,
+the `cli-test` job runs the step `Run documented CLI examples smoke test`, which executes:
+
+```bash
+python3 -m examples.cli.quickstart
+```
+
 ### CPU Smoke Test (No CUDA)
 
 Need a fast signal on CPU-only machines? Run both steps below:

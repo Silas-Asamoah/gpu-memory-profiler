@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Drop support for Python 3.8 and 3.9; minimum supported runtime is now Python 3.10.
 - Migration note: users on Python 3.8/3.9 should upgrade to Python 3.10+ or pin `gpu-memory-profiler<0.2.0`.
+- Refresh docs/API examples to match current CLI and profiler behavior.
+- Publish a versioned compatibility matrix for v0.2 and link it from top-level docs.
 
 ### Deprecated
 
@@ -26,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- [Future fixes will be listed here]
+- Remove stale docs references to unsupported CLI options and non-existent profiler APIs.
 
 ### Security
 

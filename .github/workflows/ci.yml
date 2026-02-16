@@ -220,8 +220,8 @@ jobs:
                   gpumemprof info
                   tfmemprof info
 
-            - name: Run CLI quickstart smoke test
+            - name: Run documented CLI examples smoke test
               env:
                   CUDA_VISIBLE_DEVICES: ""
               run: |
-                  python -m examples.cli.quickstart
+                  python3 -m examples.cli.quickstart

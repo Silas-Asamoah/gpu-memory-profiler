@@ -143,7 +143,7 @@
 
 ### **Supported Platforms**
 
--   **Python**: 3.8, 3.9, 3.10, 3.11, 3.12
+-   **Python**: 3.10, 3.11, 3.12
 -   **Frameworks**: PyTorch 1.8+, TensorFlow 2.4+
 -   **OS**: Linux, macOS, Windows
 -   **GPU**: NVIDIA CUDA (optional, CPU mode available)
