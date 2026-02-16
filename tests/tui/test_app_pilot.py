@@ -224,3 +224,30 @@ def test_cli_runner_run_stream_output_and_cancel():
             assert "Command was cancelled." in _log_text(app.command_log)
 
     asyncio.run(scenario())
+
+
+def test_cli_action_buttons_cover_diagnose_oom_and_matrix():
+    async def scenario() -> None:
+        app = GPUMemoryProfilerTUI()
+        async with app.run_test(headless=True, size=(140, 44)) as pilot:
+            await pilot.pause()
+            app.query_one(TabbedContent).active = "tab-6"
+            await pilot.pause()
+
+            runner = _StubCLIRunner()
+            app.cli_runner = runner
+
+            await pilot.click("#btn-log-diagnose")
+            await pilot.pause()
+            await pilot.click("#btn-run-oom-scenario")
+            await pilot.pause()
+            await pilot.click("#btn-run-cap-matrix")
+            await pilot.pause()
+
+            assert runner.commands == [
+                "gpumemprof diagnose --duration 0 --output artifacts/tui_diagnose",
+                "python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated",
+                "python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated --skip-tui",
+            ]
+
+    asyncio.run(scenario())
