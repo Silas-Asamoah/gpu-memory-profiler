@@ -67,6 +67,18 @@ python3 -m pytest -n auto
 python3 -m pytest -n 4
 ```
 
+### Performance Budget Harness (v0.2)
+
+Use the benchmark harness to measure profiling overhead and artifact-size growth
+with explicit budgets:
+
+```bash
+python -m examples.cli.benchmark_harness --check --budgets docs/benchmarks/v0.2_budgets.json
+```
+
+The harness writes a JSON report with per-scenario metrics and pass/fail budget
+checks. See `docs/benchmark_harness.md` for full output details.
+
 ### TUI Testing Pyramid (Pilot, Snapshot, PTY)
 
 The Textual TUI suite is split into three marker-based layers:

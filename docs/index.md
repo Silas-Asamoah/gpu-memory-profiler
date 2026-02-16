@@ -13,6 +13,7 @@ Welcome to the official documentation for GPU Memory Profiler! Here you'll find 
 - [Examples](examples.md)
 - [CPU Compatibility](cpu_compatibility.md)
 - [Compatibility Matrix (v0.2)](compatibility_matrix.md)
+- [Benchmark Harness (v0.2)](benchmark_harness.md)
 - [Telemetry Schema](telemetry_schema.md)
 - [Testing & Validation](testing.md)
 - [Troubleshooting](troubleshooting.md)

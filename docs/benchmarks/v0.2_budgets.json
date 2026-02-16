@@ -1,0 +1,10 @@
+{
+  "version": "v0.2",
+  "description": "Performance budgets for benchmark harness checks in phase v0.2.",
+  "budgets": {
+    "runtime_overhead_pct_max": 120.0,
+    "cpu_overhead_pct_max": 120.0,
+    "sampling_impact_pct_max": 50.0,
+    "artifact_growth_bytes_max": 900000.0
+  }
+}
