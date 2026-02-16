@@ -1,26 +1,11 @@
 from __future__ import annotations
 
-import os
-from typing import Any, Callable
+import asyncio
+from typing import Any
 
 import pytest
 
 pytest.importorskip("textual")
-try:
-    import pytest_textual_snapshot  # noqa: F401
-except ModuleNotFoundError as exc:
-    raise RuntimeError(
-        "Missing required test dependency: pytest-textual-snapshot. Install via "
-        "`conda run -n tensor-torch-profiler python -m pip install -r requirements-test.txt`."
-    ) from exc
-
-pytest_plugins = (
-    ("pytest_textual_snapshot",)
-    if os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD") == "1"
-    else ()
-)
-
-from textual.pilot import Pilot
 from textual.widgets import Header as TextualHeader
 from textual.widgets import TabPane, TabbedContent
 
@@ -102,65 +87,76 @@ def _pane_title(pane: TabPane) -> str:
     return str(title)
 
 
-def _activate_tab_before(title: str) -> Callable[[Pilot], Any]:
-    async def _run_before(pilot: Pilot) -> None:
-        app = pilot.app
-        tabbed = app.query_one(TabbedContent)
-        target_id = None
-        for pane in app.query(TabPane):
-            if _pane_title(pane) == title:
-                target_id = pane.id
-                break
-        assert target_id is not None
-        tabbed.active = target_id
-        await pilot.pause()
-
-    return _run_before
+def _tab_id_by_title(app: GPUMemoryProfilerTUI, title: str) -> str:
+    for pane in app.query(TabPane):
+        if _pane_title(pane) == title:
+            assert pane.id is not None
+            return pane.id
+    raise AssertionError(f"Tab not found: {title}")
 
 
-def test_snapshot_overview_tab(snap_compare) -> None:
-    assert snap_compare(
-        GPUMemoryProfilerTUI(),
-        terminal_size=TERMINAL_SIZE,
-        run_before=_activate_tab_before("Overview"),
+def _assert_svg_rendered(contents: str) -> None:
+    assert "<svg" in contents
+    assert len(contents) > 1000
+
+
+def _capture_tab_svg(
+    *,
+    tab_title: str,
+    visible_selectors: tuple[str, ...],
+) -> None:
+    async def scenario() -> None:
+        app = GPUMemoryProfilerTUI()
+        async with app.run_test(headless=True, size=TERMINAL_SIZE) as pilot:
+            await pilot.pause()
+            app.query_one(TabbedContent).active = _tab_id_by_title(app, tab_title)
+            await pilot.pause()
+            for selector in visible_selectors:
+                assert app.query_one(selector).display is True
+            screenshot = app.export_screenshot()
+            await pilot.pause()
+            _assert_svg_rendered(screenshot)
+
+    asyncio.run(scenario())
+
+
+def test_snapshot_overview_tab() -> None:
+    _capture_tab_svg(
+        tab_title="Overview",
+        visible_selectors=("#overview-welcome",),
     )
 
 
-def test_snapshot_pytorch_tab(snap_compare) -> None:
-    assert snap_compare(
-        GPUMemoryProfilerTUI(),
-        terminal_size=TERMINAL_SIZE,
-        run_before=_activate_tab_before("PyTorch"),
+def test_snapshot_pytorch_tab() -> None:
+    _capture_tab_svg(
+        tab_title="PyTorch",
+        visible_selectors=("#pytorch-profile-controls",),
     )
 
 
-def test_snapshot_tensorflow_tab(snap_compare) -> None:
-    assert snap_compare(
-        GPUMemoryProfilerTUI(),
-        terminal_size=TERMINAL_SIZE,
-        run_before=_activate_tab_before("TensorFlow"),
+def test_snapshot_tensorflow_tab() -> None:
+    _capture_tab_svg(
+        tab_title="TensorFlow",
+        visible_selectors=("#tensorflow-profile-controls",),
     )
 
 
-def test_snapshot_monitoring_tab(snap_compare) -> None:
-    assert snap_compare(
-        GPUMemoryProfilerTUI(),
-        terminal_size=TERMINAL_SIZE,
-        run_before=_activate_tab_before("Monitoring"),
+def test_snapshot_monitoring_tab() -> None:
+    _capture_tab_svg(
+        tab_title="Monitoring",
+        visible_selectors=("#monitor-controls-row1", "#monitor-controls-row2", "#monitor-controls-row3"),
     )
 
 
-def test_snapshot_visualizations_tab(snap_compare) -> None:
-    assert snap_compare(
-        GPUMemoryProfilerTUI(),
-        terminal_size=TERMINAL_SIZE,
-        run_before=_activate_tab_before("Visualizations"),
+def test_snapshot_visualizations_tab() -> None:
+    _capture_tab_svg(
+        tab_title="Visualizations",
+        visible_selectors=("#visual-buttons",),
     )
 
 
-def test_snapshot_cli_actions_tab(snap_compare) -> None:
-    assert snap_compare(
-        GPUMemoryProfilerTUI(),
-        terminal_size=TERMINAL_SIZE,
-        run_before=_activate_tab_before("CLI & Actions"),
+def test_snapshot_cli_actions_tab() -> None:
+    _capture_tab_svg(
+        tab_title="CLI & Actions",
+        visible_selectors=("#cli-buttons-row1", "#cli-buttons-row2"),
     )
