@@ -24,7 +24,6 @@ model = nn.Sequential(
 profiler = GPUMemoryProfiler()
 
 # Profile training step
-@profiler.profile_function
 def train_step(model, data, target):
     model.train()
     optimizer.zero_grad()
@@ -37,44 +36,35 @@ def train_step(model, data, target):
 # Run training
 for epoch in range(5):
     for batch_idx, (data, target) in enumerate(dataloader):
-        loss = train_step(model, data, target)
+        profile = profiler.profile_function(train_step, model, data, target)
 
-# Get results
-results = profiler.get_results()
-print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
+# Get summary
+summary = profiler.get_summary()
+print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
 ```
 
 ### Advanced Monitoring
 
 ```python
-from gpumemprof import GPUMemoryProfiler
+from gpumemprof import GPUMemoryProfiler, MemoryVisualizer
 
-profiler = GPUMemoryProfiler(
-    sampling_interval=0.5,
-    alert_threshold=4000,  # MB
-    enable_visualization=True
-)
+profiler = GPUMemoryProfiler()
 
 # Start monitoring
-profiler.start_monitoring()
+profiler.start_monitoring(interval=0.5)
 
 # Your training loop
 for epoch in range(10):
     for batch in dataloader:
-        train_step(model, batch)
-
-    # Check for memory leaks
-    leaks = profiler.detect_leaks()
-    if leaks:
-        print(f"Memory leak detected: {leaks}")
+        profiler.profile_function(train_step, model, batch[0], batch[1])
 
 # Stop monitoring
 profiler.stop_monitoring()
 
 # Generate visualizations
-profiler.plot_memory_timeline()
-profiler.plot_memory_heatmap()
-profiler.create_dashboard()
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False, save_path="timeline.png")
+visualizer.export_data(format="json", save_path="training_profile")
 ```
 
 ### Context Profiling
@@ -251,20 +241,16 @@ See [examples/basic/tensorflow_demo.py](../examples/basic/tensorflow_demo.py) fo
 from gpumemprof import GPUMemoryProfiler
 
 profiler = GPUMemoryProfiler()
-
-# Enable leak detection
-profiler.enable_leak_detection(threshold=100, window_size=10)
+profiler.start_monitoring(interval=0.5)
 
 # Run your code
 for i in range(100):
-    train_step(model, data)
+    profiler.profile_function(train_step, model, data)
 
-# Check for leaks
-leaks = profiler.detect_leaks()
-if leaks:
-    print("Potential memory leaks detected:")
-    for leak in leaks:
-        print(f"  - {leak}")
+profiler.stop_monitoring()
+summary = profiler.get_summary()
+print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
+print(f"Memory change: {summary['memory_change_from_baseline'] / (1024**3):.2f} GB")
 ```
 
 ### Performance Optimization
@@ -279,8 +265,9 @@ for batch_size in [16, 32, 64, 128]:
     with profiler.profile_context(f"batch_size_{batch_size}"):
         train_with_batch_size(model, dataloader, batch_size)
 
-    results = profiler.get_results()
-    print(f"Batch size {batch_size}: Peak memory {results.peak_memory_mb:.2f} MB")
+    summary = profiler.get_summary()
+    peak_gb = summary['peak_memory_usage'] / (1024**3)
+    print(f"Batch size {batch_size}: Peak memory {peak_gb:.2f} GB")
 ```
 
 ---

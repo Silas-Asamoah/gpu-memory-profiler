@@ -15,18 +15,18 @@ Main profiler class for PyTorch applications.
 ```python
 class GPUMemoryProfiler:
     def __init__(self,
-                 sampling_interval: float = 1.0,
-                 alert_threshold: float = None,
-                 enable_visualization: bool = True,
-                 export_format: str = 'json'):
+                 device: Union[str, int, torch.device, None] = None,
+                 track_tensors: bool = True,
+                 track_cpu_memory: bool = True,
+                 collect_stack_traces: bool = False):
         """
         Initialize the GPU memory profiler.
 
         Args:
-            sampling_interval: Time between memory samples (seconds)
-            alert_threshold: Memory threshold for alerts (MB)
-            enable_visualization: Enable visualization features
-            export_format: Export format ('json', 'csv')
+            device: CUDA device (None uses current CUDA device)
+            track_tensors: Track tensor creation/deletion deltas
+            track_cpu_memory: Include process CPU memory in snapshots
+            collect_stack_traces: Capture short stack traces per operation
         """
 ```
 
@@ -34,14 +34,10 @@ class GPUMemoryProfiler:
 
 - `start_monitoring(interval: float = None)`: Start real-time monitoring
 - `stop_monitoring()`: Stop monitoring
-- `profile_function(func)`: Decorator for profiling functions
+- `profile_function(func, *args, **kwargs)`: Profile one callable invocation
 - `profile_context(name: str)`: Context manager for profiling
-- `get_results()`: Get profiling results
-- `detect_leaks()`: Detect memory leaks
-- `plot_memory_timeline()`: Plot memory usage over time
-- `plot_memory_heatmap()`: Create memory heatmap
-- `create_dashboard()`: Create interactive dashboard
-- `export_results(filename: str)`: Export results to file
+- `get_summary()`: Return aggregated profiling metrics
+- `clear_results()`: Reset captured results/snapshots
 
 #### `MemorySnapshot`
 
@@ -49,10 +45,16 @@ Represents a memory snapshot at a point in time.
 
 ```python
 class MemorySnapshot:
-    def __init__(self, timestamp: float, memory_used: float, memory_total: float):
-        self.timestamp = timestamp
-        self.memory_used = memory_used
-        self.memory_total = memory_total
+    timestamp: float
+    allocated_memory: int
+    reserved_memory: int
+    max_memory_allocated: int
+    max_memory_reserved: int
+    active_memory: int
+    inactive_memory: int
+    cpu_memory: int
+    device_id: int
+    operation: Optional[str]
 ```
 
 #### `ProfileResult`
@@ -61,12 +63,16 @@ Contains profiling results and statistics.
 
 ```python
 class ProfileResult:
-    def __init__(self):
-        self.peak_memory_mb = 0.0
-        self.average_memory_mb = 0.0
-        self.memory_snapshots = []
-        self.function_calls = []
-        self.leaks_detected = []
+    function_name: str
+    execution_time: float
+    memory_before: MemorySnapshot
+    memory_after: MemorySnapshot
+    memory_peak: MemorySnapshot
+    memory_allocated: int
+    memory_freed: int
+    tensors_created: int
+    tensors_deleted: int
+    call_count: int
 ```
 
 ### Context Profiling
@@ -185,33 +191,23 @@ Main profiler class for TensorFlow applications.
 
 ```python
 class TensorFlowProfiler:
-    def __init__(self,
-                 sampling_interval: float = 1.0,
-                 alert_threshold: float = None,
-                 enable_visualization: bool = True,
-                 export_format: str = 'json'):
+    def __init__(self, device: Optional[str] = None):
         """
-        Initialize the TensorFlow GPU memory profiler.
+        High-level TensorFlow profiling helper.
 
         Args:
-            sampling_interval: Time between memory samples (seconds)
-            alert_threshold: Memory threshold for alerts (MB)
-            enable_visualization: Enable visualization features
-            export_format: Export format ('json', 'csv')
+            device: TensorFlow device name (for example '/GPU:0')
         """
 ```
 
 **Methods:**
 
-- `start_monitoring(interval: float = None)`: Start real-time monitoring
-- `stop_monitoring()`: Stop monitoring
-- `profile_context(name: str)`: Context manager for profiling
+- `profile_training(model, dataset, epochs=1, steps_per_epoch=None)`: Profile training loops
+- `profile_inference(model, data, batch_size=32)`: Profile inference workloads
 - `get_results()`: Get profiling results
-- `detect_leaks()`: Detect memory leaks
-- `plot_memory_timeline()`: Plot memory usage over time
-- `plot_memory_heatmap()`: Create memory heatmap
-- `create_dashboard()`: Create interactive dashboard
-- `export_results(filename: str)`: Export results to file
+- `reset()`: Reset accumulated profiling data
+
+Use `TFMemoryProfiler` when you need direct `profile_context(...)` / decorator-style profiling in TensorFlow snippets.
 
 #### Context profiling
 

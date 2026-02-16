@@ -14,17 +14,18 @@ from gpumemprof import GPUMemoryProfiler
 # Create profiler instance
 profiler = GPUMemoryProfiler()
 
-# Profile a function
-@profiler.profile_function
+# Function to profile
 def train_step(model, data, target):
     output = model(data)
     loss = criterion(output, target)
     loss.backward()
     return loss
 
-# Get results
-results = profiler.get_results()
-print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
+# Profile call + get summary
+profile = profiler.profile_function(train_step, model, data, target)
+summary = profiler.get_summary()
+print(f"Profiled: {profile.function_name}")
+print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
 ```
 
 ### TensorFlow Usage
@@ -63,36 +64,34 @@ for epoch in range(10):
 
 # Stop and get results
 profiler.stop_monitoring()
-results = profiler.get_results()
+results = profiler.get_summary()
 ```
 
 ### Memory Leak Detection
 
 ```python
-from gpumemprof import GPUMemoryProfiler
+from gpumemprof import MemoryTracker
 
-profiler = GPUMemoryProfiler()
-
-# Enable leak detection
-profiler.enable_leak_detection(
-    threshold=100,  # MB
-    window_size=10  # samples
+tracker = MemoryTracker(
+    sampling_interval=0.5,
+    enable_alerts=True,
 )
+tracker.start_tracking()
 
 # Run your code
 for i in range(100):
     train_step(model, data)
 
-# Check for leaks
-leaks = profiler.detect_leaks()
-if leaks:
-    print(f"Potential memory leak detected: {leaks}")
+# Inspect tracking statistics
+tracker.stop_tracking()
+stats = tracker.get_statistics()
+print(f"Peak memory: {stats.get('peak_memory', 0) / (1024**3):.2f} GB")
 ```
 
 ### Visualization
 
 ```python
-from gpumemprof import GPUMemoryProfiler
+from gpumemprof import GPUMemoryProfiler, MemoryVisualizer
 
 profiler = GPUMemoryProfiler()
 
@@ -101,9 +100,9 @@ with profiler.profile_context("training"):
     train_model()
 
 # Generate visualizations
-profiler.plot_memory_timeline()
-profiler.plot_memory_heatmap()
-profiler.create_dashboard()
+visualizer = MemoryVisualizer(profiler)
+visualizer.plot_memory_timeline(interactive=False, save_path="timeline.png")
+visualizer.export_data(format="json", save_path="profile_export")
 ```
 
 ## CLI Usage
@@ -136,10 +135,10 @@ gpumemprof analyze monitoring.csv --output report.txt --format txt
 from gpumemprof import GPUMemoryProfiler
 
 profiler = GPUMemoryProfiler(
-    sampling_interval=0.5,  # seconds
-    alert_threshold=4000,   # MB
-    enable_visualization=True,
-    export_format='json'
+    device=0,
+    track_tensors=True,
+    track_cpu_memory=True,
+    collect_stack_traces=False,
 )
 ```
 

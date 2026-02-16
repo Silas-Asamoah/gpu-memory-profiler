@@ -62,6 +62,9 @@ python -m examples.cli.quickstart
 If you want to customize the CPU profiler beyond the built-in behavior, here are
 some patterns you can borrow:
 
+The built-in `gpumemprof.CPUMemoryProfiler` now exposes `get_summary()` for
+aggregate CPU-memory metrics and is recommended for most workflows.
+
 #### Modify the PyTorch Profiler for CPU
 
 ```python

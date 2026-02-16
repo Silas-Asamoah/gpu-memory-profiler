@@ -191,32 +191,32 @@ from gpumemprof import GPUMemoryProfiler
 def test_pytorch_basic_profiling():
     profiler = GPUMemoryProfiler()
 
-    @profiler.profile_function
     def create_tensor():
         return torch.randn(1000, 1000).cuda()
 
-    tensor = create_tensor()
-    results = profiler.get_results()
+    profile = profiler.profile_function(create_tensor)
+    summary = profiler.get_summary()
 
-    assert results.peak_memory_mb > 0
-    assert len(results.function_calls) > 0
+    assert profile.peak_memory_usage() > 0
+    assert summary["total_function_calls"] > 0
 ```
 
 ### Memory Leak Test
 
 ```python
-def test_pytorch_memory_leak_detection():
+def test_pytorch_tracking_statistics():
     profiler = GPUMemoryProfiler()
-    profiler.enable_leak_detection(threshold=50, window_size=5)
+    profiler.start_monitoring(interval=0.2)
 
-    # Simulate memory leak
+    # Simulate repeated allocations
     tensors = []
-    for i in range(10):
+    for _ in range(10):
         tensor = torch.randn(1000, 1000).cuda()
-        tensors.append(tensor)  # Don't delete tensors
+        tensors.append(tensor)
 
-    leaks = profiler.detect_leaks()
-    assert len(leaks) > 0
+    profiler.stop_monitoring()
+    summary = profiler.get_summary()
+    assert summary["snapshots_collected"] > 0
 ```
 
 ## TensorFlow Testing
@@ -306,16 +306,14 @@ def test_tfmemprof_cli():
 
 ```python
 def test_cpu_compatibility():
-    # Test without CUDA
-    import os
-    os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
-    from gpumemprof import GPUMemoryProfiler
-    profiler = GPUMemoryProfiler()
+    from gpumemprof import CPUMemoryProfiler
+    profiler = CPUMemoryProfiler()
+    profiler.start_monitoring(interval=0.2)
+    profiler.stop_monitoring()
 
     # Should work in CPU mode
-    results = profiler.get_results()
-    assert results is not None
+    summary = profiler.get_summary()
+    assert summary is not None
 ```
 
 ## Performance Testing
@@ -364,12 +362,12 @@ def test_end_to_end_pytorch():
             loss.backward()
             optimizer.step()
 
-    results = profiler.get_results()
+    summary = profiler.get_summary()
 
     # Verify results
-    assert results.peak_memory_mb > 0
-    assert len(results.memory_snapshots) > 0
-    assert len(results.function_calls) > 0
+    assert summary["peak_memory_usage"] > 0
+    assert summary["snapshots_collected"] > 0
+    assert summary["total_function_calls"] > 0
 ```
 
 ## Test Configuration
