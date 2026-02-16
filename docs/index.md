@@ -4,28 +4,34 @@
 
 Welcome to the official documentation for GPU Memory Profiler! Here you'll find everything you need to install, use, and contribute to the project.
 
-## Table of Contents
+```{toctree}
+:maxdepth: 2
+:caption: Documentation
 
-- [Installation](installation.md)
-- [Usage Guide](usage.md)
-- [Command Line Interface](cli.md)
-- [API Reference](api.md)
-- [Examples](examples.md)
-- [CPU Compatibility](cpu_compatibility.md)
-- [Compatibility Matrix (v0.2)](compatibility_matrix.md)
-- [Benchmark Harness (v0.2)](benchmark_harness.md)
-- [Telemetry Schema](telemetry_schema.md)
-- [Testing & Validation](testing.md)
-- [Troubleshooting](troubleshooting.md)
-- [Architecture](architecture.md)
-- [Contributing](../CONTRIBUTING.md)
-- [PyTorch Testing Guide](pytorch_testing_guide.md)
-- [TensorFlow Testing Guide](tensorflow_testing_guide.md)
-- [In-depth Article](article.md)
+installation
+usage
+cli
+api
+examples
+cpu_compatibility
+compatibility_matrix
+benchmark_harness
+telemetry_schema
+testing
+troubleshooting
+architecture
+pytorch_testing_guide
+tensorflow_testing_guide
+article
+```
 
 ## About
 
 GPU Memory Profiler is an open source tool for real-time GPU memory monitoring, leak detection, and optimization in deep learning workflows. It supports both PyTorch and TensorFlow, and provides both a Python API and CLI tools.
+
+## Additional Links
+
+- [Contributing](../CONTRIBUTING.md)
 
 ---
 
