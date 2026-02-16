@@ -14,6 +14,7 @@ from .context_profiler import TensorFlowProfiler
 from .tracker import MemoryTracker as TensorFlowMemoryTracker
 from .visualizer import MemoryVisualizer as TensorFlowVisualizer
 from .analyzer import MemoryAnalyzer as TensorFlowAnalyzer
+from .analyzer import GapFinding as TensorFlowGapFinding
 from .utils import get_system_info
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "TensorFlowMemoryTracker",
     "TensorFlowVisualizer",
     "TensorFlowAnalyzer",
+    "TensorFlowGapFinding",
     "get_system_info",
 ]

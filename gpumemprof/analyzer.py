@@ -1,14 +1,16 @@
 """Advanced analysis tools for memory profiling data."""
 
 import statistics
-from typing import List, Dict, Any, Optional, Tuple, Set
-from collections import defaultdict, Counter
-from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 
 import numpy as np
 from scipy import stats
 
+from .gap_analysis import GapFinding, analyze_hidden_memory_gaps
 from .profiler import ProfileResult, MemorySnapshot, GPUMemoryProfiler
+from .telemetry import TelemetryEventV2
 from .utils import format_bytes
 
 
@@ -35,6 +37,27 @@ class PerformanceInsight:
     recommendations: List[str]
 
 
+_GAP_REMEDIATION_BY_CLASSIFICATION: Dict[str, List[str]] = {
+    "transient_spike": [
+        "Investigate non-allocator memory consumers active during spikes "
+        "(cuDNN workspace, NCCL buffers, other frameworks).",
+        "Use torch.cuda.memory_snapshot() around spike windows for detailed attribution.",
+        "Consider pinning cuDNN workspace size with torch.backends.cudnn.benchmark = False.",
+    ],
+    "persistent_drift": [
+        "Look for non-PyTorch CUDA allocations accumulating over time "
+        "(e.g. custom CUDA kernels, third-party libraries).",
+        "Monitor nvidia-smi used memory alongside torch allocator counters.",
+        "If gap stabilises after warmup, it may be one-time CUDA context overhead.",
+    ],
+    "fragmentation_like": [
+        "Call torch.cuda.empty_cache() periodically to release unused reserved blocks.",
+        "Reduce allocation churn by pre-allocating tensors or using memory pools.",
+        "Set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to reduce fragmentation.",
+    ],
+}
+
+
 class MemoryAnalyzer:
     """Advanced analyzer for memory profiling data."""
 
@@ -55,6 +78,11 @@ class MemoryAnalyzer:
             'slow_function_percentile': 0.9,  # Top 10% slowest functions
             'high_memory_percentile': 0.9,  # Top 10% memory-heavy functions
             'min_calls_for_analysis': 3,  # Minimum calls to consider for analysis
+            # Hidden-memory gap analysis thresholds
+            'gap_ratio_threshold': 0.05,  # 5% of device total = significant gap
+            'gap_spike_zscore': 2.0,  # z-score for transient spike detection
+            'gap_drift_r_squared': 0.6,  # R-squared for persistent drift
+            'gap_fragmentation_ratio': 0.3,  # reserved-allocated / reserved
         }
 
     def analyze_memory_patterns(self,
@@ -580,13 +608,38 @@ class MemoryAnalyzer:
 
         return insights
 
+    # ------------------------------------------------------------------
+    # Hidden-memory gap analysis (operates on TelemetryEventV2 series)
+    # ------------------------------------------------------------------
+
+    def analyze_memory_gaps(
+        self, events: List[TelemetryEventV2]
+    ) -> List[GapFinding]:
+        """Classify allocator-vs-device hidden memory gaps over time.
+
+        Args:
+            events: Chronologically ordered telemetry samples.
+
+        Returns:
+            Prioritized list of gap findings (severity desc, confidence desc).
+        """
+        return analyze_hidden_memory_gaps(
+            events=events,
+            thresholds=self.thresholds,
+            format_memory=format_bytes,
+            remediation_by_classification=_GAP_REMEDIATION_BY_CLASSIFICATION,
+        )
+
     def generate_optimization_report(self,
-                                     results: Optional[List[ProfileResult]] = None) -> Dict[str, Any]:
+                                     results: Optional[List[ProfileResult]] = None,
+                                     events: Optional[List[TelemetryEventV2]] = None) -> Dict[str, Any]:
         """
         Generate a comprehensive optimization report.
 
         Args:
             results: List of ProfileResults to analyze
+            events: Optional telemetry event series for gap analysis.
+                    When provided, the report includes a ``gap_analysis`` section.
 
         Returns:
             Comprehensive optimization report
@@ -608,7 +661,7 @@ class MemoryAnalyzer:
         total_execution_time = sum(r.execution_time for r in effective_results)
         unique_functions = len(set(r.function_name for r in effective_results))
 
-        report = {
+        report: Dict[str, Any] = {
             'summary': {
                 'total_functions_analyzed': unique_functions,
                 'total_function_calls': len(effective_results),
@@ -623,6 +676,11 @@ class MemoryAnalyzer:
             'recommendations': self._generate_priority_recommendations(patterns, insights),
             'optimization_score': self._calculate_optimization_score(patterns, insights)
         }
+
+        # Hidden-memory gap analysis (only when telemetry events are supplied).
+        if events is not None:
+            gap_findings = self.analyze_memory_gaps(events)
+            report['gap_analysis'] = [asdict(f) for f in gap_findings]
 
         return report
 

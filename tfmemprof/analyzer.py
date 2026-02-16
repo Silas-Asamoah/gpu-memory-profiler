@@ -2,8 +2,36 @@
 
 import logging
 import statistics
+from dataclasses import asdict
 from typing import List, Dict, Any, Optional, cast
+
 import numpy as np
+
+from gpumemprof.gap_analysis import GapFinding, analyze_hidden_memory_gaps
+from gpumemprof.telemetry import TelemetryEventV2
+from .utils import format_memory
+
+
+_GAP_REMEDIATION_BY_CLASSIFICATION: Dict[str, List[str]] = {
+    "transient_spike": [
+        "Investigate non-allocator memory consumers active during spikes "
+        "(cuDNN workspace, XLA temporaries, other frameworks).",
+        "Use tf.config.experimental.get_memory_info() around spike windows.",
+        "Consider setting tf.config.experimental.set_memory_growth(gpu, True).",
+    ],
+    "persistent_drift": [
+        "Look for non-TensorFlow GPU allocations accumulating over time "
+        "(e.g. custom CUDA ops, third-party libraries).",
+        "Monitor nvidia-smi used memory alongside TF allocator counters.",
+        "If gap stabilises after warmup, it may be one-time runtime overhead.",
+    ],
+    "fragmentation_like": [
+        "Enable memory growth with tf.config.experimental.set_memory_growth(gpu, True).",
+        "Reduce allocation churn by reusing tensors or using tf.function.",
+        "Consider setting a hard memory limit with "
+        "tf.config.set_logical_device_configuration().",
+    ],
+}
 
 
 class MemoryAnalyzer:
@@ -11,6 +39,14 @@ class MemoryAnalyzer:
 
     def __init__(self, sensitivity: float = 0.05) -> None:
         self.sensitivity = sensitivity
+
+        # Hidden-memory gap analysis thresholds
+        self.thresholds = {
+            'gap_ratio_threshold': 0.05,  # 5% of device total = significant gap
+            'gap_spike_zscore': 2.0,  # z-score for transient spike detection
+            'gap_drift_r_squared': 0.6,  # R-squared for persistent drift
+            'gap_fragmentation_ratio': 0.3,  # reserved-allocated / reserved
+        }
 
     def detect_memory_leaks(self, tracking_results: Any) -> List[Dict[str, Any]]:
         """Detect potential memory leaks using statistical analysis."""
@@ -256,8 +292,40 @@ class MemoryAnalyzer:
 
         return correlation_data
 
-    def score_optimization(self, profile_result: Any) -> Dict[str, Any]:
-        """Score optimization opportunities."""
+    # ------------------------------------------------------------------
+    # Hidden-memory gap analysis (operates on TelemetryEventV2 series)
+    # ------------------------------------------------------------------
+
+    def analyze_memory_gaps(
+        self, events: List[TelemetryEventV2]
+    ) -> List[GapFinding]:
+        """Classify allocator-vs-device hidden memory gaps over time.
+
+        Args:
+            events: Chronologically ordered telemetry samples.
+
+        Returns:
+            Prioritized list of gap findings (severity desc, confidence desc).
+        """
+        return analyze_hidden_memory_gaps(
+            events=events,
+            thresholds=self.thresholds,
+            format_memory=format_memory,
+            remediation_by_classification=_GAP_REMEDIATION_BY_CLASSIFICATION,
+        )
+
+    def score_optimization(
+        self,
+        profile_result: Any,
+        events: Optional[List[TelemetryEventV2]] = None,
+    ) -> Dict[str, Any]:
+        """Score optimization opportunities.
+
+        Args:
+            profile_result: TensorFlow profiling result object.
+            events: Optional telemetry event series for gap analysis.
+                    When provided, the result includes a ``gap_analysis`` section.
+        """
         optimization_score: Dict[str, Any] = {
             'overall_score': 0.0,
             'categories': {},
@@ -313,5 +381,10 @@ class MemoryAnalyzer:
         from .utils import suggest_optimizations
         top_suggestions = suggest_optimizations(profile_result)
         optimization_score['top_recommendations'] = top_suggestions[:5]
+
+        # Hidden-memory gap analysis (only when telemetry events are supplied).
+        if events is not None:
+            gap_findings = self.analyze_memory_gaps(events)
+            optimization_score['gap_analysis'] = [asdict(f) for f in gap_findings]
 
         return optimization_score
