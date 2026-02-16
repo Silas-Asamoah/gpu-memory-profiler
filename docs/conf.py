@@ -45,6 +45,7 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 
 autodoc_mock_imports = [
+    "rich",
     "torch",
     "tensorflow",
     "numpy",
