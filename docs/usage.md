@@ -115,7 +115,7 @@ profiler.create_dashboard()
 gpumemprof monitor --duration 60 --output monitoring.csv
 
 # Monitor with alerts
-gpumemprof track --threshold 4000 --alert
+gpumemprof track --warning-threshold 75 --critical-threshold 90
 ```
 
 ### Analysis
@@ -125,7 +125,7 @@ gpumemprof track --threshold 4000 --alert
 gpumemprof analyze monitoring.csv --visualization
 
 # Generate report
-gpumemprof analyze monitoring.csv --report report.html
+gpumemprof analyze monitoring.csv --output report.txt --format txt
 ```
 
 ## Configuration

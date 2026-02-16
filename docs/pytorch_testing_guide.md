@@ -805,12 +805,12 @@ gpumemprof monitor --interval 1.0 --duration 30
 # Monitor for 30 seconds, sample every 1 second
 
 # Background tracking
-gpumemprof track --output results.json --threshold 2048
-# Track with 2GB alert threshold, save to file
+gpumemprof track --output results.json --warning-threshold 70 --critical-threshold 90
+# Track with warning/critical thresholds, save to file
 
 # Analysis
-gpumemprof analyze --input results.json --detect-leaks --visualize
-# Analyze saved results, detect leaks, create plots
+gpumemprof analyze results.json --visualization --plot-dir analysis_plots
+# Analyze saved results and create plots
 ```
 
 ### CPU CLI Alternative

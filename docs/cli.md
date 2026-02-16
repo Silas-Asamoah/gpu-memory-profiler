@@ -295,13 +295,13 @@ The `tfmemprof` command provides comprehensive GPU memory profiling for TensorFl
 
 ### Available Commands
 
+Global option:
+
+- `-v, --verbose` enables verbose logging and must appear before the subcommand (for example, `tfmemprof --verbose info`).
+
 #### 1. `tfmemprof info` - System Information
 
 Display TensorFlow-specific system and GPU information.
-
-**Options:**
-
-- `-v, --verbose` - Enable verbose logging
 
 **Examples:**
 
@@ -310,7 +310,7 @@ Display TensorFlow-specific system and GPU information.
 tfmemprof info
 
 # Verbose information
-tfmemprof info --verbose
+tfmemprof --verbose info
 ```
 
 **Output:**
@@ -352,7 +352,6 @@ Monitor TensorFlow GPU memory usage in real-time.
 - `--threshold MB` - Memory alert threshold in MB
 - `--device DEVICE` - TensorFlow device to monitor (default: /GPU:0)
 - `--output FILE` - Output file for results
-- `-v, --verbose` - Enable verbose logging
 
 **Examples:**
 
@@ -398,7 +397,6 @@ Start background memory tracking with alerts.
 - `--threshold MB` - Memory alert threshold in MB (default: 4000)
 - `--device DEVICE` - TensorFlow device to monitor (default: /GPU:0)
 - `--output FILE` - Output file for tracking results (required)
-- `-v, --verbose` - Enable verbose logging
 
 **Examples:**
 
@@ -437,7 +435,6 @@ Analyze TensorFlow profiling results with advanced features.
 - `--optimize` - Generate optimization recommendations
 - `--visualize` - Generate visualization plots
 - `--report FILE` - Generate comprehensive report file
-- `-v, --verbose` - Enable verbose logging
 
 **Examples:**
 
@@ -493,7 +490,6 @@ Produce a single portable diagnostic artifact for debugging memory failures (sam
 - `--device DEVICE` - TensorFlow device to monitor (default: /GPU:0)
 - `--duration SECONDS` - Seconds to run the tracker for telemetry timeline (default: 5; use 0 to skip)
 - `--interval SECONDS` - Sampling interval for timeline (default: 0.5)
-- `-v, --verbose` - Enable verbose logging
 
 **Exit codes:** Same as `gpumemprof diagnose`: 0 = success no risk, 1 = failure, 2 = success with memory risk.
 
@@ -650,7 +646,7 @@ Enable verbose logging for debugging:
 
 ```bash
 gpumemprof monitor --duration 10 2>&1 | tee debug.log
-tfmemprof monitor --verbose --duration 10
+tfmemprof --verbose monitor --duration 10
 ```
 
 ## Integration with Scripts

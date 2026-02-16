@@ -570,13 +570,13 @@ For power users and automation, we provide comprehensive command-line interfaces
 gpumemprof info
 
 # Monitor memory usage in real-time
-gpumemprof monitor --interval 1.0 --threshold 2048
+gpumemprof monitor --interval 1.0 --duration 120 --output monitor.csv
 
 # Background tracking with alerts
-gpumemprof track --output results.json --threshold 4096
+gpumemprof track --output results.json --warning-threshold 70 --critical-threshold 90
 
 # Analyze saved results
-gpumemprof analyze --input results.json --detect-leaks --visualize
+gpumemprof analyze results.json --visualization --plot-dir plots
 ```
 
 ### TensorFlow CLI (`tfmemprof`)
@@ -600,7 +600,7 @@ tfmemprof analyze --input tf_results.json --optimize --report report.md
 echo "Starting training with memory monitoring..."
 
 # Start background tracking
-gpumemprof track --output training_memory.json --threshold 8000 &
+gpumemprof track --output training_memory.json --warning-threshold 75 --critical-threshold 92 &
 TRACKER_PID=$!
 
 # Run your training
@@ -610,13 +610,13 @@ python train_model.py
 kill $TRACKER_PID
 
 # Generate analysis report
-gpumemprof analyze --input training_memory.json \
-                   --detect-leaks \
-                   --optimize \
-                   --visualize \
-                   --report memory_report.md
+gpumemprof analyze training_memory.json \
+                   --visualization \
+                   --plot-dir training_plots \
+                   --output memory_report.txt \
+                   --format txt
 
-echo "Training complete! Check memory_report.md for analysis."
+echo "Training complete! Check memory_report.txt for analysis."
 ```
 
 _[Image Placeholder: Terminal screenshots showing CLI commands in action]_

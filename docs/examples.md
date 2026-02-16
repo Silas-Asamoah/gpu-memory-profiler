@@ -193,7 +193,7 @@ with profiler.profile_context("custom_training"):
 gpumemprof monitor --duration 300 --output monitoring.json
 
 # Monitor with alerts
-gpumemprof track --threshold 4000 --alert --output tracking.json
+gpumemprof track --warning-threshold 75 --critical-threshold 90 --output tracking.json
 
 # Analyze results
 gpumemprof analyze monitoring.json --visualization
@@ -209,7 +209,7 @@ tfmemprof info
 tfmemprof monitor --duration 600 --output tf_monitoring.json
 
 # Track with alerts
-tfmemprof track --threshold 3000 --alert --output tf_tracking.json
+tfmemprof track --threshold 3000 --output tf_tracking.json
 ```
 
 ## Complete Working Examples

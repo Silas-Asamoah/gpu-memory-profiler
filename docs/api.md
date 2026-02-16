@@ -245,13 +245,15 @@ def get_system_info() -> dict:
 gpumemprof info
 
 # Real-time monitoring
-gpumemprof monitor [--duration SECONDS] [--output FILE]
+gpumemprof monitor [--duration SECONDS] [--interval SECONDS] [--output FILE] [--format csv|json]
 
 # Background tracking
-gpumemprof track [--threshold MB] [--alert] [--output FILE]
+gpumemprof track [--duration SECONDS] [--interval SECONDS] [--output FILE]
+gpumemprof track [--warning-threshold PERCENT] [--critical-threshold PERCENT] [--watchdog]
 
 # Analysis
-gpumemprof analyze FILE [--visualization] [--report FILE]
+gpumemprof analyze FILE [--visualization] [--plot-dir DIR]
+gpumemprof analyze FILE [--output FILE] [--format json|txt]
 ```
 
 ### TensorFlow CLI (`tfmemprof`)
@@ -261,13 +263,13 @@ gpumemprof analyze FILE [--visualization] [--report FILE]
 tfmemprof info
 
 # Real-time monitoring
-tfmemprof monitor [--duration SECONDS] [--output FILE]
+tfmemprof monitor [--duration SECONDS] [--interval SECONDS] [--threshold MB] [--output FILE]
 
 # Background tracking
-tfmemprof track [--threshold MB] [--alert] [--output FILE]
+tfmemprof track [--threshold MB] [--interval SECONDS] --output FILE
 
 # Analysis
-tfmemprof analyze FILE [--visualization] [--report FILE]
+tfmemprof analyze --input FILE [--detect-leaks] [--optimize] [--visualize] [--report FILE]
 ```
 
 ## Data Structures

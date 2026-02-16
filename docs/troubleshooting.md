@@ -369,9 +369,9 @@ profiler = GPUMemoryProfiler()
 ### Verbose CLI Output
 
 ```bash
-# Add --verbose flag
-gpumemprof info --verbose
-gpumemprof monitor --duration 10 --verbose
+# Use detailed/system output commands
+gpumemprof info --detailed
+gpumemprof monitor --duration 10
 ```
 
 ### Check System Information
@@ -395,14 +395,14 @@ print(info)
 2. **Run diagnostics:**
 
 ```python
-from gpumemprof import get_system_info
-from tfmemprof import validate_tensorflow_setup
+from gpumemprof import get_system_info as get_torch_system_info
+from tfmemprof import get_system_info as get_tf_system_info
 
 # Check PyTorch setup
-print(get_system_info())
+print(get_torch_system_info())
 
 # Check TensorFlow setup
-print(validate_tensorflow_setup())
+print(get_tf_system_info())
 ```
 
 3. **Test with minimal example:**
