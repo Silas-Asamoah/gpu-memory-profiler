@@ -163,10 +163,40 @@ jobs:
               run: |
                   python3 -m mypy gpumemprof/ tfmemprof/
 
+    docs:
+        if: github.event_name != 'schedule'
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            - name: Cache pip dependencies
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cache/pip
+                  key: ${{ runner.os }}-pip-docs-${{ hashFiles('pyproject.toml', 'docs/requirements-rtd.txt') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pip-docs-
+
+            - name: Install docs dependencies
+              run: |
+                  python3 -m pip install --upgrade pip
+                  pip install -e . --no-deps
+                  pip install -r docs/requirements-rtd.txt
+
+            - name: Build docs with warnings as errors
+              run: |
+                  python3 -m sphinx -W --keep-going -b html docs docs/_build/html
+
     build:
         if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
-        needs: [test, lint]
+        needs: [test, lint, docs]
 
         steps:
             - uses: actions/checkout@v4
@@ -198,7 +228,7 @@ jobs:
     cli-test:
         if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
-        needs: [test, lint]
+        needs: [test, lint, docs]
 
         steps:
             - uses: actions/checkout@v4
