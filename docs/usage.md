@@ -4,6 +4,43 @@
 
 This guide covers how to use GPU Memory Profiler for both PyTorch and TensorFlow applications.
 
+## Canonical Workflow (v0.2)
+
+Use this path when onboarding a new project:
+
+1. Validate install and runtime backend:
+
+```bash
+gpumemprof --help
+gpumemprof info
+tfmemprof --help
+tfmemprof info
+```
+
+2. Capture baseline telemetry:
+
+```bash
+gpumemprof track --duration 2 --interval 0.5 --output /tmp/gpumemprof_track.json --format json --watchdog
+gpumemprof analyze /tmp/gpumemprof_track.json --format txt --output /tmp/gpumemprof_analysis.txt
+```
+
+3. Collect a diagnose bundle for reproducibility:
+
+```bash
+gpumemprof diagnose --duration 0 --output /tmp/gpumemprof_diag
+tfmemprof diagnose --duration 0 --output /tmp/tf_diag
+```
+
+4. Run curated examples:
+
+```bash
+python -m examples.cli.quickstart
+python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated
+```
+
+This sequence works for CPU-only and MPS/CUDA systems; unsupported checks are
+reported as explicit `SKIP` instead of silent failures.
+
 ## Quick Start
 
 ### PyTorch Usage
@@ -113,18 +150,18 @@ visualizer.export_data(format="json", save_path="profile_export")
 # Monitor for 60 seconds
 gpumemprof monitor --duration 60 --output monitoring.csv
 
-# Monitor with alerts
-gpumemprof track --warning-threshold 75 --critical-threshold 90
+# Track with telemetry output + watchdog
+gpumemprof track --duration 30 --interval 0.5 --output tracking.json --format json --watchdog
 ```
 
 ### Analysis
 
 ```bash
 # Analyze results
-gpumemprof analyze monitoring.csv --visualization
+gpumemprof analyze tracking.json --format txt --output analysis.txt
 
-# Generate report
-gpumemprof analyze monitoring.csv --output report.txt --format txt
+# Build a diagnose bundle
+gpumemprof diagnose --duration 0 --output ./diag_bundle
 ```
 
 ## Configuration
