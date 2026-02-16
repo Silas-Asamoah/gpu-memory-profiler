@@ -10,17 +10,13 @@ import numpy as np
 
 try:
     import torch
-except ImportError as e:
-    raise ImportError(
-        "torch is required for this example. Install it with: pip install torch"
-    ) from e
+except ImportError:
+    torch = None  # type: ignore[assignment]
 
 try:
     import tensorflow as tf
-except ImportError as e:
-    raise ImportError(
-        "tensorflow is required for this example. Install it with: pip install tensorflow"
-    ) from e
+except ImportError:
+    tf = None  # type: ignore[assignment]
 
 
 def seed_everything(seed: int = 42) -> None:

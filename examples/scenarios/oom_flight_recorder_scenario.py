@@ -9,7 +9,7 @@ from typing import Sequence
 
 import torch
 
-from examples.common import print_header, print_kv, print_section
+from examples.common.formatting import print_header, print_kv, print_section
 from gpumemprof.oom_flight_recorder import classify_oom_exception
 from gpumemprof.tracker import MemoryTracker
 from gpumemprof.utils import get_system_info
@@ -212,4 +212,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

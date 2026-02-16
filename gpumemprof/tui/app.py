@@ -691,9 +691,17 @@ class GPUMemoryProfilerTUI(App):
         padding: 0 1;
     }
 
-    #cli-buttons {
+    #cli-buttons-row1,
+    #cli-buttons-row2 {
         layout: horizontal;
         content-align: left middle;
+        height: auto;
+        min-height: 6;
+    }
+
+    #cli-buttons-row2 {
+        margin-top: 0;
+        margin-bottom: 1;
     }
 
     #cli-runner {
@@ -1037,11 +1045,14 @@ class GPUMemoryProfilerTUI(App):
                             id="btn-log-diagnose",
                             variant="warning",
                         ),
+                        id="cli-buttons-row1",
+                    ),
+                    Horizontal(
                         Button("PyTorch Sample", id="btn-run-pytorch", variant="primary"),
                         Button("TensorFlow Sample", id="btn-run-tf", variant="primary"),
                         Button("OOM Scenario", id="btn-run-oom-scenario", variant="warning"),
                         Button("Capability Matrix", id="btn-run-cap-matrix", variant="success"),
-                        id="cli-buttons",
+                        id="cli-buttons-row2",
                     ),
                     Horizontal(
                         self.cli_command_input,

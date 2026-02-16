@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-from examples.common import print_header, print_kv, print_section
+from examples.common.formatting import print_header, print_kv, print_section
 from gpumemprof.telemetry import validate_telemetry_record
 
 

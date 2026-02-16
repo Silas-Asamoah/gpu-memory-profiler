@@ -8,10 +8,8 @@ import numpy as np
 
 try:
     import tensorflow as tf
-except ImportError as e:
-    raise ImportError(
-        "tensorflow is required for this example. Install it with: pip install tensorflow"
-    ) from e
+except ImportError:
+    tf = None  # type: ignore[assignment]
 
 from .device import seed_everything
 
