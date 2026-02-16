@@ -73,7 +73,7 @@ Use the benchmark harness to measure profiling overhead and artifact-size growth
 with explicit budgets:
 
 ```bash
-python -m examples.cli.benchmark_harness --check --budgets docs/benchmarks/v0.2_budgets.json
+python -m examples.cli.benchmark_harness --check --iterations 200 --budgets docs/benchmarks/v0.2_budgets.json
 ```
 
 The harness writes a JSON report with per-scenario metrics and pass/fail budget
