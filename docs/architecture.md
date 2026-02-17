@@ -54,8 +54,8 @@ The main profiling engine that coordinates memory monitoring and data collection
 
 **Key Classes:**
 
-- `GPUMemoryProfiler` (PyTorch)
-- `TensorFlowProfiler` (TensorFlow)
+- `GPUMemoryProfiler` (PyTorch -- `gpumemprof.profiler`)
+- `TFMemoryProfiler` (TensorFlow -- `tfmemprof.profiler`)
 
 ### 2. Tracker (`tracker.py`)
 
@@ -70,9 +70,9 @@ Real-time memory tracking with background monitoring capabilities.
 
 **Key Classes:**
 
-- `MemoryTracker`
-- `MemoryWatchdog`
-- `TrackingResult`
+- `MemoryTracker` (exported from both packages)
+- `TrackingEvent` (`gpumemprof`) / `TrackingResult` (`tfmemprof`)
+- `MemoryWatchdog` (internal — not re-exported from package `__init__`)
 
 ### 3. Visualizer (`visualizer.py`)
 
@@ -87,9 +87,7 @@ Data visualization and reporting capabilities.
 
 **Key Classes:**
 
-- `MemoryVisualizer`
-- `PlotlyVisualizer`
-- `MatplotlibVisualizer`
+- `MemoryVisualizer` (requires `[viz]` extra; uses matplotlib, seaborn, plotly internally)
 
 ### 4. Analyzer (`analyzer.py`)
 
@@ -105,8 +103,7 @@ Advanced analysis and optimization recommendations.
 **Key Classes:**
 
 - `MemoryAnalyzer`
-- `LeakDetector`
-- `OptimizationAdvisor`
+- `GapFinding` (hidden-memory gap analysis)
 
 ### 5. Context Profiler (`context_profiler.py`)
 
@@ -119,11 +116,12 @@ Context-aware profiling with decorators and context managers.
 - Decorator implementations
 - Scope-based memory tracking
 
-**Key Classes:**
+**Key Classes/Functions:**
 
-- `ContextProfiler`
 - `profile_function` (decorator)
 - `profile_context` (context manager)
+- `MemoryProfiler` / `ProfiledModule` (`gpumemprof`)
+- `TensorFlowProfiler` / `ProfiledLayer` (`tfmemprof`)
 
 ### 6. Utils (`utils.py`)
 
@@ -138,9 +136,9 @@ Utility functions and system information gathering.
 
 **Key Functions:**
 
-- `get_system_info()`
-- `format_memory()`
-- `validate_setup()`
+- `get_gpu_info()` (`gpumemprof`) / `get_system_info()` (`tfmemprof`)
+- `format_bytes()`, `convert_bytes()`
+- `detect_torch_runtime_backend()` (`gpumemprof`)
 
 ### 7. CLI (`cli.py`)
 
@@ -159,6 +157,35 @@ Command-line interface for standalone usage.
 - `monitor` - Real-time monitoring
 - `track` - Background tracking
 - `analyze` - Results analysis
+- `diagnose` - Diagnostic bundle generation
+
+### 8. OOM Flight Recorder (`oom_flight_recorder.py`)
+
+Captures memory state before out-of-memory crashes for post-mortem analysis.
+
+**Key Classes:**
+
+- `OOMFlightRecorder`
+- `OOMFlightRecorderConfig`
+- `OOMExceptionClassification`
+
+### 9. Device Collectors (`device_collectors.py`)
+
+Backend-aware device memory sampling across CUDA, ROCm, and MPS.
+
+**Key Classes:**
+
+- `DeviceMemoryCollector` (abstract base)
+- `CudaDeviceCollector`, `ROCmDeviceCollector`, `MPSDeviceCollector`
+- `DeviceMemorySample`
+
+### 10. Telemetry (`telemetry.py`)
+
+Structured telemetry event schema for profiling data interchange.
+
+**Key Classes:**
+
+- `TelemetryEventV2`
 
 ## Framework-Specific Architecture
 
@@ -278,15 +305,14 @@ visualizer = MemoryVisualizer()
 
 ### 2. Extensibility
 
-The architecture supports easy extension for new frameworks:
+The architecture supports easy extension through the device-collector abstraction:
 
 ```python
-class NewFrameworkProfiler(BaseProfiler):
-    def __init__(self):
-        super().__init__()
+from gpumemprof.device_collectors import DeviceMemoryCollector, DeviceMemorySample
 
-    def get_memory_info(self):
-        # Framework-specific implementation
+class NewBackendCollector(DeviceMemoryCollector):
+    def collect(self) -> DeviceMemorySample:
+        # Backend-specific memory sampling
         pass
 ```
 
@@ -317,43 +343,10 @@ profiler.start_monitoring(interval=0.1)
 
 ## Configuration Management
 
-### Environment Variables
-
-```bash
-export GPU_MEMORY_PROFILER_LOG_LEVEL=DEBUG
-export GPU_MEMORY_PROFILER_SAMPLING_INTERVAL=1.0
-export GPU_MEMORY_PROFILER_ALERT_THRESHOLD=4000
-```
-
-### Configuration Files
-
-```python
-# config.yaml
-profiler:
-  sampling_interval: 1.0
-  alert_threshold: 4000
-  enable_visualization: true
-  export_format: json
-
-tracking:
-  background_monitoring: true
-  leak_detection: true
-  threshold: 100
-  window_size: 10
-```
+Configuration is handled through constructor arguments and CLI flags. There is no
+external configuration file or environment variable interface at this time.
 
 ## Error Handling
-
-### Exception Hierarchy
-
-```
-ProfilerError (base)
-├── MemoryError
-├── ConfigurationError
-├── VisualizationError
-├── FrameworkError
-└── CLIError
-```
 
 ### Graceful Degradation
 
@@ -371,14 +364,28 @@ except CUDAError:
 
 ### Test Structure
 
+Tests live in a flat `tests/` directory with framework-specific prefixes:
+
 ```
 tests/
-├── unit/           # Unit tests for each component
-├── integration/    # Integration tests
-├── performance/    # Performance benchmarks
-├── framework/      # Framework-specific tests
-└── cli/           # CLI tests
+├── test_profiler.py             # Core PyTorch profiler
+├── test_core_profiler.py        # Profiler integration
+├── test_cpu_profiler.py         # CPU-only profiler
+├── test_device_collectors.py    # Backend collectors
+├── test_gap_analysis.py         # PyTorch gap analysis
+├── test_oom_flight_recorder.py  # OOM recorder
+├── test_telemetry_v2.py         # Telemetry schema
+├── test_cli_info.py             # CLI info command
+├── test_cli_diagnose.py         # CLI diagnose command
+├── test_tf_*.py                 # TensorFlow-specific tests
+├── test_utils.py                # Utility tests
+├── test_benchmark_harness.py    # Performance budgets
+├── test_docs_regressions.py     # Doc drift guard
+├── tui/                         # TUI snapshot & pilot tests
+└── e2e/                         # End-to-end tests
 ```
+
+**Pytest markers** (defined in `pyproject.toml`): `unit`, `integration`, `slow`, `tui_pilot`, `tui_pty`, `tui_snapshot`.
 
 ### Mock Strategy
 
@@ -415,9 +422,8 @@ class CustomVisualizer(MemoryVisualizer):
 ### Framework Support
 
 ```python
-class JAXProfiler(BaseProfiler):
-    # JAX-specific implementation
-    pass
+# New frameworks can implement a DeviceMemoryCollector
+# and integrate with the existing profiling pipeline.
 ```
 
 ---
