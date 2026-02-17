@@ -70,7 +70,7 @@ python -m examples.basic.tensorflow_demo
 ```
 
 The demo configures memory growth automatically and prints peak/average memory
-statistics gathered via `TensorFlowProfiler`.
+statistics gathered via `TFMemoryProfiler`.
 
 ## CLI Smoke Test (PyTorch + TensorFlow)
 

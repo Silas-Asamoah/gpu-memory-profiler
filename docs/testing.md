@@ -245,10 +245,10 @@ def test_pytorch_tracking_statistics():
 ```python
 import pytest
 import tensorflow as tf
-from tfmemprof import TensorFlowProfiler
+from tfmemprof import TFMemoryProfiler
 
 def test_tensorflow_basic_profiling():
-    profiler = TensorFlowProfiler()
+    profiler = TFMemoryProfiler()
 
     with profiler.profile_context("test"):
         model = tf.keras.Sequential([
@@ -267,7 +267,7 @@ def test_tensorflow_basic_profiling():
 
 ```python
 def test_tensorflow_keras_profiling():
-    profiler = TensorFlowProfiler()
+    profiler = TFMemoryProfiler()
 
     with profiler.profile_context("model_training"):
         model = tf.keras.Sequential([
