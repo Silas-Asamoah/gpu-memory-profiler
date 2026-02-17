@@ -141,10 +141,16 @@ def run_scenario(
 
     dump_path = tracker.last_oom_dump_path
     dump_exists = bool(dump_path and Path(dump_path).exists())
-    status = "PASS" if dump_exists and (mode == "simulated" or stress_got_oom) else "SKIP"
-    reason = None
-    if mode == "stress" and not stress_got_oom:
+
+    if dump_exists and (mode == "simulated" or stress_got_oom):
+        status = "PASS"
+        reason = None
+    elif mode == "stress" and not stress_got_oom:
+        status = "SKIP"
         reason = "Stress mode did not trigger OOM before configured cap."
+    else:
+        status = "FAIL"
+        reason = f"OOM dump missing (dump_path={dump_path}, dump_exists={dump_exists})"
 
     summary = {
         "status": status,
