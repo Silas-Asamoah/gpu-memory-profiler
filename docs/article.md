@@ -135,7 +135,7 @@ _[Image Placeholder: Architecture diagram showing the 7 modules and their connec
 
 ## PyTorch Memory Profiling
 
-PyTorch is Facebook's deep learning framework, popular for research and production. Our PyTorch profiler (`gpumemprof`) integrates seamlessly with PyTorch's CUDA memory management.
+PyTorch is Meta's deep learning framework, popular for research and production. Our PyTorch profiler (`gpumemprof`) integrates seamlessly with PyTorch's CUDA memory management.
 
 ### Basic Usage
 
@@ -713,7 +713,7 @@ _[Image Placeholder: Analysis dashboard showing efficiency scores, correlation p
 1. **Clone the Repository**
 
 ```bash
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 ```
 
@@ -847,7 +847,7 @@ print(f"Optimization saved {memory_saved:.2f} MB")
 Automatic memory management to prevent crashes:
 
 ```python
-from gpumemprof import MemoryWatchdog
+from gpumemprof.tracker import MemoryWatchdog
 
 # Setup automatic cleanup
 watchdog = MemoryWatchdog(
@@ -1099,14 +1099,14 @@ This project is released under the MIT License, making it free for both academic
 
 ---
 
-**Repository**: [https://github.com/nanaagyei/gpu-memory-profiler](https://github.com/nanaagyei/gpu-memory-profiler)
+**Repository**: [https://github.com/Silas-Asamoah/gpu-memory-profiler](https://github.com/Silas-Asamoah/gpu-memory-profiler)
 
-**Documentation**: [DOCUMENTATION.md](DOCUMENTATION.md)
+**Documentation**: [Documentation Home](index.md)
 
-**Examples**: [examples/](examples/)
+**Examples**: [examples/](../examples/)
 
-**Issues and Support**: [GitHub Issues](https://github.com/nanaagyei/gpu-memory-profiler/issues)
+**Issues and Support**: [GitHub Issues](https://github.com/Silas-Asamoah/gpu-memory-profiler/issues)
 
 ---
 
-_Last updated: June 2025_
+_Last updated: February 2026_
