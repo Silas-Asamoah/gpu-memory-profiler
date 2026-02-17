@@ -37,11 +37,8 @@ pip install torch --index-url https://download.pytorch.org/whl/cu118
 **Solution:**
 
 ```bash
-# Install TensorFlow
+# Install TensorFlow (GPU support is included automatically)
 pip install tensorflow
-
-# Or install GPU version
-pip install tensorflow-gpu
 ```
 
 ### CUDA Issues
@@ -83,8 +80,8 @@ print(f"GPU devices: {tf.config.list_physical_devices('GPU')}")
 # PyTorch with CUDA
 pip install torch --index-url https://download.pytorch.org/whl/cu118
 
-# TensorFlow with GPU support
-pip install tensorflow-gpu
+# TensorFlow (GPU support is included automatically)
+pip install tensorflow
 ```
 
 #### Problem: `CUDA out of memory`
@@ -113,7 +110,8 @@ torch.cuda.empty_cache()
 3. **Use gradient checkpointing:**
 
 ```python
-model.use_checkpoint = True
+from torch.utils.checkpoint import checkpoint
+# Wrap memory-heavy layers with checkpoint()
 ```
 
 4. **Monitor memory usage:**
@@ -236,8 +234,7 @@ matplotlib.use('Agg')  # Use non-interactive backend
 from gpumemprof import MemoryVisualizer
 
 visualizer = MemoryVisualizer(profiler)
-visualizer.plot_memory_timeline(interactive=False)
-plt.savefig('timeline.png')
+visualizer.plot_memory_timeline(interactive=False, save_path='timeline.png')
 ```
 
 3. **Use Plotly for web-based plots:**
@@ -343,8 +340,11 @@ pip install -e .
 **Solution:**
 
 ```bash
-# Install TensorFlow for Apple Silicon
-pip install tensorflow-macos
+# Install TensorFlow (Apple Silicon is supported natively since TF 2.13)
+pip install tensorflow
+
+# For Metal GPU acceleration, also install:
+pip install tensorflow-metal
 ```
 
 #### Windows Issues
@@ -389,9 +389,17 @@ gpumemprof monitor --duration 10
 
 ### Check System Information
 
+```bash
+# Quickest way to check environment health
+gpumemprof info --detailed
+tfmemprof info
+```
+
+Or from Python:
+
 ```python
 from gpumemprof import get_gpu_info
-info = get_gpu_info()
+info = get_gpu_info()  # Returns GPU details, or {"error": ...} on non-CUDA hosts
 print(info)
 ```
 
@@ -407,15 +415,11 @@ print(info)
 
 2. **Run diagnostics:**
 
-```python
-from gpumemprof import get_gpu_info
-from tfmemprof import get_system_info
-
-# Check PyTorch setup
-print(get_gpu_info())
-
-# Check TensorFlow setup
-print(get_system_info())
+```bash
+gpumemprof info --detailed
+gpumemprof diagnose --duration 0 --output ./diag_bundle
+tfmemprof info
+tfmemprof diagnose --duration 0 --output ./tf_diag_bundle
 ```
 
 3. **Test with minimal example:**
