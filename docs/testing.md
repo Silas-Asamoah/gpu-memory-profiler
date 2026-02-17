@@ -521,25 +521,6 @@ def test_with_mocked_gpu():
         pass
 ```
 
-## Performance Testing
-
-### Benchmark Tests
-
-```python
-import pytest
-import time
-
-@pytest.mark.benchmark
-def test_profiling_performance(benchmark):
-    """Benchmark profiling performance."""
-    def profiling_operation():
-        # Profiling operation to benchmark
-        pass
-
-    result = benchmark(profiling_operation)
-    assert result.stats.mean < 0.1  # Should complete in < 100ms
-```
-
 ### Memory Testing
 
 ```python
