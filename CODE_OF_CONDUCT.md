@@ -57,7 +57,7 @@ an individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-[INSERT CONTACT METHOD].
+prince.agyei.tuffour@gmail.com.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
@@ -134,10 +134,10 @@ For questions or concerns about this Code of Conduct, please contact the project
 
 You can also report issues through:
 
-- GitHub Issues: [Create an issue](https://github.com/nanaagyei/gpu-memory-profiler/issues)
+- GitHub Issues: [Create an issue](https://github.com/Silas-Asamoah/gpu-memory-profiler/issues)
 - Email: prince.agyei.tuffour@gmail.com
 
 ---
 
 **Version:** 2.0  
-**Last Updated:** June 2025
+**Last Updated:** February 2026
