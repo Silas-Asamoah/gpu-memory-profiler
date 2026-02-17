@@ -390,8 +390,8 @@ gpumemprof monitor --duration 10
 ### Check System Information
 
 ```python
-from gpumemprof import get_system_info
-info = get_system_info()
+from gpumemprof import get_gpu_info
+info = get_gpu_info()
 print(info)
 ```
 
@@ -408,14 +408,14 @@ print(info)
 2. **Run diagnostics:**
 
 ```python
-from gpumemprof import get_system_info as get_torch_system_info
-from tfmemprof import get_system_info as get_tf_system_info
+from gpumemprof import get_gpu_info
+from tfmemprof import get_system_info
 
 # Check PyTorch setup
-print(get_torch_system_info())
+print(get_gpu_info())
 
 # Check TensorFlow setup
-print(get_tf_system_info())
+print(get_system_info())
 ```
 
 3. **Test with minimal example:**

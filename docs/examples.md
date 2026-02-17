@@ -146,7 +146,7 @@ with profiler.profile_context("evaluation"):
 
 # Analyze results
 results = profiler.get_results()
-profiler.plot_memory_timeline()
+print(f"Peak memory: {results.peak_memory_mb:.2f} MB")
 ```
 
 ### Custom Training Loop
