@@ -41,21 +41,23 @@ python3 -m pytest -m "slow"
 python3 -m pytest -m "not slow"
 ```
 
-### Framework-Specific Tests
+### TUI Tests
 
 ```bash
-# Run PyTorch tests only
-python3 -m pytest -m "pytorch"
+# Run TUI Pilot interaction tests
+python3 -m pytest -m "tui_pilot"
 
-# Run TensorFlow tests only
-python3 -m pytest -m "tensorflow"
+# Run TUI visual snapshot tests
+python3 -m pytest -m "tui_snapshot"
 
-# Run CPU-only tests
-python3 -m pytest -m "cpu"
-
-# Run GPU tests (if CUDA available)
-python3 -m pytest -m "gpu"
+# Run end-to-end PTY smoke tests
+python3 -m pytest -m "tui_pty"
 ```
+
+> **Note:** The registered pytest markers are `slow`, `integration`,
+> `unit`, `tui_pilot`, `tui_pty`, and `tui_snapshot` (see
+> `pyproject.toml`). Running `--strict-markers` mode (the default) will
+> reject unregistered marker names.
 
 ### Parallel Testing
 
@@ -138,15 +140,32 @@ conda run -n tensor-torch-profiler python -m pytest tests/tui/test_app_snapshots
 ```
 tests/
 ├── conftest.py                    # Test configuration and fixtures
-├── test_core_profiler.py         # Core profiling functionality
-├── test_context_profiler.py      # Context managers and decorators
-├── test_tracker.py               # Real-time tracking
-├── test_visualizer.py            # Visualization components
-├── test_analyzer.py              # Analysis algorithms
-├── test_utils.py                 # Utility functions
-├── test_profiler.py              # CLI/framework integration
-├── test_integration.py           # Integration tests
-└── test_performance.py           # Performance benchmarks
+├── gap_test_helpers.py            # Shared helpers for gap analysis tests
+├── test_benchmark_harness.py      # Benchmark harness budget validation
+├── test_cli_diagnose.py           # gpumemprof diagnose CLI tests
+├── test_cli_info.py               # gpumemprof info CLI tests
+├── test_cli_oom_flight_recorder.py # OOM flight-recorder CLI tests
+├── test_core_profiler.py          # Core profiling functionality
+├── test_cpu_profiler.py           # CPU-mode profiler tests
+├── test_device_collectors.py      # Backend device collector tests
+├── test_docs_regressions.py       # Documentation regression checks
+├── test_examples_scenarios.py     # Launch QA scenario smoke tests
+├── test_gap_analysis.py           # Gap analysis (gpumemprof)
+├── test_oom_flight_recorder.py    # OOM flight-recorder unit tests
+├── test_profiler.py               # Profiler integration tests
+├── test_profiler_regressions.py   # Profiler regression tests
+├── test_telemetry_v2.py           # TelemetryEvent v2 schema tests
+├── test_tf_env.py                 # TensorFlow environment detection
+├── test_tf_gap_analysis.py        # Gap analysis (tfmemprof)
+├── test_tf_telemetry_export.py    # TF telemetry export tests
+├── test_tfmemprof_diagnose.py     # tfmemprof diagnose tests
+├── test_utils.py                  # Utility function tests
+├── e2e/
+│   └── test_tui_pty.py            # End-to-end PTY TUI smoke tests
+└── tui/
+    ├── test_app_pilot.py          # Textual Pilot interaction tests
+    ├── test_app_snapshots.py      # Textual visual snapshot tests
+    └── test_monitor.py            # TUI monitor component tests
 ```
 
 For manual smoke tests (CPU-only, PyTorch GPU, TensorFlow GPU, CLI) see
@@ -402,13 +421,12 @@ python_files = test_*.py *_test.py
 python_classes = Test*
 python_functions = test_*
 markers =
-    slow: marks tests as slow
+    slow: marks tests as slow (deselect with '-m "not slow"')
     integration: marks tests as integration tests
     unit: marks tests as unit tests
-    pytorch: marks tests as PyTorch-specific
-    tensorflow: marks tests as TensorFlow-specific
-    gpu: marks tests as GPU-required
-    cpu: marks tests as CPU-only
+    tui_pilot: marks Textual Pilot interaction tests
+    tui_pty: marks PTY end-to-end smoke tests
+    tui_snapshot: marks Textual visual snapshot tests
 ```
 
 ### Coverage Configuration

@@ -160,14 +160,19 @@ python3 -m pytest -m "cpu"
 
 ```
 tests/
-├── test_core_profiler.py      # Core profiling functionality
-├── test_context_profiler.py   # Context managers and decorators
-├── test_tracker.py           # Real-time tracking
-├── test_visualizer.py        # Visualization components
-├── test_analyzer.py          # Analysis algorithms
-├── test_utils.py             # Utility functions
-├── test_profiler.py          # CLI/framework integration
-└── conftest.py               # Test configuration
+├── conftest.py                    # Test configuration and fixtures
+├── test_core_profiler.py          # Core profiling functionality
+├── test_cpu_profiler.py           # CPU-mode profiler tests
+├── test_cli_diagnose.py           # gpumemprof diagnose CLI tests
+├── test_cli_info.py               # gpumemprof info CLI tests
+├── test_device_collectors.py      # Backend device collector tests
+├── test_gap_analysis.py           # Gap analysis tests
+├── test_oom_flight_recorder.py    # OOM flight-recorder tests
+├── test_profiler.py               # Profiler integration tests
+├── test_telemetry_v2.py           # Telemetry schema tests
+├── test_utils.py                  # Utility function tests
+├── tui/                           # TUI component tests
+└── e2e/                           # End-to-end smoke tests
 ```
 
 ## Pull Request Process
