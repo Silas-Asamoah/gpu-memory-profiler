@@ -12,18 +12,25 @@ This guide covers different installation methods for GPU Memory Profiler.
 
 ## Installation Methods
 
-### 1. From PyPI (Recommended)
+### 1. From PyPI
 
-Once the package is released on PyPI:
+> **Note:** The package is not yet published on PyPI. Use the source
+> installation below until the first release is available.
 
 ```bash
-# Basic installation
+# Basic installation (includes PyTorch and TensorFlow)
 pip install gpu-memory-profiler
+
+# With visualization support (matplotlib, plotly, dash)
+pip install gpu-memory-profiler[viz]
+
+# With interactive TUI dashboard (textual)
+pip install gpu-memory-profiler[tui]
 
 # With optional dependencies
 pip install gpu-memory-profiler[dev]    # Development tools
 pip install gpu-memory-profiler[test]   # Testing dependencies
-pip install gpu-memory-profiler[docs]   # Documentation tools
+pip install gpu-memory-profiler[docs]   # Documentation tools (sphinx)
 ```
 
 ### 2. From Source
@@ -67,34 +74,18 @@ pip install -e .[dev,test]
 pre-commit install
 ```
 
-## Framework-Specific Installation
+## Dependency Notes
 
-### PyTorch Only
-
-If you only need PyTorch support:
-
-```bash
-pip install gpu-memory-profiler
-# PyTorch will be installed as a dependency
-```
-
-### TensorFlow Only
-
-If you only need TensorFlow support:
-
-```bash
-pip install gpu-memory-profiler
-# TensorFlow will be installed as a dependency
-```
+The base installation pulls in **both** PyTorch (`torch>=1.8.0`) and
+TensorFlow (`tensorflow>=2.4.0`) as required dependencies. There is
+currently no way to install only one framework.
 
 ### CPU-Only Mode
 
-For systems without GPU support:
-
-```bash
-pip install gpu-memory-profiler
-# The profiler will automatically detect and use CPU mode
-```
+For systems without GPU support, no extra steps are needed. The profiler
+automatically detects the available hardware and falls back to CPU-based
+memory tracking (RSS via psutil). See the
+[CPU Compatibility Guide](cpu_compatibility.md) for details.
 
 ## Verification
 
