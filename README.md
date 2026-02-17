@@ -230,7 +230,3 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CO
 ---
 
 **Version:** 0.2.0 (launch candidate)
-
-```
-
-```
