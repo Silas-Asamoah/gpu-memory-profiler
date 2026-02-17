@@ -1315,8 +1315,8 @@ gpumemprof info                        # System summary
 
 **Getting Help:**
 
--   Check `DOCUMENTATION.md` for detailed API reference
--   Review `TROUBLESHOOTING.md` for common issues
+-   Check the [API Reference](api.md) for detailed API documentation
+-   Review the [Troubleshooting Guide](troubleshooting.md) for common issues
 -   Run tests with `--help` for usage options
 -   Examine example files in `examples/` directory
 
