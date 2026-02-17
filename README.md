@@ -1,6 +1,6 @@
 # GPU Memory Profiler
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/nanaagyei/gpu-memory-profiler/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Silas-Asamoah/gpu-memory-profiler/actions)
 [![PyPI Version](https://img.shields.io/pypi/v/gpu-memory-profiler.svg)](https://pypi.org/project/gpu-memory-profiler/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -56,7 +56,7 @@ pip install gpu-memory-profiler[docs]   # Documentation tools
 ### From Source
 
 ```bash
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 
 # Install in development mode
@@ -76,7 +76,7 @@ pip install -e .[test]
 
 ```bash
 # Clone and setup development environment
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -230,7 +230,3 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CO
 ---
 
 **Version:** 0.2.0 (launch candidate)
-
-```
-
-```
