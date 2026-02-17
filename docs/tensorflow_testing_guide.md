@@ -89,7 +89,7 @@ The TensorFlow GPU Memory Profiler is a comprehensive tool for monitoring and op
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 ```
 
@@ -264,10 +264,10 @@ for context, stats in results.function_profiles.items():
 #### Real-Time Monitoring
 
 ```python
-from tfmemprof import TensorFlowMemoryTracker
+from tfmemprof.tracker import MemoryTracker
 
 # Setup tracker with TensorFlow-specific alerts
-tracker = TensorFlowMemoryTracker(
+tracker = MemoryTracker(
     sampling_interval=0.1,     # Sample every 100ms
     alert_threshold_mb=3000,   # Alert at 3GB
     enable_logging=True
@@ -843,7 +843,7 @@ model = tf.keras.Sequential([
 batch_size = 16  # Smaller batches for CPU
 
 # 4. Increase sampling interval
-tracker = TensorFlowMemoryTracker(
+tracker = MemoryTracker(
     sampling_interval=1.0,
     device='/CPU:0',
     enable_logging=False,
@@ -887,7 +887,7 @@ tfmemprof info                                    # System summary
 4. **Optimize**: Use insights to improve TensorFlow memory efficiency
 5. **Contribute**: Share improvements with the TensorFlow community
 
-For questions, issues, or contributions, visit our [GitHub repository](https://github.com/nanaagyei/gpu-memory-profiler).
+For questions, issues, or contributions, visit our [GitHub repository](https://github.com/Silas-Asamoah/gpu-memory-profiler).
 
 ---
 

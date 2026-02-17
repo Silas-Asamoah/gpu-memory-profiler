@@ -68,10 +68,10 @@ print(f"Peak memory: {summary['peak_memory_usage'] / (1024**3):.2f} GB")
 ### TensorFlow Usage
 
 ```python
-from tfmemprof import TensorFlowProfiler
+from tfmemprof import TFMemoryProfiler
 
 # Create profiler instance
-profiler = TensorFlowProfiler()
+profiler = TFMemoryProfiler()
 
 # Profile training
 with profiler.profile_context("training"):

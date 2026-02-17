@@ -89,7 +89,7 @@ The PyTorch GPU Memory Profiler is a comprehensive tool for monitoring and optim
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 ```
 
@@ -1315,8 +1315,8 @@ gpumemprof info                        # System summary
 
 **Getting Help:**
 
--   Check `DOCUMENTATION.md` for detailed API reference
--   Review `TROUBLESHOOTING.md` for common issues
+-   Check the [API Reference](api.md) for detailed API documentation
+-   Review the [Troubleshooting Guide](troubleshooting.md) for common issues
 -   Run tests with `--help` for usage options
 -   Examine example files in `examples/` directory
 
@@ -1328,7 +1328,7 @@ gpumemprof info                        # System summary
 4. **Optimize**: Use insights to improve memory efficiency
 5. **Contribute**: Share your improvements with the community
 
-For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/nanaagyei/gpu-memory-profiler).
+For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/Silas-Asamoah/gpu-memory-profiler).
 
 ---
 
