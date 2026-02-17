@@ -847,7 +847,7 @@ print(f"Optimization saved {memory_saved:.2f} MB")
 Automatic memory management to prevent crashes:
 
 ```python
-from gpumemprof import MemoryWatchdog
+from gpumemprof.tracker import MemoryWatchdog
 
 # Setup automatic cleanup
 watchdog = MemoryWatchdog(
