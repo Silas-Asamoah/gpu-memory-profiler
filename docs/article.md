@@ -135,7 +135,7 @@ _[Image Placeholder: Architecture diagram showing the 7 modules and their connec
 
 ## PyTorch Memory Profiling
 
-PyTorch is Facebook's deep learning framework, popular for research and production. Our PyTorch profiler (`gpumemprof`) integrates seamlessly with PyTorch's CUDA memory management.
+PyTorch is Meta's deep learning framework, popular for research and production. Our PyTorch profiler (`gpumemprof`) integrates seamlessly with PyTorch's CUDA memory management.
 
 ### Basic Usage
 
@@ -1101,12 +1101,12 @@ This project is released under the MIT License, making it free for both academic
 
 **Repository**: [https://github.com/nanaagyei/gpu-memory-profiler](https://github.com/nanaagyei/gpu-memory-profiler)
 
-**Documentation**: [DOCUMENTATION.md](DOCUMENTATION.md)
+**Documentation**: [Documentation Home](index.md)
 
-**Examples**: [examples/](examples/)
+**Examples**: [examples/](../examples/)
 
 **Issues and Support**: [GitHub Issues](https://github.com/nanaagyei/gpu-memory-profiler/issues)
 
 ---
 
-_Last updated: June 2025_
+_Last updated: February 2026_
