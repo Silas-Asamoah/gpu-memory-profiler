@@ -57,7 +57,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ```bash
 # Clone the repository
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 
 # Create a virtual environment

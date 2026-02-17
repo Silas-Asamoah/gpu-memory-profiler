@@ -713,7 +713,7 @@ _[Image Placeholder: Analysis dashboard showing efficiency scores, correlation p
 1. **Clone the Repository**
 
 ```bash
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 ```
 
@@ -1099,13 +1099,13 @@ This project is released under the MIT License, making it free for both academic
 
 ---
 
-**Repository**: [https://github.com/nanaagyei/gpu-memory-profiler](https://github.com/nanaagyei/gpu-memory-profiler)
+**Repository**: [https://github.com/Silas-Asamoah/gpu-memory-profiler](https://github.com/Silas-Asamoah/gpu-memory-profiler)
 
 **Documentation**: [Documentation Home](index.md)
 
 **Examples**: [examples/](../examples/)
 
-**Issues and Support**: [GitHub Issues](https://github.com/nanaagyei/gpu-memory-profiler/issues)
+**Issues and Support**: [GitHub Issues](https://github.com/Silas-Asamoah/gpu-memory-profiler/issues)
 
 ---
 

@@ -466,7 +466,7 @@ When reporting issues, include:
 
 ### Community Support
 
-- **GitHub Issues**: [Create an issue](https://github.com/nanaagyei/gpu-memory-profiler/issues)
+- **GitHub Issues**: [Create an issue](https://github.com/Silas-Asamoah/gpu-memory-profiler/issues)
 - **Documentation**: Check the [docs](index.md)
 - **Examples**: See the [examples directory](../examples/)
 

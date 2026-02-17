@@ -134,7 +134,7 @@ For questions or concerns about this Code of Conduct, please contact the project
 
 You can also report issues through:
 
-- GitHub Issues: [Create an issue](https://github.com/nanaagyei/gpu-memory-profiler/issues)
+- GitHub Issues: [Create an issue](https://github.com/Silas-Asamoah/gpu-memory-profiler/issues)
 - Email: prince.agyei.tuffour@gmail.com
 
 ---

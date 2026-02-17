@@ -39,7 +39,7 @@ For development or if you need the latest features:
 
 ```bash
 # Clone the repository
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 
 # Install in development mode
@@ -58,7 +58,7 @@ For contributors and developers:
 
 ```bash
 # Clone the repository
-git clone https://github.com/nanaagyei/gpu-memory-profiler.git
+git clone https://github.com/Silas-Asamoah/gpu-memory-profiler.git
 cd gpu-memory-profiler
 
 # Create virtual environment
@@ -172,7 +172,7 @@ After installation:
 If you encounter issues:
 
 1. Check the [Troubleshooting Guide](troubleshooting.md)
-2. Search existing [GitHub Issues](https://github.com/nanaagyei/gpu-memory-profiler/issues)
+2. Search existing [GitHub Issues](https://github.com/Silas-Asamoah/gpu-memory-profiler/issues)
 3. Create a new issue with detailed information
 
 ---

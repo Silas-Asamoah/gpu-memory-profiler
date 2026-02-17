@@ -100,11 +100,11 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/nanaagyei/gpu-memory-profiler"
-Documentation = "https://github.com/nanaagyei/gpu-memory-profiler/tree/main/docs"
-Repository = "https://github.com/nanaagyei/gpu-memory-profiler.git"
-"Bug Tracker" = "https://github.com/nanaagyei/gpu-memory-profiler/issues"
-"Release Notes" = "https://github.com/nanaagyei/gpu-memory-profiler/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Silas-Asamoah/gpu-memory-profiler"
+Documentation = "https://github.com/Silas-Asamoah/gpu-memory-profiler/tree/main/docs"
+Repository = "https://github.com/Silas-Asamoah/gpu-memory-profiler.git"
+"Bug Tracker" = "https://github.com/Silas-Asamoah/gpu-memory-profiler/issues"
+"Release Notes" = "https://github.com/Silas-Asamoah/gpu-memory-profiler/blob/main/CHANGELOG.md"
 
 [project.scripts]
 gpumemprof = "gpumemprof.cli:main"
