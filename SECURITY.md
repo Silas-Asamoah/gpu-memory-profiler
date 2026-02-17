@@ -6,6 +6,7 @@ Use this section to tell people about which versions of your project are current
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 0.2.x   | :white_check_mark: |
 | 0.1.x   | :white_check_mark: |
 | < 0.1   | :x:                |
 
@@ -93,7 +94,7 @@ We follow responsible disclosure practices:
 ### Primary Security Contact
 
 - **Email**: prince.agyei.tuffour@gmail.com
-- **PGP Key**: [INSERT PGP KEY IF AVAILABLE]
+- **PGP Key**: Not currently available
 
 ### Backup Contacts
 
@@ -108,5 +109,5 @@ We would like to thank the following security researchers for their contribution
 
 ---
 
-**Last Updated:** June 2025  
+**Last Updated:** February 2026
 **Version:** 1.0
