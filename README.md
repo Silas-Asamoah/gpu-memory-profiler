@@ -11,7 +11,7 @@
 [![Prompt%20Toolkit](https://img.shields.io/badge/Prompt--toolkit-roadmap-lightgrey)](docs/tui.md#prompt-toolkit-roadmap)
 
 <p align="center">
-  <img src="docs/gpu-profiler-overview.gif" alt="GPU Profiler TUI Demo" width="900">
+  <img src="https://raw.githubusercontent.com/Silas-Asamoah/gpu-memory-profiler/main/docs/gpu-profiler-overview.gif" alt="GPU Profiler TUI Demo" width="900">
   <br/>
   <em>Interactive Textual dashboard with live monitoring, visualizations, and CLI automation.</em>
 </p>
@@ -176,13 +176,13 @@ Future prompt_toolkit enhancements will add a command palette for advanced
 workflows—see [docs/tui.md](docs/tui.md) for details.
 
 <p align="center">
-  <img src="docs/gpu-profiler-1.png" alt="GPU Profiler Overview" width="700">
+  <img src="https://raw.githubusercontent.com/Silas-Asamoah/gpu-memory-profiler/main/docs/gpu-profiler-1.png" alt="GPU Profiler Overview" width="700">
   <br/>
   <em>Overview, PyTorch, and TensorFlow tabs inside the Textual dashboard.</em>
 </p>
 
 <p align="center">
-  <img src="docs/gpu-profiler-2.png" alt="GPU Profiler CLI Actions" width="700">
+  <img src="https://raw.githubusercontent.com/Silas-Asamoah/gpu-memory-profiler/main/docs/gpu-profiler-2.png" alt="GPU Profiler CLI Actions" width="700">
   <br/>
   <em>CLI & Actions tab with quick commands, loaders, and log output.</em>
 </p>
