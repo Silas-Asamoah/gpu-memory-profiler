@@ -16,7 +16,7 @@ This guide helps you resolve common issues with GPU Memory Profiler.
 # Install the package
 pip install -e .
 
-# Or install from PyPI (when available)
+# Or install from PyPI
 pip install gpu-memory-profiler
 ```
 

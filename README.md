@@ -38,7 +38,9 @@ A production-ready, open source tool for real-time GPU memory profiling, leak de
 
 ## Installation
 
-### From PyPI (when released)
+### From PyPI
+
+Package page: <https://pypi.org/project/gpu-memory-profiler/>
 
 ```bash
 # Basic installation
