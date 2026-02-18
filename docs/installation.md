@@ -14,8 +14,7 @@ This guide covers different installation methods for GPU Memory Profiler.
 
 ### 1. From PyPI
 
-> **Note:** The package is not yet published on PyPI. Use the source
-> installation below until the first release is available.
+Package page: <https://pypi.org/project/gpu-memory-profiler/>
 
 ```bash
 # Basic installation (includes PyTorch and TensorFlow)
