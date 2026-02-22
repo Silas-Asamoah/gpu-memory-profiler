@@ -7,22 +7,17 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from textwrap import dedent
-from typing import Any, Callable, Iterable, Sequence, List, Optional, cast
+from typing import Any, Callable, List, Optional
 
 # Suppress TensorFlow oneDNN warnings
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 
 logger = logging.getLogger(__name__)
 
-from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import (
     Button,
-    DataTable,
-    Footer,
-    Header,
     Footer,
     Header,
     Input,
@@ -32,16 +27,12 @@ from textual.widgets import (
     Rule,
     TabPane,
     TabbedContent,
-    Static,
     Label,
 )
-
-from rich.text import Text
 
 from .monitor import TrackerEventView, TrackerSession, TrackerUnavailableError
 from .commands import CLICommandRunner
 from .profiles import (
-    ProfileRow,
     clear_pytorch_profiles,
     clear_tensorflow_profiles,
     fetch_pytorch_profiles,
@@ -56,6 +47,15 @@ from .workloads import (
     run_cpu_sample_workload,
     run_pytorch_sample_workload,
     run_tensorflow_sample_workload,
+)
+from .widgets import (
+    AlertHistoryTable,
+    AsciiWelcome,
+    GPUStatsTable,
+    KeyValueTable,
+    MarkdownPanel,
+    ProfileResultsTable,
+    TimelineCanvas,
 )
 from gpumemprof.utils import get_system_info, get_gpu_info, format_bytes
 from tfmemprof.utils import get_system_info as get_tf_system_info
@@ -174,251 +174,6 @@ def _build_visual_markdown() -> str:
     return tui_builders.build_visual_markdown()
 
 
-class AsciiWelcome(Static):
-    """Animated ASCII welcome banner, uses pyfiglet when available."""
-
-    def __init__(
-        self,
-        messages: list[str],
-        font: str = "Standard",
-        interval: float = 3.0,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__("", **kwargs)
-        self.messages = messages or ["GPU Memory Profiler"]
-        self.font_name = font
-        self.interval = interval
-        self._frame_index = 0
-        self._figlet = None
-
-        if Figlet:
-            try:
-                self._figlet = Figlet(font=self.font_name)
-            except Exception as exc:
-                logger.debug("Figlet initialization failed: %s", exc)
-                self._figlet = None
-
-    def on_mount(self) -> None:
-        self._render_frame()
-        if len(self.messages) > 1:
-            self.set_interval(self.interval, self._advance_frame)
-
-    def _advance_frame(self) -> None:
-        self._frame_index = (self._frame_index + 1) % len(self.messages)
-        self._render_frame()
-
-    def _render_frame(self) -> None:
-        message = self.messages[self._frame_index]
-        ascii_text = self._render_ascii(message)
-        self.update(ascii_text)
-
-    def _render_ascii(self, message: str) -> Text:
-        if self._figlet:
-            try:
-                rendered = self._figlet.renderText(message)
-                return Text(rendered.rstrip(), style="bold cyan")
-            except Exception as exc:
-                logger.debug("Figlet render failed, using fallback: %s", exc)
-
-        fallback = dedent(
-            f"""
-            ██████╗  ██████╗ ██╗   ██╗
-            ██╔══██╗██╔═══██╗██║   ██║
-            ██████╔╝██║   ██║██║   ██║
-            ██╔═══╝ ██║   ██║╚██╗ ██╔╝
-            ██║     ╚██████╔╝ ╚████╔╝ 
-            ╚═╝      ╚═════╝   ╚═══╝  
-            {message.center(30)}
-            """
-        ).strip("\n")
-        return Text(fallback, style="bold cyan")
-
-
-class GPUStatsTable(DataTable):
-    """Live-updating table of GPU stats."""
-
-    def __init__(
-        self,
-        title: str,
-        provider: Callable[[], list[dict[str, Any]]],
-        refresh_interval: float = 2.0,
-    ) -> None:
-        super().__init__(show_header=True, zebra_stripes=True, id=f"table-{title}")
-        self.title_text = title
-        self.provider = provider
-        self.refresh_interval = refresh_interval
-
-    def on_mount(self) -> None:
-        self.add_columns("Device", "Current (MB)", "Peak (MB)", "Reserved (MB)")
-        self.refresh_rows()
-        self.set_interval(self.refresh_interval, self.refresh_rows)
-
-    def refresh_rows(self) -> None:
-        stats = self.provider() or []
-        self.clear()
-        if not stats:
-            self.add_row("N/A", "-", "-", "-")
-            return
-
-        for row in stats:
-            self.add_row(
-                row.get("device", "N/A"),
-                f"{row.get('current', 0):.2f}",
-                f"{row.get('peak', 0):.2f}",
-                f"{row.get('reserved', 0):.2f}",
-            )
-
-
-class MarkdownPanel(Markdown):
-    """Reusable Markdown panel with refresh support."""
-
-    def __init__(self, builder: Callable[[], str], **kwargs: Any) -> None:
-        super().__init__("", **kwargs)
-        self.builder = builder
-
-    def refresh_content(self) -> None:
-        self.update(self.builder())
-
-    def on_mount(self) -> None:
-        self.refresh_content()
-
-
-class KeyValueTable(DataTable):
-    """Simple key/value table for monitoring stats."""
-
-    def on_mount(self) -> None:
-        if not self.columns:
-            self.add_columns("Metric", "Value")
-
-
-class TimelineCanvas(Static):
-    """ASCII timeline renderer for quick visual feedback."""
-
-    def __init__(self, width: int = 72, height: int = 10, **kwargs: Any) -> None:
-        super().__init__("", **kwargs)
-        self.canvas_width = width
-        self.canvas_height = height
-
-    def render_timeline(self, timeline: dict[str, Any]) -> None:
-        allocated = timeline.get("allocated") if timeline else None
-        reserved = timeline.get("reserved") if timeline else None
-        if not allocated:
-            self.render_placeholder(
-                "No timeline data yet. Start live tracking and press Refresh."
-            )
-            return
-
-        allocated_lines = self._build_chart_lines("Allocated", allocated)
-        reserved_lines = (
-            self._build_chart_lines("Reserved", reserved) if reserved else []
-        )
-        text = "\n".join(allocated_lines + [""] + reserved_lines) if reserved_lines else "\n".join(allocated_lines)
-        self.update(text)
-
-    def render_placeholder(self, message: str) -> None:
-        self.update(message)
-
-    def _build_chart_lines(self, label: str, values: Sequence[float]) -> list[str]:
-        samples = self._resample(values)
-        samples_mb = [v / (1024**2) for v in samples]
-        if not samples_mb:
-            return [f"{label}: no samples"]
-
-        sparkline = self._generate_sparkline(samples_mb)
-        max_val = max(samples_mb) if samples_mb else 0.0
-        latest = samples_mb[-1] if samples_mb else 0.0
-
-        return [
-            f"{label} (max {max_val:.2f} MB, latest {latest:.2f} MB)",
-            f"[{sparkline}]",
-        ]
-
-    def _resample(self, values: Sequence[float]) -> list[float]:
-        if not values:
-            return []
-        if len(values) <= self.canvas_width:
-            return list(values)
-
-        step = len(values) / self.canvas_width
-        sampled = []
-        for i in range(self.canvas_width):
-            idx = min(int(round(i * step)), len(values) - 1)
-            sampled.append(values[idx])
-        return sampled
-
-    def _generate_sparkline(self, values: Sequence[float]) -> str:
-        if not values:
-            return ""
-        max_val = max(values) or 1.0
-        palette = " .:-=+*#%@"
-        last_index = len(palette) - 1
-        chars = []
-        for value in values:
-            ratio = min(value / max_val, 1.0)
-            idx = int(ratio * last_index)
-            chars.append(palette[idx])
-        return "".join(chars)
-
-
-class AlertHistoryTable(DataTable):
-    """Table displaying recent alerts."""
-
-    def on_mount(self) -> None:
-        if not self.columns:
-            self.add_columns("Time", "Type", "Message")
-
-    def update_rows(self, events: List[dict]) -> None:
-        self.clear()
-        if not events:
-            self.add_row("-", "-", "No alerts yet.")
-            return
-        for event in events:
-            timestamp = event.get("timestamp")
-            if isinstance(timestamp, (int, float)):
-                timestamp_str = datetime.fromtimestamp(timestamp).strftime("%H:%M:%S")
-            else:
-                timestamp_str = str(timestamp or "-")
-            event_type = str(event.get("type", "-")).upper()
-            message = event.get("message", "")
-            self.add_row(timestamp_str, event_type, message)
-
-
-class ProfileResultsTable(DataTable):
-    """Reusable table for displaying profile summaries."""
-
-    def on_mount(self) -> None:
-        if not self.columns:
-            self.add_columns(
-                "Name",
-                "Peak (MB)",
-                "Δ Avg (MB)",
-                "Duration (ms)",
-                "Calls",
-                "Recorded",
-            )
-
-    def update_rows(self, rows: List[ProfileRow]) -> None:
-        self.clear()
-        if not rows:
-            self.add_row("No profiles", "-", "-", "-", "-", "-")
-            return
-
-        for row in rows:
-            timestamp = (
-                datetime.fromtimestamp(row.recorded_at).strftime("%H:%M:%S")
-                if row.recorded_at
-                else "-"
-            )
-            self.add_row(
-                row.name,
-                f"{row.peak_mb:.2f}",
-                f"{row.delta_mb:.2f}",
-                f"{row.duration_ms:.2f}",
-                str(row.call_count),
-                timestamp,
-            )
-
-
 class GPUMemoryProfilerTUI(App):
     """Main Textual application."""
 
@@ -441,7 +196,12 @@ class GPUMemoryProfilerTUI(App):
 
     def compose(self) -> ComposeResult:
         self.overview_panel = MarkdownPanel(_build_system_markdown, id="overview")
-        self.welcome_panel = AsciiWelcome(WELCOME_MESSAGES, id="overview-welcome")
+        self.welcome_panel = AsciiWelcome(
+            WELCOME_MESSAGES,
+            figlet_cls=Figlet,
+            logger=logger,
+            id="overview-welcome",
+        )
         self.welcome_info = Markdown(_build_welcome_info(), id="welcome-info")
         self.pytorch_panel = MarkdownPanel(
             lambda: _build_framework_markdown("pytorch"), id="pytorch"
