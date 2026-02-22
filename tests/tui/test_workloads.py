@@ -1,4 +1,10 @@
-from gpumemprof.tui.workloads import format_cpu_summary, format_pytorch_summary
+from types import SimpleNamespace
+
+from gpumemprof.tui.workloads import (
+    format_cpu_summary,
+    format_pytorch_summary,
+    format_tensorflow_results,
+)
 
 
 def test_format_pytorch_summary_formats_negative_delta_in_gb():
@@ -26,3 +32,32 @@ def test_format_cpu_summary_formats_negative_delta_in_gb():
 
     assert "from baseline: -1.00 GB" in formatted
     assert "-1073741824" not in formatted
+
+
+def test_format_tensorflow_results_handles_missing_attributes():
+    formatted = format_tensorflow_results(object())
+
+    assert formatted == (
+        "Duration: 0.00s\n"
+        "Peak memory: 0.00 MB\n"
+        "Average memory: 0.00 MB\n"
+        "Snapshots: 0"
+    )
+
+
+def test_format_tensorflow_results_handles_none_values():
+    results = SimpleNamespace(
+        duration=None,
+        peak_memory_mb=None,
+        average_memory_mb=None,
+        snapshots=None,
+    )
+
+    formatted = format_tensorflow_results(results)
+
+    assert formatted == (
+        "Duration: 0.00s\n"
+        "Peak memory: 0.00 MB\n"
+        "Average memory: 0.00 MB\n"
+        "Snapshots: 0"
+    )
