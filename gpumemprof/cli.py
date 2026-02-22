@@ -1,22 +1,45 @@
 """Command-line interface for GPU Memory Profiler."""
 
+from __future__ import annotations
+
 import argparse
+import json
+import importlib
 import sys
 import time
-import json
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional, Any, Union
 
 import psutil
-import torch
-
-from .profiler import GPUMemoryProfiler
-from .tracker import MemoryTracker, MemoryWatchdog
-from .analyzer import MemoryAnalyzer
 from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
-from .cpu_profiler import CPUMemoryProfiler, CPUMemoryTracker
-from .diagnose import run_diagnose
+
+try:
+    import torch
+except ModuleNotFoundError:  # pragma: no cover - exercised in torch-less subprocess tests
+    torch = None  # type: ignore[assignment]
+
+_TORCH_INSTALL_GUIDANCE = (
+    "PyTorch is required for this feature. Install with "
+    "`pip install 'gpu-memory-profiler[torch]'` "
+    "or follow https://pytorch.org/get-started/locally/."
+)
+
+
+def _require_torch(feature: str) -> Any:
+    if torch is None:
+        raise ImportError(f"{feature} requires PyTorch. {_TORCH_INSTALL_GUIDANCE}")
+    return torch
+
+
+def _import_runtime_symbols(module_name: str, symbols: tuple[str, ...], feature: str) -> tuple[Any, ...]:
+    try:
+        module = importlib.import_module(module_name, package=__package__)
+    except ModuleNotFoundError as exc:
+        if exc.name == "torch":
+            raise ImportError(f"{feature} requires PyTorch. {_TORCH_INSTALL_GUIDANCE}") from exc
+        raise
+    return tuple(getattr(module, symbol) for symbol in symbols)
 
 
 def main() -> None:
@@ -177,7 +200,8 @@ def cmd_info(args: argparse.Namespace) -> None:
     print()
 
     # GPU info
-    device_id = args.device if args.device is not None else torch.cuda.current_device()
+    torch_module = _require_torch("The CUDA info command")
+    device_id = args.device if args.device is not None else torch_module.cuda.current_device()
     gpu_info = get_gpu_info(device_id)
 
     print(f"GPU {device_id} Information:")
@@ -224,12 +248,16 @@ def cmd_monitor(args: argparse.Namespace) -> None:
     print("Press Ctrl+C to stop early")
     print()
 
-    profiler: Optional[Union[GPUMemoryProfiler, CPUMemoryProfiler]] = None
-    tracker: Optional[MemoryTracker] = None
+    profiler: Optional[Any] = None
+    tracker: Optional[Any] = None
     if runtime_backend in {"cuda", "rocm"}:
+        (GPUMemoryProfiler,) = _import_runtime_symbols(
+            ".profiler", ("GPUMemoryProfiler",), "The monitor command"
+        )
         profiler = GPUMemoryProfiler(device=device)
         profiler.start_monitoring(interval)
     elif runtime_backend == "mps":
+        (MemoryTracker,) = _import_runtime_symbols(".tracker", ("MemoryTracker",), "The monitor command")
         if device is not None:
             print("Ignoring --device for MPS runtime (single logical device).")
         tracker = MemoryTracker(
@@ -239,6 +267,9 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         )
         tracker.start_tracking()
     else:
+        (CPUMemoryProfiler,) = _import_runtime_symbols(
+            ".cpu_profiler", ("CPUMemoryProfiler",), "The monitor command"
+        )
         profiler = CPUMemoryProfiler()
         profiler.start_monitoring(interval)
 
@@ -247,8 +278,9 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         while time.time() - start_time < duration:
             # Print current status every 5 seconds
             if int((time.time() - start_time)) % 5 == 0:
-                if isinstance(profiler, GPUMemoryProfiler):
-                    current_mem = torch.cuda.memory_allocated(
+                if runtime_backend in {"cuda", "rocm"} and profiler is not None:
+                    torch_module = _require_torch("GPU monitoring")
+                    current_mem = torch_module.cuda.memory_allocated(
                         profiler.device) / (1024**3)
                     unit = "GB"
                 elif tracker is not None:
@@ -300,7 +332,7 @@ def cmd_monitor(args: argparse.Namespace) -> None:
 
     # Save data if requested
     if args.output:
-        if isinstance(profiler, GPUMemoryProfiler):
+        if runtime_backend in {"cuda", "rocm"} and profiler is not None:
             try:
                 from .visualizer import MemoryVisualizer
             except ImportError:
@@ -339,9 +371,10 @@ def cmd_track(args: argparse.Namespace) -> None:
 
     runtime_backend = str(get_system_info().get("detected_backend", "cpu"))
     gpu_runtime = runtime_backend in {"cuda", "rocm", "mps"}
-    tracker: Union[MemoryTracker, CPUMemoryTracker]
-    watchdog: Optional[MemoryWatchdog] = None
+    tracker: Any
+    watchdog: Optional[Any] = None
     if gpu_runtime:
+        (MemoryTracker,) = _import_runtime_symbols(".tracker", ("MemoryTracker",), "The track command")
         tracker_device: Optional[Union[str, int]]
         if runtime_backend == "mps":
             if device is not None:
@@ -381,9 +414,15 @@ def cmd_track(args: argparse.Namespace) -> None:
 
         # Create watchdog if requested
         if args.watchdog:
+            (MemoryWatchdog,) = _import_runtime_symbols(
+                ".tracker", ("MemoryWatchdog",), "The track command"
+            )
             watchdog = MemoryWatchdog(tracker)
             print("Memory watchdog enabled - automatic cleanup activated")
     else:
+        (CPUMemoryTracker,) = _import_runtime_symbols(
+            ".cpu_profiler", ("CPUMemoryTracker",), "The track command"
+        )
         tracker = CPUMemoryTracker(sampling_interval=interval)
         print("Running CPU memory tracker (no GPU backend available).")
 
@@ -392,14 +431,10 @@ def cmd_track(args: argparse.Namespace) -> None:
 
     start_time = time.time()
     try:
-        with (
-            tracker.capture_oom(
+        with tracker.capture_oom(
                 context="gpumemprof.track",
                 metadata={"command": "track", "runtime_backend": runtime_backend},
-            )
-            if isinstance(tracker, MemoryTracker)
-            else nullcontext()
-        ):
+            ) if gpu_runtime else nullcontext():
             while True:
                 elapsed = time.time() - start_time
 
@@ -427,7 +462,7 @@ def cmd_track(args: argparse.Namespace) -> None:
 
     finally:
         tracker.stop_tracking()
-        if isinstance(tracker, MemoryTracker) and tracker.last_oom_dump_path:
+        if gpu_runtime and tracker.last_oom_dump_path:
             print(f"OOM flight recorder dump saved to: {tracker.last_oom_dump_path}")
 
     # Show final statistics
@@ -468,6 +503,7 @@ def cmd_analyze(args: argparse.Namespace) -> None:
         return
 
     # Create analyzer
+    (MemoryAnalyzer,) = _import_runtime_symbols(".analyzer", ("MemoryAnalyzer",), "The analyze command")
     analyzer = MemoryAnalyzer()
 
     # For now, create dummy results for demonstration
@@ -503,6 +539,7 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
         return 1
 
     command_line = " ".join(sys.argv)
+    (run_diagnose,) = _import_runtime_symbols(".diagnose", ("run_diagnose",), "The diagnose command")
     try:
         artifact_dir, exit_code = run_diagnose(
             output=args.output,
