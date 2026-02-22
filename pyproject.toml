@@ -124,8 +124,8 @@ fallback_version = "0.2.0"
 local_scheme = "no-local-version"
 
 [tool.setuptools.packages.find]
-where = ["."],
-include = ["gpumemprof*", "tfmemprof*"],
+where = ["."]
+include = ["gpumemprof*", "tfmemprof*"]
 exclude = ["tests*", "examples*", "docs*"]
 
 [tool.setuptools.package-data]
@@ -215,7 +215,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"")",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "tui_pilot: marks Textual Pilot interaction tests",
@@ -243,6 +243,6 @@ exclude_lines = [
     "raise NotImplementedError",
     "if 0:",
     "if __name__ == .__main__.:",
-    "class .*\bProtocol\):",
-    "@(abc\.)?abstractmethod",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
 ]
