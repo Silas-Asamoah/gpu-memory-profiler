@@ -85,7 +85,7 @@ def _resolve_memory_visualizer() -> Any:
             raise ImportError(_TORCH_INSTALL_GUIDANCE) from exc
         import_error = exc
 
-        class MemoryVisualizer:  # type: ignore[no-redef]
+        class MemoryVisualizer:
             """Fallback placeholder when optional visualization dependencies are missing."""
 
             def __init__(self, *args: Any, **kwargs: Any) -> None:
