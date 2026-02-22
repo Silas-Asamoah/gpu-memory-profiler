@@ -54,11 +54,21 @@ def format_pytorch_summary(summary: dict[str, Any]) -> str:
 
 
 def format_tensorflow_results(results: Any) -> str:
+    duration = getattr(results, "duration", 0.0)
+    peak_memory_mb = getattr(results, "peak_memory_mb", 0.0)
+    average_memory_mb = getattr(results, "average_memory_mb", 0.0)
+    snapshots = getattr(results, "snapshots", [])
+
+    duration = 0.0 if duration is None else duration
+    peak_memory_mb = 0.0 if peak_memory_mb is None else peak_memory_mb
+    average_memory_mb = 0.0 if average_memory_mb is None else average_memory_mb
+    snapshots = [] if snapshots is None else snapshots
+
     lines = [
-        f"Duration: {results.duration:.2f}s",
-        f"Peak memory: {results.peak_memory_mb:.2f} MB",
-        f"Average memory: {results.average_memory_mb:.2f} MB",
-        f"Snapshots: {len(results.snapshots)}",
+        f"Duration: {duration:.2f}s",
+        f"Peak memory: {peak_memory_mb:.2f} MB",
+        f"Average memory: {average_memory_mb:.2f} MB",
+        f"Snapshots: {len(snapshots)}",
     ]
     return "\n".join(lines)
 
