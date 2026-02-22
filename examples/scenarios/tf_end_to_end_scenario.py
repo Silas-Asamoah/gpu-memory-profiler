@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import signal
 import subprocess
@@ -55,6 +56,20 @@ def run_scenario(
 
     print_header("TensorFlow End-to-End Scenario")
     print_kv("Output directory", output_dir)
+
+    if importlib.util.find_spec("tensorflow") is None:
+        summary = {
+            "status": "SKIP",
+            "reason": "TensorFlow is not installed.",
+            "monitor_output": str(monitor_path),
+            "track_output": str(track_path),
+            "diagnose_output": str(diagnose_dir),
+        }
+        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        print_kv("Status", summary["status"])
+        print_kv("Reason", summary["reason"])
+        print_kv("Summary report", summary_path)
+        return summary
 
     print_section("Monitor")
     monitor_cmd = [

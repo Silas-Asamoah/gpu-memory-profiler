@@ -5,14 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Sequence
-
-import torch
+from typing import TYPE_CHECKING, Sequence
 
 from examples.common.formatting import print_header, print_kv, print_section
 from gpumemprof.oom_flight_recorder import classify_oom_exception
-from gpumemprof.tracker import MemoryTracker
 from gpumemprof.utils import get_system_info
+
+if TYPE_CHECKING:
+    import torch
+    from gpumemprof.tracker import MemoryTracker
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +45,8 @@ def _stress_attempt_oom(
     max_total_mb: int,
     step_mb: int,
 ) -> tuple[str, str, bool]:
+    import torch
+
     tensors: list[torch.Tensor] = []
     target_device = torch.device("mps" if backend == "mps" else "cuda")
     allocated_mb = 0
@@ -103,6 +106,20 @@ def run_scenario(
         summary = {
             "status": "SKIP",
             "reason": f"GPU tracker backend unavailable (detected_backend={backend})",
+            "mode": mode,
+        }
+        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        print_kv("Status", summary["status"])
+        print_kv("Reason", summary["reason"])
+        print_kv("Summary report", summary_path)
+        return summary
+
+    try:
+        from gpumemprof.tracker import MemoryTracker
+    except ImportError as exc:
+        summary = {
+            "status": "SKIP",
+            "reason": f"GPU tracker dependencies unavailable: {exc}",
             "mode": mode,
         }
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
