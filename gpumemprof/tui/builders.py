@@ -16,19 +16,19 @@ def build_welcome_info() -> str:
 
         Click on any tab above to explore different features:
 
-        - **[bold cyan]PyTorch[/]** → View PyTorch GPU stats, run profiling samples, and see profile results
-        - **[bold cyan]TensorFlow[/]** → View TensorFlow GPU stats, run profiling samples, and see profile results  
-        - **[bold cyan]Monitoring[/]** → Start live memory tracking, set alert thresholds, export CSV/JSON data
-        - **[bold cyan]Visualizations[/]** → Generate timeline plots (PNG/HTML) from tracking sessions
-        - **[bold cyan]CLI & Actions[/]** → Run CLI commands interactively and execute sample workloads
+        - **PyTorch** → View PyTorch GPU stats, run profiling samples, and see profile results
+        - **TensorFlow** → View TensorFlow GPU stats, run profiling samples, and see profile results
+        - **Monitoring** → Start live memory tracking, set alert thresholds, export CSV/JSON data
+        - **Visualizations** → Generate timeline plots (PNG/HTML) from tracking sessions
+        - **CLI & Actions** → Run CLI commands interactively and execute sample workloads
 
         ## Keyboard Shortcuts
 
-        - **[bold white]r[/bold white]** - Refresh overview tab
-        - **[bold white]g[/bold white]** - Log gpumemprof command examples
-        - **[bold white]t[/bold white]** - Log tfmemprof command examples
-        - **[bold white]f[/bold white]** - Focus log area in CLI tab
-        - **[bold white]q[/bold white]** - Quit application
+        - **r** - Refresh overview tab
+        - **g** - Log gpumemprof command examples
+        - **t** - Log tfmemprof command examples
+        - **f** - Focus log area in CLI tab
+        - **q** - Quit application
 
         ## Getting Started
 

@@ -56,7 +56,7 @@ class AsciiWelcome(Static):
         if self._figlet:
             try:
                 rendered = self._figlet.renderText(message)
-                return Text(rendered.rstrip(), style="bold cyan")
+                return Text(rendered.rstrip())
             except Exception as exc:
                 self._logger.debug("Figlet render failed, using fallback: %s", exc)
 
@@ -71,4 +71,4 @@ class AsciiWelcome(Static):
             {message.center(30)}
             """
         ).strip("\n")
-        return Text(fallback, style="bold cyan")
+        return Text(fallback)
