@@ -125,6 +125,14 @@ def _safe_get_gpu_info() -> dict[str, Any]:
         return {}
 
 
+def _safe_get_system_info() -> dict[str, Any]:
+    try:
+        return get_system_info()
+    except Exception as exc:
+        logger.debug("_safe_get_system_info failed: %s", exc)
+        return {}
+
+
 def _safe_get_tf_system_info() -> dict[str, Any]:
     try:
         return get_tf_system_info()
@@ -147,7 +155,7 @@ def _build_welcome_info() -> str:
 
 def _build_system_markdown() -> str:
     return tui_builders.build_system_markdown(
-        system_info=get_system_info(),
+        system_info=_safe_get_system_info(),
         gpu_info=_safe_get_gpu_info(),
         tf_system_info=_safe_get_tf_system_info(),
         tf_gpu_info=_safe_get_tf_gpu_info(),
