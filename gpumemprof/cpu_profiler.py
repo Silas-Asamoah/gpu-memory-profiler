@@ -16,10 +16,31 @@ from typing import Any, Callable, Dict, List, Optional
 
 import psutil
 
-from gpumemprof.tracker import TrackingEvent
 from gpumemprof.telemetry import telemetry_event_from_record, telemetry_event_to_dict
 
 logger = logging.getLogger(__name__)
+
+try:
+    from gpumemprof.tracker import TrackingEvent
+except Exception:
+    @dataclass
+    class TrackingEvent:
+        """Fallback CPU tracking event used when GPU tracker imports are unavailable."""
+
+        timestamp: float
+        event_type: str
+        memory_allocated: int
+        memory_reserved: int
+        memory_change: int
+        device_id: int
+        context: Optional[str] = None
+        metadata: Optional[Dict[str, Any]] = None
+        active_memory: Optional[int] = None
+        inactive_memory: Optional[int] = None
+        device_used: Optional[int] = None
+        device_free: Optional[int] = None
+        device_total: Optional[int] = None
+        backend: str = "cpu"
 
 
 @dataclass
