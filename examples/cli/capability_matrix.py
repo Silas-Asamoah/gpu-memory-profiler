@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import platform
 import shutil
@@ -20,10 +21,6 @@ from examples.common.capability_matrix_utils import (
     timed_result,
     write_report,
 )
-from examples.scenarios.cpu_telemetry_scenario import run_scenario as run_cpu_telemetry
-from examples.scenarios.mps_telemetry_scenario import run_scenario as run_mps_telemetry
-from examples.scenarios.oom_flight_recorder_scenario import run_scenario as run_oom_scenario
-from examples.scenarios.tf_end_to_end_scenario import run_scenario as run_tf_e2e
 from gpumemprof.utils import get_system_info
 
 
@@ -46,6 +43,22 @@ def _target_flags(target: str, backend: str) -> tuple[bool, bool]:
     return True, backend == "mps"
 
 
+def _load_scenario_runner(module_name: str):
+    module = importlib.import_module(module_name)
+    return getattr(module, "run_scenario")
+
+
+def _run_optional_scenario(module_name: str, **kwargs: object) -> Dict[str, object]:
+    try:
+        runner = _load_scenario_runner(module_name)
+    except ImportError as exc:
+        return {
+            "status": "SKIP",
+            "reason": f"{module_name} unavailable: {exc}",
+        }
+    return runner(**kwargs)
+
+
 def _run_gpumemprof_diagnose(check_dir: Path) -> Dict[str, object]:
     out_dir = check_dir / "gpumemprof_diagnose"
     cmd = [
@@ -57,9 +70,19 @@ def _run_gpumemprof_diagnose(check_dir: Path) -> Dict[str, object]:
         str(out_dir),
     ]
     result = run_command(cmd)
-    status = "PASS" if result.returncode == 0 else "FAIL"
+    combined_output = f"{result.stdout}\n{result.stderr}"
+    if result.returncode == 0:
+        status = "PASS"
+        reason = None
+    elif "requires PyTorch" in combined_output:
+        status = "SKIP"
+        reason = "gpumemprof diagnose requires PyTorch in this environment."
+    else:
+        status = "FAIL"
+        reason = None
     return {
         "status": status,
+        "reason": reason,
         "returncode": result.returncode,
         "artifact_dir": str(out_dir),
         "manifest_exists": (out_dir / "manifest.json").exists(),
@@ -173,7 +196,9 @@ def run_matrix(
         results.append(
             timed_result(
                 "scenario:cpu_telemetry",
-                lambda: run_cpu_telemetry(
+                lambda: _load_scenario_runner(
+                    "examples.scenarios.cpu_telemetry_scenario"
+                )(
                     output_dir=run_dir / "cpu_telemetry",
                     tracker_interval=0.1,
                     workload_duration_s=1.5,
@@ -194,7 +219,9 @@ def run_matrix(
         results.append(
             timed_result(
                 "scenario:mps_telemetry",
-                lambda: run_mps_telemetry(
+                lambda: _load_scenario_runner(
+                    "examples.scenarios.mps_telemetry_scenario"
+                )(
                     output_dir=run_dir / "mps_telemetry",
                     duration_s=2.0,
                     interval_s=0.5,
@@ -214,7 +241,8 @@ def run_matrix(
     results.append(
         timed_result(
             "scenario:oom_flight_recorder",
-            lambda: run_oom_scenario(
+            lambda: _run_optional_scenario(
+                "examples.scenarios.oom_flight_recorder_scenario",
                 output_dir=run_dir / "oom_flight_recorder",
                 mode=oom_mode,
                 sampling_interval=0.1,
@@ -227,7 +255,8 @@ def run_matrix(
     results.append(
         timed_result(
             "scenario:tf_end_to_end",
-            lambda: run_tf_e2e(
+            lambda: _run_optional_scenario(
+                "examples.scenarios.tf_end_to_end_scenario",
                 output_dir=run_dir / "tf_end_to_end",
                 monitor_duration_s=2.0,
                 monitor_interval_s=0.5,
@@ -329,4 +358,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
