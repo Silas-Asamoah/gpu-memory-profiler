@@ -12,7 +12,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 import psutil
 
@@ -20,27 +20,30 @@ from gpumemprof.telemetry import telemetry_event_from_record, telemetry_event_to
 
 logger = logging.getLogger(__name__)
 
-try:
+if TYPE_CHECKING:
     from gpumemprof.tracker import TrackingEvent
-except Exception:
-    @dataclass
-    class TrackingEvent:
-        """Fallback CPU tracking event used when GPU tracker imports are unavailable."""
+else:
+    try:
+        from gpumemprof.tracker import TrackingEvent
+    except ImportError:
+        @dataclass
+        class TrackingEvent:
+            """Fallback CPU tracking event used when GPU tracker imports are unavailable."""
 
-        timestamp: float
-        event_type: str
-        memory_allocated: int
-        memory_reserved: int
-        memory_change: int
-        device_id: int
-        context: Optional[str] = None
-        metadata: Optional[Dict[str, Any]] = None
-        active_memory: Optional[int] = None
-        inactive_memory: Optional[int] = None
-        device_used: Optional[int] = None
-        device_free: Optional[int] = None
-        device_total: Optional[int] = None
-        backend: str = "cpu"
+            timestamp: float
+            event_type: str
+            memory_allocated: int
+            memory_reserved: int
+            memory_change: int
+            device_id: int
+            context: Optional[str] = None
+            metadata: Optional[Dict[str, Any]] = None
+            active_memory: Optional[int] = None
+            inactive_memory: Optional[int] = None
+            device_used: Optional[int] = None
+            device_free: Optional[int] = None
+            device_total: Optional[int] = None
+            backend: str = "cpu"
 
 
 @dataclass

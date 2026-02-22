@@ -11,10 +11,11 @@ import sys
 from typing import Dict, List, Optional, Union, Any
 import psutil
 
+torch: Any
 try:
     import torch
 except ModuleNotFoundError:  # pragma: no cover - exercised in torch-less subprocess tests
-    torch = None  # type: ignore[assignment]
+    torch = None
 
 logger = logging.getLogger(__name__)
 _TORCH_INSTALL_GUIDANCE = (
@@ -95,10 +96,12 @@ def get_gpu_info(device: Optional[Union[str, int, torch.device]] = None) -> Dict
         device_id = torch_module.cuda.current_device()
     elif isinstance(device, torch_module.device):
         device_id = device.index if device.index is not None else 0
+    elif isinstance(device, int):
+        device_id = device
     elif isinstance(device, str):
         device_id = int(device.split(":")[-1]) if ":" in device else 0
     else:
-        device_id = int(device)
+        device_id = int(getattr(device, "index", 0) or 0)
 
     # Basic PyTorch GPU info
     gpu_info = {
@@ -303,10 +306,12 @@ def check_memory_fragmentation(device: Optional[Union[str, int, torch.device]] =
         device_id = torch_module.cuda.current_device()
     elif isinstance(device, torch_module.device):
         device_id = device.index if device.index is not None else 0
+    elif isinstance(device, int):
+        device_id = device
     elif isinstance(device, str):
         device_id = int(device.split(":")[-1]) if ":" in device else 0
     else:
-        device_id = int(device)
+        device_id = int(getattr(device, "index", 0) or 0)
 
     memory_stats = torch_module.cuda.memory_stats(device_id)
 

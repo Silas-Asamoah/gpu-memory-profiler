@@ -14,10 +14,11 @@ from typing import Optional, Any, Union
 import psutil
 from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
 
+torch: Any
 try:
     import torch
 except ModuleNotFoundError:  # pragma: no cover - exercised in torch-less subprocess tests
-    torch = None  # type: ignore[assignment]
+    torch = None
 
 _TORCH_INSTALL_GUIDANCE = (
     "PyTorch is required for this feature. Install with "
@@ -611,7 +612,7 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
     except (OSError, json.JSONDecodeError):
         pass
 
-    return exit_code
+    return int(exit_code)
 
 
 if __name__ == '__main__':
