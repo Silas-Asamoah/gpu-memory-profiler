@@ -8,14 +8,15 @@ import platform
 import subprocess
 import json
 import sys
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, cast
 import psutil
 
-torch: Any
 try:
-    import torch
+    import torch as _torch
 except ModuleNotFoundError:  # pragma: no cover - exercised in torch-less subprocess tests
-    torch = None
+    _torch = cast(Any, None)
+
+torch: Any = _torch
 
 logger = logging.getLogger(__name__)
 _TORCH_INSTALL_GUIDANCE = (
