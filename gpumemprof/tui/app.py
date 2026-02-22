@@ -47,6 +47,16 @@ from .profiles import (
     fetch_pytorch_profiles,
     fetch_tensorflow_profiles,
 )
+from . import builders as tui_builders
+from .styles import TUI_APP_CSS
+from .workloads import (
+    format_cpu_summary,
+    format_pytorch_summary,
+    format_tensorflow_results,
+    run_cpu_sample_workload,
+    run_pytorch_sample_workload,
+    run_tensorflow_sample_workload,
+)
 from gpumemprof.utils import get_system_info, get_gpu_info, format_bytes
 from tfmemprof.utils import get_system_info as get_tf_system_info
 from tfmemprof.utils import get_gpu_info as get_tf_gpu_info
@@ -132,239 +142,36 @@ def _safe_get_tf_gpu_info() -> dict[str, Any]:
 
 
 def _build_welcome_info() -> str:
-    """Build welcome navigation guide text."""
-    return dedent(
-        """
-        # Quick Start Guide
-
-        ## Navigate the TUI
-
-        Click on any tab above to explore different features:
-
-        - **[bold cyan]PyTorch[/]** → View PyTorch GPU stats, run profiling samples, and see profile results
-        - **[bold cyan]TensorFlow[/]** → View TensorFlow GPU stats, run profiling samples, and see profile results  
-        - **[bold cyan]Monitoring[/]** → Start live memory tracking, set alert thresholds, export CSV/JSON data
-        - **[bold cyan]Visualizations[/]** → Generate timeline plots (PNG/HTML) from tracking sessions
-        - **[bold cyan]CLI & Actions[/]** → Run CLI commands interactively and execute sample workloads
-
-        ## Keyboard Shortcuts
-
-        - **[bold white]r[/bold white]** - Refresh overview tab
-        - **[bold white]g[/bold white]** - Log gpumemprof command examples
-        - **[bold white]t[/bold white]** - Log tfmemprof command examples
-        - **[bold white]f[/bold white]** - Focus log area in CLI tab
-        - **[bold white]q[/bold white]** - Quit application
-
-        ## Getting Started
-
-        1. **Check System Info** - Scroll down to see your platform, Python version, and GPU details
-        2. **View GPU Stats** - Visit **PyTorch** or **TensorFlow** tabs to see real-time GPU memory statistics
-        3. **Start Tracking** - Go to **Monitoring** tab and click "Start Live Tracking" to begin monitoring
-        4. **Run Samples** - Use **CLI & Actions** tab to run sample workloads and see profiling results
-        5. **Export Data** - After tracking, use "Export CSV" or "Export JSON" buttons in Monitoring tab
-
-        ---
-        """
-    ).strip()
+    return tui_builders.build_welcome_info()
 
 
 def _build_system_markdown() -> str:
-    info = get_system_info()
-    gpu = _safe_get_gpu_info()
-    tf_info = _safe_get_tf_system_info()
-    tf_gpu = _safe_get_tf_gpu_info()
-
-    lines = [
-        "# System Overview",
-        "",
-        f"- **Platform**: {info.get('platform', 'Unknown')}",
-        f"- **Python**: {info.get('python_version', 'Unknown')}",
-        f"- **TensorFlow (Python)**: {tf_info.get('tensorflow_version', 'N/A')}",
-        f"- **CUDA Available**: {info.get('cuda_available', False)}",
-    ]
-
-    if info.get("cuda_available"):
-        lines.extend(
-            [
-                f"- **CUDA Version**: {info.get('cuda_version', 'Unknown')}",
-                f"- **GPU Count**: {info.get('cuda_device_count', 0)}",
-            ]
-        )
-
-    if gpu:
-        lines.append("")
-        lines.append("## GPU Snapshot")
-        lines.extend(
-            [
-                f"- **Device Name**: {gpu.get('device_name', 'Unknown')}",
-                f"- **Total Memory**: {gpu.get('total_memory', 0) / (1024**3):.2f} GB",
-                f"- **Allocated**: {gpu.get('allocated_memory', 0) / (1024**3):.2f} GB",
-                f"- **Reserved**: {gpu.get('reserved_memory', 0) / (1024**3):.2f} GB",
-            ]
-        )
-    else:
-        lines.append("")
-        lines.append(
-            "> GPU metrics are unavailable on this system. You can still run the CLI "
-            "and CPU guides."
-        )
-
-    lines.append("")
-    if tf_gpu and tf_gpu.get("devices"):
-        lines.append("")
-        lines.append("## TensorFlow GPU Snapshot")
-        device = tf_gpu["devices"][0]
-        lines.extend(
-            [
-                f"- **TF Device Name**: {device.get('name', 'Unknown')}",
-                f"- **Current Memory**: {device.get('current_memory_mb', 0):.2f} MB",
-                f"- **Peak Memory**: {device.get('peak_memory_mb', 0):.2f} MB",
-            ]
-        )
-
-    lines.append("")
-    lines.append("## Getting Started")
-    lines.append("")
-    lines.append("- `python -m examples.basic.pytorch_demo`")
-    lines.append("- `python -m examples.basic.tensorflow_demo`")
-    lines.append("- `python -m examples.cli.quickstart`")
-    lines.append("")
-    lines.append(
-        "Need more? Visit the [Example Test Guides](docs/examples/test_guides/README.md)."
+    return tui_builders.build_system_markdown(
+        system_info=get_system_info(),
+        gpu_info=_safe_get_gpu_info(),
+        tf_system_info=_safe_get_tf_system_info(),
+        tf_gpu_info=_safe_get_tf_gpu_info(),
     )
-    return "\n".join(lines)
 
 
 def _pytorch_stats_provider() -> list[dict]:
-    info = _safe_get_gpu_info()
-    if not info:
-        return []
-    return [
-        {
-            "device": info.get("device_name", "gpu0"),
-            "current": info.get("allocated_memory", 0) / (1024**2),
-            "peak": info.get("max_memory_allocated", info.get("allocated_memory", 0))
-            / (1024**2),
-            "reserved": info.get("reserved_memory", 0) / (1024**2),
-        }
-    ]
+    return tui_builders.build_pytorch_stats_rows(_safe_get_gpu_info())
 
 
 def _tensorflow_stats_provider() -> list[dict]:
-    gpu_info = _safe_get_tf_gpu_info()
-    devices = gpu_info.get("devices", []) if gpu_info else []
-    rows = []
-    for device in devices:
-        rows.append(
-            {
-                "device": device.get("name", "tf-gpu"),
-                "current": device.get("current_memory_mb", 0),
-                "peak": device.get("peak_memory_mb", 0),
-                "reserved": gpu_info.get("total_memory", 0),
-            }
-        )
-    return rows
+    return tui_builders.build_tensorflow_stats_rows(_safe_get_tf_gpu_info())
 
 
 def _build_framework_markdown(framework: str) -> str:
-    if framework == "pytorch":
-        return dedent(
-            """
-            # PyTorch Playbook
-
-            1. **Basic profiling**
-               ```bash
-               python -m examples.basic.pytorch_demo
-               ```
-            2. **Advanced tracking (alerts, watchdog)**
-               ```bash
-               python -m examples.advanced.tracking_demo
-               ```
-            3. **Telemetry + diagnostics**
-               ```bash
-               python -m examples.scenarios.mps_telemetry_scenario
-               python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
-               gpumemprof diagnose --duration 0 --output ./artifacts/diag
-               ```
-            4. **CLI helpers**
-               ```bash
-               gpumemprof info
-               gpumemprof track --duration 60 --output tracking.json
-               ```
-
-            Check the [PyTorch Testing Guide](docs/pytorch_testing_guide.md) for
-            full workflows and troubleshooting steps.
-            """
-        ).strip()
-
-    return dedent(
-        """
-        # TensorFlow Playbook
-
-        1. **Basic profiling**
-           ```bash
-           python -m examples.basic.tensorflow_demo
-           ```
-        2. **CLI helpers**
-           ```bash
-           tfmemprof info
-           tfmemprof monitor --duration 30 --interval 0.5
-           tfmemprof track --output tf_results.json
-           ```
-        3. **Telemetry + diagnostics**
-           ```bash
-           python -m examples.scenarios.tf_end_to_end_scenario
-           tfmemprof diagnose --duration 0 --output ./artifacts/tf-diag
-           ```
-
-        The [TensorFlow Testing Guide](docs/tensorflow_testing_guide.md) includes
-        deeper recipes, including mixed precision and multi-GPU notes.
-        """
-    ).strip()
+    return tui_builders.build_framework_markdown(framework)
 
 
 def _build_cli_markdown() -> str:
-    return dedent(
-        """
-        # CLI Quick Samples
-
-        ```bash
-        gpumemprof info
-        gpumemprof monitor --duration 30 --interval 0.5
-        gpumemprof track --duration 60 --output tracking.json
-        gpumemprof diagnose --duration 0 --output artifacts/diag
-
-        tfmemprof info
-        tfmemprof monitor --duration 30 --interval 0.5
-        tfmemprof track --duration 60 --output tf_tracking.json
-        tfmemprof diagnose --duration 0 --output artifacts/tf_diag
-
-        python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated
-        python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated --skip-tui
-        
-        # Optional: fuller dashboard
-        gpu-profiler
-
-        # Ensure pip shows progress
-        pip install --progress-bar on "gpu-memory-profiler[tui]"
-        ```
-
-        Use the buttons below to log summaries or copy commands.
-        """
-    ).strip()
+    return tui_builders.build_cli_markdown()
 
 
 def _build_visual_markdown() -> str:
-    return dedent(
-        """
-        # Visualization Tips
-
-        - Start live tracking to collect timeline samples, then refresh the view.
-        - Use `Generate PNG Plot` to save a Matplotlib graph (writes to ./visualizations).
-        - Prefer `Generate HTML Plot` for an interactive Plotly view you can open in a browser.
-        - A lightweight ASCII chart appears below so you can inspect trends without leaving the terminal.
-        """
-    ).strip()
+    return tui_builders.build_visual_markdown()
 
 
 class AsciiWelcome(Static):
@@ -622,231 +429,7 @@ class GPUMemoryProfilerTUI(App):
     _last_timeline: dict[str, list[Any]]
     recent_alerts: List[dict[str, Any]]
 
-    CSS = """
-    TabbedContent {
-        padding: 1;
-    }
-
-    RichLog {
-        height: 1fr;
-        border: solid gray;
-    }
-
-    Button {
-        margin: 0 1 1 0;
-        height: 5;
-        width: auto;
-        min-width: 16;
-        max-width: 30;
-        padding: 1 3;
-        content-align: center middle;
-        text-style: bold;
-        color: #ffffff;
-        background: $panel;
-    }
-
-    Button.-primary {
-        color: #ffffff;
-        background: $primary;
-        border: solid $primary-lighten-1;
-    }
-
-    Button.-success {
-        color: #ffffff;
-        background: $success;
-        border: solid $success-lighten-1;
-    }
-
-    Button.-warning {
-        color: #000000;
-        background: $warning;
-        border: solid $warning-lighten-1;
-    }
-
-    Button.-error {
-        color: #ffffff;
-        background: $error;
-        border: solid $error-lighten-1;
-    }
-
-    Button:hover {
-        opacity: 0.9;
-    }
-
-    #table-pytorch,
-    #table-tensorflow {
-        height: 12;
-        border: solid gray;
-    }
-
-    #pytorch-tab,
-    #tensorflow-tab {
-        layout: vertical;
-    }
-
-    #cli-tab {
-        layout: vertical;
-        height: 1fr;
-        border: solid gray;
-        padding: 0 1;
-    }
-
-    #cli-buttons-row1,
-    #cli-buttons-row2 {
-        layout: horizontal;
-        content-align: left middle;
-        height: auto;
-        min-height: 6;
-    }
-
-    #cli-buttons-row2 {
-        margin-top: 0;
-        margin-bottom: 1;
-    }
-
-    #cli-runner {
-        layout: horizontal;
-        content-align: left middle;
-        margin: 1 0;
-    }
-
-    #cli-command-input {
-        width: 1fr;
-        padding: 0 1;
-        height: 5;
-    }
-
-    #cli-loader {
-        height: 3;
-    }
-
-    #monitoring-tab {
-        layout: vertical;
-        height: 1fr;
-        border: solid gray;
-        padding: 0 1;
-    }
-
-    #monitor-status {
-        margin-bottom: 1;
-    }
-
-    #monitor-controls-row1,
-    #monitor-controls-row2,
-    #monitor-controls-row3 {
-        layout: horizontal;
-        content-align: left middle;
-        margin-bottom: 1;
-        height: auto;
-        min-height: 6;
-    }
-
-    #monitor-thresholds {
-        layout: horizontal;
-        content-align: left middle;
-        margin-bottom: 1;
-    }
-
-    #monitor-thresholds Label {
-        width: 12;
-    }
-
-    #monitor-thresholds Input {
-        width: 12;
-        margin-right: 1;
-    }
-
-    #monitor-alerts-table {
-        height: 8;
-        border: solid gray;
-        margin-top: 1;
-    }
-
-    #monitor-stats {
-        height: 10;
-        border: solid gray;
-    }
-
-    #monitor-log {
-        height: 1fr;
-        border: solid gray;
-        margin-top: 1;
-    }
-
-    #visualizations-tab {
-        layout: vertical;
-        height: 1fr;
-        border: solid gray;
-        padding: 0 1;
-    }
-
-    #visual-buttons {
-        layout: horizontal;
-        content-align: left middle;
-        margin-bottom: 1;
-        height: auto;
-        min-height: 6;
-        overflow: hidden;
-    }
-
-    #timeline-stats {
-        height: 8;
-        border: solid gray;
-        margin-bottom: 1;
-    }
-
-    #timeline-canvas {
-        border: solid gray;
-        padding: 1;
-    }
-
-    #visual-log {
-        height: 8;
-        border: solid gray;
-        margin-top: 1;
-    }
-
-    #overview-welcome {
-        border: round $primary;
-        padding: 1;
-        margin: 0 0 1 0;
-        background: $panel;
-        text-align: center;
-        text-style: bold;
-        color: $accent;
-        min-height: 10;
-        content-align: center middle;
-    }
-
-    #welcome-info {
-        border: solid $primary;
-        padding: 2;
-        margin: 0 0 1 0;
-        background: $surface;
-        height: auto;
-        min-height: 15;
-    }
-
-    #welcome-info Markdown {
-        color: $text;
-    }
-
-    #pytorch-profile-controls,
-    #tensorflow-profile-controls {
-        layout: horizontal;
-        content-align: left middle;
-        margin-top: 1;
-        height: auto;
-        min-height: 6;
-    }
-
-    #pytorch-profile-table,
-    #tensorflow-profile-table {
-        height: 12;
-        border: solid gray;
-        margin-top: 1;
-    }
-    """
+    CSS = TUI_APP_CSS
 
     BINDINGS = [
         ("q", "quit", "Quit"),
@@ -1711,15 +1294,7 @@ class GPUMemoryProfilerTUI(App):
     def _pytorch_sample_workload() -> dict[str, Any]:
         if GPUMemoryProfiler is None or torch is None:
             raise RuntimeError("PyTorch profiler is unavailable.")
-        profiler = GPUMemoryProfiler()
-
-        def workload() -> Any:
-            x = torch.randn((3072, 3072), device="cuda")
-            y = torch.matmul(x, x)
-            return y.sum()
-
-        profiler.profile_function(workload)
-        return cast(dict[str, Any], profiler.get_summary())
+        return run_pytorch_sample_workload(GPUMemoryProfiler, torch)
 
     @staticmethod
     def _tensorflow_sample_workload() -> Any:
@@ -1728,57 +1303,25 @@ class GPUMemoryProfilerTUI(App):
                 "TensorFlow profiler is unavailable. Install tensorflow and tfmemprof: "
                 "pip install tensorflow tfmemprof"
             )
-        profiler = TFMemoryProfiler()
-        with profiler.profile_context("tf_sample"):
-            tensor = tf.random.normal((2048, 2048))
-            product = tf.matmul(tensor, tensor)
-            tf.reduce_sum(product)
-        return profiler.get_results()
+        return run_tensorflow_sample_workload(TFMemoryProfiler, tf)
 
     @staticmethod
     def _cpu_sample_workload() -> dict[str, Any]:
         if CPUMemoryProfiler is None:
             raise RuntimeError("CPUMemoryProfiler is unavailable.")
-        profiler = CPUMemoryProfiler()
-
-        def workload() -> int:
-            data = [i for i in range(500000)]
-            return sum(data)
-
-        profiler.profile_function(workload)
-        return cast(dict[str, Any], profiler.get_summary())
+        return run_cpu_sample_workload(CPUMemoryProfiler)
 
     @staticmethod
     def _format_pytorch_summary(summary: dict) -> str:
-        peak = summary.get("peak_memory_usage", 0)
-        delta = summary.get("memory_change_from_baseline", 0)
-        calls = summary.get("total_function_calls", "N/A")
-        lines = [
-            f"Functions profiled: {summary.get('total_functions_profiled', 'N/A')}",
-            f"Total calls: {calls}",
-            f"Peak memory: {format_bytes(peak)}",
-            f"Δ from baseline: {format_bytes(delta)}",
-        ]
-        return "\n".join(lines)
+        return format_pytorch_summary(summary)
 
     @staticmethod
     def _format_tensorflow_results(results: Any) -> str:
-        lines = [
-            f"Duration: {results.duration:.2f}s",
-            f"Peak memory: {results.peak_memory_mb:.2f} MB",
-            f"Average memory: {results.average_memory_mb:.2f} MB",
-            f"Snapshots: {len(results.snapshots)}",
-        ]
-        return "\n".join(lines)
+        return format_tensorflow_results(results)
 
     @staticmethod
     def _format_cpu_summary(summary: dict) -> str:
-        lines = [
-            f"Snapshots collected: {summary.get('snapshots_collected', 0)}",
-            f"Peak RSS: {format_bytes(summary.get('peak_memory_usage', 0))}",
-            f"Δ from baseline: {format_bytes(summary.get('memory_change_from_baseline', 0))}",
-        ]
-        return "\n".join(lines)
+        return format_cpu_summary(summary)
 
     def log_monitor_message(self, title: str, content: str) -> None:
         self.monitor_log.write(f"[bold]{title}[/bold]\n{content}\n")
