@@ -1,5 +1,7 @@
 """Utility functions for GPU memory profiling."""
 
+from __future__ import annotations
+
 import logging
 import os
 import platform
@@ -7,10 +9,25 @@ import subprocess
 import json
 import sys
 from typing import Dict, List, Optional, Union, Any
-import torch
 import psutil
 
+try:
+    import torch
+except ModuleNotFoundError:  # pragma: no cover - exercised in torch-less subprocess tests
+    torch = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
+_TORCH_INSTALL_GUIDANCE = (
+    "PyTorch is required for this feature. Install with "
+    "`pip install 'gpu-memory-profiler[torch]'` "
+    "or follow https://pytorch.org/get-started/locally/."
+)
+
+
+def _require_torch(feature: str) -> Any:
+    if torch is None:
+        raise ImportError(f"{feature} requires PyTorch. {_TORCH_INSTALL_GUIDANCE}")
+    return torch
 
 
 def format_bytes(bytes_value: int, precision: int = 2) -> str:
@@ -69,12 +86,14 @@ def get_gpu_info(device: Optional[Union[str, int, torch.device]] = None) -> Dict
     Returns:
         Dictionary with GPU information
     """
-    if not torch.cuda.is_available():
+    torch_module = _require_torch("get_gpu_info")
+
+    if not torch_module.cuda.is_available():
         return {"error": "CUDA is not available"}
 
     if device is None:
-        device_id = torch.cuda.current_device()
-    elif isinstance(device, torch.device):
+        device_id = torch_module.cuda.current_device()
+    elif isinstance(device, torch_module.device):
         device_id = device.index if device.index is not None else 0
     elif isinstance(device, str):
         device_id = int(device.split(":")[-1]) if ":" in device else 0
@@ -84,25 +103,25 @@ def get_gpu_info(device: Optional[Union[str, int, torch.device]] = None) -> Dict
     # Basic PyTorch GPU info
     gpu_info = {
         "device_id": device_id,
-        "device_name": torch.cuda.get_device_name(device_id),
-        "device_capability": torch.cuda.get_device_capability(device_id),
-        "total_memory": torch.cuda.get_device_properties(device_id).total_memory,
-        "multiprocessor_count": torch.cuda.get_device_properties(device_id).multi_processor_count,
-        "cuda_version": torch.version.cuda,
-        "pytorch_version": torch.__version__,
+        "device_name": torch_module.cuda.get_device_name(device_id),
+        "device_capability": torch_module.cuda.get_device_capability(device_id),
+        "total_memory": torch_module.cuda.get_device_properties(device_id).total_memory,
+        "multiprocessor_count": torch_module.cuda.get_device_properties(device_id).multi_processor_count,
+        "cuda_version": torch_module.version.cuda,
+        "pytorch_version": torch_module.__version__,
     }
 
     # Current memory usage
     try:
         gpu_info.update({
-            "allocated_memory": torch.cuda.memory_allocated(device_id),
-            "reserved_memory": torch.cuda.memory_reserved(device_id),
-            "max_memory_allocated": torch.cuda.max_memory_allocated(device_id),
-            "max_memory_reserved": torch.cuda.max_memory_reserved(device_id),
+            "allocated_memory": torch_module.cuda.memory_allocated(device_id),
+            "reserved_memory": torch_module.cuda.memory_reserved(device_id),
+            "max_memory_allocated": torch_module.cuda.max_memory_allocated(device_id),
+            "max_memory_reserved": torch_module.cuda.max_memory_reserved(device_id),
         })
 
         # Memory stats
-        memory_stats = torch.cuda.memory_stats(device_id)
+        memory_stats = torch_module.cuda.memory_stats(device_id)
         gpu_info["memory_stats"] = {
             "active_bytes": memory_stats.get("active_bytes.all.current", 0),
             "inactive_bytes": memory_stats.get("inactive_split_bytes.all.current", 0),
@@ -181,6 +200,9 @@ def _detect_platform_info() -> Dict[str, str]:
 
 def _get_mps_backend_info() -> Dict[str, bool]:
     """Return PyTorch MPS backend capabilities when available."""
+    if torch is None:
+        return {"mps_built": False, "mps_available": False}
+
     mps_backend = getattr(torch.backends, "mps", None)
     if mps_backend is None:
         return {"mps_built": False, "mps_available": False}
@@ -203,8 +225,18 @@ def _get_mps_backend_info() -> Dict[str, bool]:
 def get_system_info() -> Dict[str, Any]:
     """Get system information relevant to GPU profiling."""
     platform_info = _detect_platform_info()
-    cuda_available = torch.cuda.is_available()
-    rocm_version = getattr(torch.version, "hip", None)
+    torch_available = torch is not None
+    if torch_available:
+        try:
+            cuda_available = bool(torch.cuda.is_available())
+        except Exception as exc:
+            logger.debug("PyTorch CUDA availability query failed: %s", exc)
+            cuda_available = False
+        rocm_version = getattr(torch.version, "hip", None)
+    else:
+        cuda_available = False
+        rocm_version = None
+
     rocm_available = bool(cuda_available and rocm_version)
     mps_info = _get_mps_backend_info()
     detected_backend = (
@@ -216,6 +248,7 @@ def get_system_info() -> Dict[str, Any]:
         "platform": platform_info["platform"],
         "architecture": platform_info["architecture"],
         "python_version": sys.version,
+        "torch_available": torch_available,
         "cuda_available": cuda_available,
         "rocm_available": rocm_available,
         "rocm_version": rocm_version if rocm_available else None,
@@ -225,10 +258,14 @@ def get_system_info() -> Dict[str, Any]:
     }
 
     if cuda_available:
+        cudnn_backend = getattr(torch.backends, "cudnn", None)
+        cudnn_version = None
+        if cudnn_backend is not None and hasattr(cudnn_backend, "version"):
+            cudnn_version = cudnn_backend.version()
         system_info.update({
             "cuda_device_count": torch.cuda.device_count(),
             "cuda_version": torch.version.cuda,
-            "cudnn_version": torch.backends.cudnn.version(),
+            "cudnn_version": cudnn_version,
             "current_device": torch.cuda.current_device(),
         })
 
@@ -257,26 +294,28 @@ def check_memory_fragmentation(device: Optional[Union[str, int, torch.device]] =
     Returns:
         Fragmentation analysis
     """
-    if not torch.cuda.is_available():
+    torch_module = _require_torch("check_memory_fragmentation")
+
+    if not torch_module.cuda.is_available():
         return {"error": "CUDA is not available"}
 
     if device is None:
-        device_id = torch.cuda.current_device()
-    elif isinstance(device, torch.device):
+        device_id = torch_module.cuda.current_device()
+    elif isinstance(device, torch_module.device):
         device_id = device.index if device.index is not None else 0
     elif isinstance(device, str):
         device_id = int(device.split(":")[-1]) if ":" in device else 0
     else:
         device_id = int(device)
 
-    memory_stats = torch.cuda.memory_stats(device_id)
+    memory_stats = torch_module.cuda.memory_stats(device_id)
 
     allocated = memory_stats.get("allocated_bytes.all.current", 0)
     reserved = memory_stats.get("reserved_bytes.all.current", 0)
     active = memory_stats.get("active_bytes.all.current", 0)
     inactive = memory_stats.get("inactive_split_bytes.all.current", 0)
 
-    total_gpu_memory = torch.cuda.get_device_properties(device_id).total_memory
+    total_gpu_memory = torch_module.cuda.get_device_properties(device_id).total_memory
 
     fragmentation_info = {
         "device_id": device_id,
@@ -422,14 +461,16 @@ class MemoryContext:
         self.peak_memory: Optional[int] = None
 
     def __enter__(self) -> "MemoryContext":
-        torch.cuda.reset_peak_memory_stats(self.device)
-        self.start_memory = torch.cuda.memory_allocated(self.device)
+        torch_module = _require_torch("MemoryContext")
+        torch_module.cuda.reset_peak_memory_stats(self.device)
+        self.start_memory = torch_module.cuda.memory_allocated(self.device)
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        torch.cuda.synchronize(self.device)
-        self.end_memory = torch.cuda.memory_allocated(self.device)
-        self.peak_memory = torch.cuda.max_memory_allocated(self.device)
+        torch_module = _require_torch("MemoryContext")
+        torch_module.cuda.synchronize(self.device)
+        self.end_memory = torch_module.cuda.memory_allocated(self.device)
+        self.peak_memory = torch_module.cuda.max_memory_allocated(self.device)
 
     def get_summary(self) -> Dict[str, Any]:
         """Get memory usage summary for this context."""
