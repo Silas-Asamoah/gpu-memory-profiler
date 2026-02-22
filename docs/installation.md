@@ -48,15 +48,15 @@ cd gpu-memory-profiler
 pip install -e .
 
 # Install framework extras
-pip install -e .[torch]
-pip install -e .[tf]
-pip install -e .[all]
+pip install -e ".[torch]"
+pip install -e ".[tf]"
+pip install -e ".[all]"
 
 # Install with development dependencies
-pip install -e .[dev]
+pip install -e ".[dev]"
 
 # Install with testing dependencies
-pip install -e .[test]
+pip install -e ".[test]"
 ```
 
 ### 3. Development Setup
@@ -75,9 +75,9 @@ python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install with all development dependencies
-pip install -e .[dev,test]
+pip install -e ".[dev,test]"
 # Optional: include framework extras for integration tests
-pip install -e .[dev,test,all]
+pip install -e ".[dev,test,all]"
 
 # Install pre-commit hooks
 pre-commit install
