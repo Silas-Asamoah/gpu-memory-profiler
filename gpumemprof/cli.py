@@ -9,16 +9,17 @@ import sys
 import time
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, cast
 
 import psutil
 from .utils import memory_summary, get_gpu_info, get_system_info, format_bytes
 
-torch: Any
 try:
-    import torch
+    import torch as _torch
 except ModuleNotFoundError:  # pragma: no cover - exercised in torch-less subprocess tests
-    torch = None
+    _torch = cast(Any, None)
+
+torch: Any = _torch
 
 _TORCH_INSTALL_GUIDANCE = (
     "PyTorch is required for this feature. Install with "
