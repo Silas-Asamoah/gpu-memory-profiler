@@ -42,12 +42,13 @@ def run_cpu_sample_workload(profiler_cls: Any) -> dict[str, Any]:
 def format_pytorch_summary(summary: dict[str, Any]) -> str:
     peak = summary.get("peak_memory_usage", 0)
     delta = summary.get("memory_change_from_baseline", 0)
+    delta_sign = "-" if delta < 0 else ""
     calls = summary.get("total_function_calls", "N/A")
     lines = [
         f"Functions profiled: {summary.get('total_functions_profiled', 'N/A')}",
         f"Total calls: {calls}",
         f"Peak memory: {format_bytes(peak)}",
-        f"Δ from baseline: {format_bytes(delta)}",
+        f"Δ from baseline: {delta_sign}{format_bytes(abs(delta))}",
     ]
     return "\n".join(lines)
 
@@ -63,9 +64,11 @@ def format_tensorflow_results(results: Any) -> str:
 
 
 def format_cpu_summary(summary: dict[str, Any]) -> str:
+    delta = summary.get("memory_change_from_baseline", 0)
+    delta_sign = "-" if delta < 0 else ""
     lines = [
         f"Snapshots collected: {summary.get('snapshots_collected', 0)}",
         f"Peak RSS: {format_bytes(summary.get('peak_memory_usage', 0))}",
-        f"Δ from baseline: {format_bytes(summary.get('memory_change_from_baseline', 0))}",
+        f"Δ from baseline: {delta_sign}{format_bytes(abs(delta))}",
     ]
     return "\n".join(lines)
