@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import List
+from typing import TYPE_CHECKING, List
 
-import torch
-import torch.nn.functional as F
+if TYPE_CHECKING:
+    import torch
+    from gpumemprof.tracker import MemoryTracker, MemoryWatchdog
+
+try:
+    import torch
+    import torch.nn.functional as F
+except ImportError:
+    torch = None
+    F = None
 
 from examples.common import (
     describe_torch_environment,
@@ -17,9 +25,8 @@ from examples.common import (
     seed_everything,
 )
 from gpumemprof import get_gpu_info
-from gpumemprof.tracker import MemoryTracker, MemoryWatchdog
 
-LEAK_BUCKET: List[torch.Tensor] = []
+LEAK_BUCKET: List[object] = []
 
 
 def alert_handler(event) -> None:
@@ -30,6 +37,8 @@ def alert_handler(event) -> None:
 
 
 def setup_tracker() -> tuple[MemoryTracker, MemoryWatchdog]:
+    from gpumemprof.tracker import MemoryTracker, MemoryWatchdog
+
     tracker = MemoryTracker(
         sampling_interval=0.2,
         max_events=10_000,
@@ -144,6 +153,10 @@ def export_results(tracker: MemoryTracker) -> None:
 def main() -> None:
     seed_everything()
     print_header("GPU Memory Profiler - Advanced Tracking Demo")
+
+    if torch is None or F is None:
+        print("PyTorch is not installed. Skipping advanced tracking demo.")
+        return
 
     if not torch.cuda.is_available():
         print("CUDA is not available. This demo requires a GPU.")

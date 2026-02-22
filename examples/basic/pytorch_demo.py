@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
-import torch
-import torch.nn as nn
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch
+    import torch.nn as nn
+
+try:
+    import torch
+    import torch.nn as nn
+except ImportError:
+    torch = None
+    nn = None
 
 from examples.common import (
     build_simple_torch_model,
@@ -77,6 +87,11 @@ def display_environment() -> None:
 def main() -> None:
     seed_everything()
     print_header("GPU Memory Profiler - PyTorch Demo")
+
+    if torch is None or nn is None:
+        print("PyTorch is not installed. Skipping PyTorch demo.")
+        return
+
     display_environment()
 
     if not torch.cuda.is_available():

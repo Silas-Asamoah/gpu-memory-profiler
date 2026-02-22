@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-import tensorflow as tf
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import tensorflow as tf
+    from tfmemprof import TFMemoryProfiler
+
+try:
+    import tensorflow as tf
+except ImportError:
+    tf = None
 
 from examples.common import (
     build_simple_tf_model,
@@ -14,7 +23,6 @@ from examples.common import (
     run_tf_train_step,
     seed_everything,
 )
-from tfmemprof import TFMemoryProfiler
 
 
 def profile_tensor_allocation(profiler: TFMemoryProfiler, repeats: int = 3) -> None:
@@ -57,6 +65,12 @@ def print_results(results) -> None:
 def main() -> None:
     seed_everything()
     print_header("GPU Memory Profiler - TensorFlow Demo")
+
+    if tf is None:
+        print("TensorFlow is not installed. Skipping TensorFlow demo.")
+        return
+
+    from tfmemprof import TFMemoryProfiler
 
     env = describe_tf_environment()
     print_section("Environment")
