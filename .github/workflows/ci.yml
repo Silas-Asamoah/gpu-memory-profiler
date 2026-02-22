@@ -56,7 +56,7 @@ jobs:
                   if [ "${{ matrix.framework }}" = "pytorch" ]; then
                       python3 -m pytest tests/ --ignore-glob="tests/test_tf*.py" -v -m "not tui_pilot and not tui_snapshot and not tui_pty" --cov=gpumemprof --cov=tfmemprof --cov-report=xml
                   else
-                      python3 -m pytest tests/ -k "test_tf" -v -m "not tui_pilot and not tui_snapshot and not tui_pty" --cov=gpumemprof --cov=tfmemprof --cov-report=xml
+                      python3 -m pytest tests/ -o "python_files=test_tf*.py" -v -m "not tui_pilot and not tui_snapshot and not tui_pty" --cov=gpumemprof --cov=tfmemprof --cov-report=xml
                   fi
 
             - name: Upload coverage to Codecov
