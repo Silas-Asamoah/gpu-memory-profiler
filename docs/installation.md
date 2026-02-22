@@ -17,7 +17,7 @@ This guide covers different installation methods for GPU Memory Profiler.
 Package page: <https://pypi.org/project/gpu-memory-profiler/>
 
 ```bash
-# Basic installation (includes PyTorch and TensorFlow)
+# Basic installation (core dependencies only)
 pip install gpu-memory-profiler
 
 # With visualization support (matplotlib, plotly, dash)
@@ -27,6 +27,9 @@ pip install gpu-memory-profiler[viz]
 pip install gpu-memory-profiler[tui]
 
 # With optional dependencies
+pip install gpu-memory-profiler[torch]  # PyTorch support
+pip install gpu-memory-profiler[tf]     # TensorFlow support
+pip install gpu-memory-profiler[all]    # Both frameworks
 pip install gpu-memory-profiler[dev]    # Development tools
 pip install gpu-memory-profiler[test]   # Testing dependencies
 pip install gpu-memory-profiler[docs]   # Documentation tools (sphinx)
@@ -43,6 +46,11 @@ cd gpu-memory-profiler
 
 # Install in development mode
 pip install -e .
+
+# Install framework extras
+pip install -e .[torch]
+pip install -e .[tf]
+pip install -e .[all]
 
 # Install with development dependencies
 pip install -e .[dev]
@@ -68,6 +76,8 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install with all development dependencies
 pip install -e .[dev,test]
+# Optional: include framework extras for integration tests
+pip install -e .[dev,test,all]
 
 # Install pre-commit hooks
 pre-commit install
@@ -75,9 +85,12 @@ pre-commit install
 
 ## Dependency Notes
 
-The base installation pulls in **both** PyTorch (`torch>=1.8.0`) and
-TensorFlow (`tensorflow>=2.4.0`) as required dependencies. There is
-currently no way to install only one framework.
+The base installation includes core profiler dependencies only.
+Install framework support via extras:
+
+- `.[torch]` for PyTorch (`torch>=1.8.0`)
+- `.[tf]` for TensorFlow (`tensorflow>=2.4.0`)
+- `.[all]` for both frameworks
 
 ### CPU-Only Mode
 
@@ -96,6 +109,7 @@ python3 -c "from gpumemprof._version import __version__; print(__version__)"
 
 # Test CLI tools
 gpumemprof --help
+# Requires the TensorFlow extra (`.[tf]` or `.[all]`)
 tfmemprof --help
 
 # Run basic tests
@@ -122,6 +136,7 @@ python3 -m pytest tests/ -v
     # Install all dependencies
     pip install -r requirements.txt
     pip install -r requirements-dev.txt
+    pip install -e ".[all]"
     ```
 
 3. **Permission Issues**
