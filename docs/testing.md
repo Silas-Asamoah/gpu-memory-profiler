@@ -4,6 +4,14 @@
 
 This guide covers how to test and validate GPU Memory Profiler functionality.
 
+Install test dependencies before running the suite:
+
+```bash
+python3 -m pip install -e .[test]
+# Optional for framework integration tests
+python3 -m pip install -e .[torch]   # or .[tf], .[all]
+```
+
 ## Running Tests
 
 ### Basic Test Execution
@@ -562,6 +570,8 @@ def test_memory_usage():
     ```bash
     # Install test dependencies
     pip install -e .[test]
+    # Optional for framework integration tests
+    pip install -e .[all]
     ```
 
 3. **GPU Tests Failing**

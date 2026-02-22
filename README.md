@@ -50,6 +50,9 @@ pip install gpu-memory-profiler
 pip install gpu-memory-profiler[viz]
 
 # With optional dependencies
+pip install gpu-memory-profiler[torch]  # PyTorch support
+pip install gpu-memory-profiler[tf]     # TensorFlow support
+pip install gpu-memory-profiler[all]    # Both frameworks
 pip install gpu-memory-profiler[dev]    # Development tools
 pip install gpu-memory-profiler[test]   # Testing dependencies
 pip install gpu-memory-profiler[docs]   # Documentation tools
@@ -67,6 +70,11 @@ pip install -e .
 # Install with visualization support
 pip install -e .[viz]
 
+# Install framework extras
+pip install -e .[torch]
+pip install -e .[tf]
+pip install -e .[all]
+
 # Install with development dependencies
 pip install -e .[dev]
 
@@ -83,6 +91,8 @@ cd gpu-memory-profiler
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .[dev,test]
+# Optional: include framework extras for integration tests
+pip install -e .[dev,test,all]
 pre-commit install
 ```
 
