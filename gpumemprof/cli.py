@@ -25,6 +25,11 @@ _TORCH_INSTALL_GUIDANCE = (
     "or follow https://pytorch.org/get-started/locally/."
 )
 
+# Stable monkeypatchable runtime hooks for tests/callers.
+MemoryTracker: Any = None
+MemoryWatchdog: Any = None
+CPUMemoryTracker: Any = None
+
 
 def _require_torch(feature: str) -> Any:
     if torch is None:
@@ -40,6 +45,20 @@ def _import_runtime_symbols(module_name: str, symbols: tuple[str, ...], feature:
             raise ImportError(f"{feature} requires PyTorch. {_TORCH_INSTALL_GUIDANCE}") from exc
         raise
     return tuple(getattr(module, symbol) for symbol in symbols)
+
+
+def _resolve_runtime_symbol(
+    cache_name: str,
+    module_name: str,
+    symbol_name: str,
+    feature: str,
+) -> Any:
+    cached = globals().get(cache_name)
+    if cached is not None:
+        return cached
+    (value,) = _import_runtime_symbols(module_name, (symbol_name,), feature)
+    globals()[cache_name] = value
+    return value
 
 
 def main() -> None:
@@ -374,7 +393,12 @@ def cmd_track(args: argparse.Namespace) -> None:
     tracker: Any
     watchdog: Optional[Any] = None
     if gpu_runtime:
-        (MemoryTracker,) = _import_runtime_symbols(".tracker", ("MemoryTracker",), "The track command")
+        tracker_cls = _resolve_runtime_symbol(
+            "MemoryTracker",
+            ".tracker",
+            "MemoryTracker",
+            "The track command",
+        )
         tracker_device: Optional[Union[str, int]]
         if runtime_backend == "mps":
             if device is not None:
@@ -382,7 +406,7 @@ def cmd_track(args: argparse.Namespace) -> None:
             tracker_device = "mps"
         else:
             tracker_device = device
-        tracker = MemoryTracker(
+        tracker = tracker_cls(
             device=tracker_device,
             sampling_interval=interval,
             enable_alerts=True,
@@ -414,16 +438,22 @@ def cmd_track(args: argparse.Namespace) -> None:
 
         # Create watchdog if requested
         if args.watchdog:
-            (MemoryWatchdog,) = _import_runtime_symbols(
-                ".tracker", ("MemoryWatchdog",), "The track command"
+            watchdog_cls = _resolve_runtime_symbol(
+                "MemoryWatchdog",
+                ".tracker",
+                "MemoryWatchdog",
+                "The track command",
             )
-            watchdog = MemoryWatchdog(tracker)
+            watchdog = watchdog_cls(tracker)
             print("Memory watchdog enabled - automatic cleanup activated")
     else:
-        (CPUMemoryTracker,) = _import_runtime_symbols(
-            ".cpu_profiler", ("CPUMemoryTracker",), "The track command"
+        cpu_tracker_cls = _resolve_runtime_symbol(
+            "CPUMemoryTracker",
+            ".cpu_profiler",
+            "CPUMemoryTracker",
+            "The track command",
         )
-        tracker = CPUMemoryTracker(sampling_interval=interval)
+        tracker = cpu_tracker_cls(sampling_interval=interval)
         print("Running CPU memory tracker (no GPU backend available).")
 
     # Start tracking
