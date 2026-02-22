@@ -29,6 +29,32 @@ def test_imports_are_hardened_when_torch_is_missing():
         assert system_info["detected_backend"] == "cpu"
 
         gpumemprof_cli.cmd_info(SimpleNamespace(device=None, detailed=False))
+        gpumemprof_cli.cmd_monitor(
+            SimpleNamespace(
+                device=None,
+                duration=0.0,
+                interval=0.01,
+                output=None,
+                format="json",
+            )
+        )
+        gpumemprof_cli.cmd_track(
+            SimpleNamespace(
+                device=None,
+                duration=1e-9,
+                interval=0.01,
+                output=None,
+                format="json",
+                watchdog=False,
+                warning_threshold=80.0,
+                critical_threshold=95.0,
+                oom_flight_recorder=False,
+                oom_dump_dir="oom_dumps",
+                oom_buffer_size=None,
+                oom_max_dumps=5,
+                oom_max_total_mb=256,
+            )
+        )
 
         try:
             gpumemprof_utils.get_gpu_info()
