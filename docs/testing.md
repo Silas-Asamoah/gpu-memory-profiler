@@ -121,6 +121,8 @@ Snapshot files are stored at:
 
 `tests/tui/__snapshots__/test_app_snapshots/*.svg`
 
+Generated HTML diff reports (for example `snapshot_report.html`) are local debugging artifacts and may include host environment details. Keep them untracked.
+
 Only update snapshot baselines when UI changes are intentional and reviewed:
 
 ```bash
