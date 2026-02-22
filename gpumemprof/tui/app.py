@@ -111,7 +111,7 @@ except ImportError:
 
 
 WELCOME_MESSAGES = [
-    "GPU Memory Profiler",
+    "Stormlog",
     "Live Monitoring & Watchdogs",
     "CLI · Docs · Examples",
 ]

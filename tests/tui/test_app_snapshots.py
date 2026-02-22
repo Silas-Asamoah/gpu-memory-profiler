@@ -18,7 +18,7 @@ TERMINAL_SIZE = (140, 44)
 
 
 def _configure_snapshot_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(appmod, "WELCOME_MESSAGES", ["GPU Memory Profiler"])
+    monkeypatch.setattr(appmod, "WELCOME_MESSAGES", ["Stormlog"])
     monkeypatch.setattr(appmod, "Figlet", None)
     monkeypatch.setattr(
         appmod,

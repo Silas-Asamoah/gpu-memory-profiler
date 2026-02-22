@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from textwrap import dedent
 from typing import Any
 
 from rich.text import Text
@@ -23,7 +22,7 @@ class AsciiWelcome(Static):
         **kwargs: Any,
     ) -> None:
         super().__init__("", **kwargs)
-        self.messages = messages or ["GPU Memory Profiler"]
+        self.messages = messages or ["Stormlog"]
         self.font_name = font
         self.interval = interval
         self._frame_index = 0
@@ -60,15 +59,15 @@ class AsciiWelcome(Static):
             except Exception as exc:
                 self._logger.debug("Figlet render failed, using fallback: %s", exc)
 
-        fallback = dedent(
-            f"""
-            ██████╗  ██████╗ ██╗   ██╗
-            ██╔══██╗██╔═══██╗██║   ██║
-            ██████╔╝██║   ██║██║   ██║
-            ██╔═══╝ ██║   ██║╚██╗ ██╔╝
-            ██║     ╚██████╔╝ ╚████╔╝ 
-            ╚═╝      ╚═════╝   ╚═══╝  
-            {message.center(30)}
-            """
-        ).strip("\n")
+        title = "Stormlog"
+        width = max(28, len(title), len(message))
+        border = f"+{'-' * (width + 2)}+"
+        fallback = "\n".join(
+            [
+                border,
+                f"| {title.center(width)} |",
+                f"| {message.center(width)} |",
+                border,
+            ]
+        )
         return Text(fallback)
