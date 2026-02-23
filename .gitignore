@@ -108,3 +108,4 @@ venv.bak/
 # Version files
 gpumemprof/_version.py
 tfmemprof/_version.py
+.venv/
