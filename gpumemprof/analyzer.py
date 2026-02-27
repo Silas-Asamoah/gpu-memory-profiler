@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from scipy import stats
 
+from .distributed_analysis import summarize_cross_rank_analysis
 from .gap_analysis import GapFinding, analyze_hidden_memory_gaps
 from .profiler import GPUMemoryProfiler, ProfileResult
 from .telemetry import TelemetryEventV2
@@ -697,6 +698,13 @@ class MemoryAnalyzer:
             remediation_by_classification=_GAP_REMEDIATION_BY_CLASSIFICATION,
         )
 
+    def analyze_cross_rank_timeline(
+        self, events: List[TelemetryEventV2]
+    ) -> Dict[str, Any]:
+        """Merge rank timelines and detect the earliest cluster-wide spike cause."""
+
+        return summarize_cross_rank_analysis(events)
+
     def generate_optimization_report(
         self,
         results: Optional[List[ProfileResult]] = None,
@@ -758,6 +766,8 @@ class MemoryAnalyzer:
         if events is not None:
             gap_findings = self.analyze_memory_gaps(events)
             report["gap_analysis"] = [asdict(f) for f in gap_findings]
+            if len({event.rank for event in events}) > 1:
+                report["cross_rank_analysis"] = self.analyze_cross_rank_timeline(events)
 
         return report
 
