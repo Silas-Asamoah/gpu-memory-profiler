@@ -401,11 +401,15 @@ def sample_timeline_rows(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]
         return list(rows)
 
     stride = int(math.ceil(len(rows) / _TIMELINE_MAX_POINTS))
-    sampled = list(rows[::stride])
-    last_row = rows[-1]
-    if not sampled or sampled[-1]["sample_index"] != last_row["sample_index"]:
-        sampled.append(last_row)
-    return sampled
+    pinned_indices = {
+        idx
+        for idx, row in enumerate(rows)
+        if row.get("event_type") in _ALERT_EVENT_TYPES
+    }
+    stride_indices = set(range(0, len(rows), stride))
+    last_index = len(rows) - 1
+    all_indices = sorted(pinned_indices | stride_indices | {last_index})
+    return [rows[idx] for idx in all_indices]
 
 
 def _memory_plot_series(

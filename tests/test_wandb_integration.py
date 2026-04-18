@@ -14,6 +14,7 @@ import pytest
 
 import stormlog.cuda_native_debug as native_debug
 from stormlog._wandb.core import read_json_if_exists
+from stormlog._wandb.tracking import sample_timeline_rows
 from stormlog.session import create_session_summary
 from stormlog.wandb_integration import (
     ensure_wandb_available,
@@ -537,3 +538,64 @@ def test_export_uses_active_wandb_run_without_creating_another(
     assert fake_wandb.init_calls == []
     assert active_run.finished is False
     assert active_run.summary["stormlog_peak_memory_bytes"] == 128
+
+
+def test_sample_timeline_rows_pins_alert_and_peak_rows() -> None:
+    """Peak/alert rows near the end must not be dropped by the stride sampler."""
+    # Build 251 rows: all "sample" events except index 249 which is "peak"
+    rows: list[dict[str, Any]] = [
+        {
+            "sample_index": idx,
+            "elapsed_seconds": float(idx),
+            "event_type": "peak" if idx == 249 else "sample",
+            "allocated_bytes": idx * 1024,
+            "reserved_bytes": idx * 2048,
+            "change_bytes": 1024,
+            "device_used_bytes": idx * 1024,
+            "utilization_percent": None,
+            "context": None,
+            "rank": None,
+        }
+        for idx in range(251)
+    ]
+
+    sampled = sample_timeline_rows(rows)
+
+    sampled_indices = {row["sample_index"] for row in sampled}
+    # The peak row at index 249 must be present
+    assert 249 in sampled_indices, "peak row at index 249 was dropped by the sampler"
+    # The last row must always be present
+    assert 250 in sampled_indices, "last row must always be included"
+    # All sampled rows must preserve event_type
+    peak_rows = [row for row in sampled if row["event_type"] == "peak"]
+    assert len(peak_rows) == 1
+    assert peak_rows[0]["sample_index"] == 249
+
+
+def test_sample_timeline_rows_pins_all_alert_types() -> None:
+    """All four alert event types are pinned even when not on a stride boundary."""
+    alert_types = ["warning", "critical", "error", "peak"]
+    # 260 rows: alert rows placed mid-stride so stride sampling alone would skip them
+    rows: list[dict[str, Any]] = [
+        {
+            "sample_index": idx,
+            "elapsed_seconds": float(idx),
+            "event_type": alert_types[idx % len(alert_types)] if idx in {1, 3, 5, 7} else "sample",
+            "allocated_bytes": 0,
+            "reserved_bytes": 0,
+            "change_bytes": 0,
+            "device_used_bytes": 0,
+            "utilization_percent": None,
+            "context": None,
+            "rank": None,
+        }
+        for idx in range(260)
+    ]
+
+    sampled = sample_timeline_rows(rows)
+    sampled_indices = {row["sample_index"] for row in sampled}
+
+    for alert_idx in (1, 3, 5, 7):
+        assert alert_idx in sampled_indices, (
+            f"alert row at index {alert_idx} was dropped by the sampler"
+        )
