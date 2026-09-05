@@ -1,0 +1,107 @@
+{
+  "summary": {
+    "total_requests": 296,
+    "successful_requests": 282,
+    "failed_requests": 14,
+    "failure_rate": 0.0472972972972973,
+    "case_count": 3
+  },
+  "cases": {
+    "c1_in1024_out128": {
+      "request_count": 72,
+      "latency_ms": {
+        "e2e_p50": 210.0025,
+        "e2e_p95": 234.30180000000001,
+        "e2e_p99": 243.86634000000004,
+        "ttft_p50": 72.74000000000001,
+        "ttft_p95": 97.06215,
+        "ttft_p99": 103.18795,
+        "first_chunk_p50": 64.74000000000001,
+        "first_chunk_p95": 89.06215
+      },
+      "throughput": {
+        "duration_seconds": 17.584631,
+        "requests_per_second": 4.094484553016779,
+        "output_tokens_per_second": 493.6128600025783,
+        "total_tokens_per_second": 4453.434365497917
+      },
+      "tokens": {
+        "output_tokens": 8680,
+        "total_tokens": 78312,
+        "output_token_sources": [
+          "fallback_estimate",
+          "server_usage",
+          "unknown"
+        ]
+      },
+      "memory": {
+        "peak_device_used_bytes": null,
+        "peak_process_rss_bytes": 102760448
+      }
+    },
+    "c4_in1024_out128": {
+      "request_count": 95,
+      "latency_ms": {
+        "e2e_p50": 258.125,
+        "e2e_p95": 282.9205,
+        "e2e_p99": 289.80704000000003,
+        "ttft_p50": 123.985,
+        "ttft_p95": 144.7542,
+        "ttft_p99": 145.92728,
+        "first_chunk_p50": 115.985,
+        "first_chunk_p95": 136.7542
+      },
+      "throughput": {
+        "duration_seconds": 23.545045,
+        "requests_per_second": 4.034819215677864,
+        "output_tokens_per_second": 487.9158226284979,
+        "total_tokens_per_second": 4402.115179648203
+      },
+      "tokens": {
+        "output_tokens": 11488,
+        "total_tokens": 103648,
+        "output_token_sources": [
+          "fallback_estimate",
+          "server_usage",
+          "unknown"
+        ]
+      },
+      "memory": {
+        "peak_device_used_bytes": null,
+        "peak_process_rss_bytes": 102760448
+      }
+    },
+    "c8_in4096_out128": {
+      "request_count": 115,
+      "latency_ms": {
+        "e2e_p50": 302.169,
+        "e2e_p95": 653.0838,
+        "e2e_p99": 665.6190399999999,
+        "ttft_p50": 173.6805,
+        "ttft_p95": 456.10985000000005,
+        "ttft_p99": 464.68429,
+        "first_chunk_p50": 165.6805,
+        "first_chunk_p95": 448.10985000000005
+      },
+      "throughput": {
+        "duration_seconds": 29.428632,
+        "requests_per_second": 3.9077589471369243,
+        "output_tokens_per_second": 472.73689106581645,
+        "total_tokens_per_second": 15643.812461279205
+      },
+      "tokens": {
+        "output_tokens": 13912,
+        "total_tokens": 460376,
+        "output_token_sources": [
+          "fallback_estimate",
+          "server_usage",
+          "unknown"
+        ]
+      },
+      "memory": {
+        "peak_device_used_bytes": null,
+        "peak_process_rss_bytes": 102760448
+      }
+    }
+  }
+}

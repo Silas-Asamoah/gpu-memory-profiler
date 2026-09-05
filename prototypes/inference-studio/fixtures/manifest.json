@@ -1,0 +1,16 @@
+[
+  {
+    "id": "candidate",
+    "title": "Run 042 \u00b7 latency burst",
+    "file": "fixtures/candidate.jsonl",
+    "kind": "Synthetic fixture",
+    "description": "Seed 42. Authored timings; no inference server or GPU was measured."
+  },
+  {
+    "id": "baseline",
+    "title": "Run 041 \u00b7 reference",
+    "file": "fixtures/baseline.jsonl",
+    "kind": "Synthetic fixture",
+    "description": "Seed 42. Authored timings; no inference server or GPU was measured."
+  }
+]

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Stormlog Studio · Run investigation</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <a class="skip" href="#workspace">Skip to requests</a>
+        <header class="app-header">
+            <a class="brand" href="./" aria-label="Stormlog Studio home"
+                ><span class="brand-mark" aria-hidden="true">ϟ</span> Stormlog
+                <span>Studio</span></a
+            ><span class="separator"></span
+            ><span class="header-context">Inference / Run investigation</span>
+            <div class="header-actions">
+                <button id="open-file">Open JSONL</button
+                ><input
+                    id="import-file"
+                    type="file"
+                    accept=".jsonl,.json"
+                    hidden
+                /><button id="export" disabled>
+                    Export filtered requests <span aria-hidden="true">↗</span>
+                </button>
+            </div>
+        </header>
+        <main id="workspace">
+            <div id="notice" class="notice" role="status" hidden></div>
+            <section class="run-heading" aria-labelledby="run-title">
+                <div>
+                    <div class="eyebrow">
+                        LOCAL ARTIFACT WORKSPACE <span class="dot">•</span>
+                        <span id="artifact-kind">SYNTHETIC FIXTURE</span>
+                    </div>
+                    <h1 id="run-title">Run investigation</h1>
+                    <p id="run-meta"></p>
+                </div>
+                <div class="run-picker">
+                    <label for="run-select">Artifact</label
+                    ><select id="run-select"></select>
+                </div>
+            </section>
+            <div class="fixture-note" id="fixture-note"></div>
+            <nav class="tabs" aria-label="Run views">
+                <button data-view="requests" aria-current="page">
+                    Requests</button
+                ><button data-view="compare">Case comparison</button
+                ><button data-view="sources">Sources & availability</button
+                ><span id="schema-label"
+                    >schema v1 <span class="dot">·</span> client
+                    observations</span
+                >
+            </nav>
+            <section id="request-view">
+                <div class="scope-toolbar">
+                    <label class="search"
+                        >Find request or error<input
+                            id="query"
+                            type="search"
+                            placeholder="Request ID, TimeoutError…"
+                            autocomplete="off" /></label
+                    ><label
+                        >Case<select id="case-filter">
+                            <option value="">All cases</option>
+                        </select></label
+                    ><label
+                        >Status<select id="status-filter">
+                            <option value="">All statuses</option>
+                            <option value="ok">Successful</option>
+                            <option value="error">Failed</option>
+                        </select></label
+                    ><label
+                        >Phase<select id="phase-filter">
+                            <option value="measured">Measured</option>
+                            <option value="warmup">Warmup</option>
+                            <option value="all">All phases</option>
+                        </select></label
+                    ><label
+                        >Output count source<select id="source-filter">
+                            <option value="">All sources</option>
+                        </select></label
+                    ><button id="reset" class="subtle">Reset filters</button>
+                </div>
+                <div class="scope-line">
+                    <span id="scope-count"></span
+                    ><button id="clear-brush" class="text-button" hidden>
+                        Clear time / latency selection ×</button
+                    ><span class="scope-definition"
+                        >Latency and token summaries: successful requests
+                        only</span
+                    >
+                </div>
+                <div
+                    id="metrics"
+                    class="metric-strip"
+                    aria-label="Filtered request statistics"
+                ></div>
+                <div class="plots">
+                    <section class="plot-panel">
+                        <div class="panel-heading">
+                            <h2>Request latency over time</h2>
+                            <div class="legend">
+                                <span><i class="key success"></i>Success</span
+                                ><span><i class="key failure"></i>Error</span>
+                            </div>
+                        </div>
+                        <div id="timeline" class="chart"></div>
+                        <div class="plot-controls">
+                            <label
+                                >Start offset
+                                <input
+                                    id="time-start"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    placeholder="0"
+                                />
+                                s</label
+                            ><label
+                                >End offset
+                                <input
+                                    id="time-end"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    placeholder="Full run"
+                                />
+                                s</label
+                            ><button id="apply-window">Apply window</button
+                            ><span>Click a point to inspect</span>
+                        </div>
+                    </section>
+                    <section class="plot-panel distribution-panel">
+                        <div class="panel-heading">
+                            <h2>E2E distribution</h2>
+                            <span id="distribution-n"></span>
+                        </div>
+                        <div id="histogram" class="histogram"></div>
+                        <div class="chart-footnote">
+                            Click a bin to filter requests. Includes errors.
+                        </div>
+                    </section>
+                </div>
+                <div class="replay-bar">
+                    <button id="play" aria-label="Play artifact replay">
+                        ▶ Replay</button
+                    ><label class="replay-range"
+                        >Completed records at <output id="replay-time"></output
+                        ><input
+                            id="playhead"
+                            type="range"
+                            min="0"
+                            max="1000"
+                            value="1000"
+                            aria-label="Artifact replay position" /></label
+                    ><label
+                        >Speed<select id="speed">
+                            <option value="4">4×</option>
+                            <option value="12" selected>12×</option>
+                            <option value="24">24×</option>
+                        </select></label
+                    ><span>Playback of saved records</span>
+                </div>
+                <div class="investigation-grid">
+                    <section
+                        class="request-panel"
+                        aria-labelledby="requests-heading"
+                    >
+                        <div class="panel-heading">
+                            <h2 id="requests-heading">
+                                Requests <span id="table-count"></span>
+                            </h2>
+                            <label class="inline-label"
+                                >Sort<select id="sort">
+                                    <option value="e2e_latency_ms:desc">
+                                        E2E ↓
+                                    </option>
+                                    <option value="ttft_ms:desc">TTFT ↓</option>
+                                    <option value="_start:asc">
+                                        Started ↑
+                                    </option>
+                                    <option value="output_tokens:desc">
+                                        Output tokens ↓
+                                    </option>
+                                </select></label
+                            >
+                        </div>
+                        <div
+                            class="table-scroll"
+                            tabindex="0"
+                            role="region"
+                            aria-label="Request measurements"
+                        >
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Request / case</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col" class="number">
+                                            Start, s
+                                        </th>
+                                        <th scope="col" class="number">
+                                            TTFT, ms
+                                        </th>
+                                        <th scope="col" class="number">
+                                            E2E, ms
+                                        </th>
+                                        <th scope="col" class="number">
+                                            Output, tok
+                                        </th>
+                                        <th scope="col">Count source</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="request-rows"></tbody>
+                            </table>
+                        </div>
+                        <div id="empty" class="empty" hidden>
+                            <h3>No requests match these filters</h3>
+                            <p>
+                                Clear the filters or move the replay to a later
+                                point.
+                            </p>
+                            <button id="empty-reset">
+                                Show measured requests
+                            </button>
+                        </div>
+                        <div class="pagination">
+                            <span id="page-label"></span>
+                            <div>
+                                <button id="previous">← Previous</button
+                                ><button id="next">Next →</button>
+                            </div>
+                        </div>
+                    </section>
+                    <aside
+                        id="inspector"
+                        aria-label="Selected request inspector"
+                    ></aside>
+                </div>
+            </section>
+            <section id="compare-view" hidden></section>
+            <section id="sources-view" hidden></section>
+            <footer>
+                <span
+                    >Stormlog · client timings retain their original scope</span
+                ><a
+                    href="https://github.com/Silas-Asamoah/stormlog/issues/227"
+                    target="_blank"
+                    rel="noreferrer"
+                    >Implementation issue #227 ↗</a
+                >
+            </footer>
+        </main>
+        <script type="module" src="app.mjs"></script>
+    </body>
+</html>

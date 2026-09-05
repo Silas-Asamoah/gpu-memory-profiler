@@ -1,0 +1,107 @@
+{
+  "summary": {
+    "total_requests": 296,
+    "successful_requests": 282,
+    "failed_requests": 14,
+    "failure_rate": 0.0472972972972973,
+    "case_count": 3
+  },
+  "cases": {
+    "c1_in1024_out128": {
+      "request_count": 72,
+      "latency_ms": {
+        "e2e_p50": 281.678,
+        "e2e_p95": 314.51565,
+        "e2e_p99": 327.44105,
+        "ttft_p50": 98.297,
+        "ttft_p95": 131.16485,
+        "ttft_p99": 139.44258,
+        "first_chunk_p50": 90.297,
+        "first_chunk_p95": 123.16485
+      },
+      "throughput": {
+        "duration_seconds": 17.649148,
+        "requests_per_second": 4.079517039576075,
+        "output_tokens_per_second": 491.808443104449,
+        "total_tokens_per_second": 4437.154700045578
+      },
+      "tokens": {
+        "output_tokens": 8680,
+        "total_tokens": 78312,
+        "output_token_sources": [
+          "fallback_estimate",
+          "server_usage",
+          "unknown"
+        ]
+      },
+      "memory": {
+        "peak_device_used_bytes": null,
+        "peak_process_rss_bytes": 102760448
+      }
+    },
+    "c4_in1024_out128": {
+      "request_count": 95,
+      "latency_ms": {
+        "e2e_p50": 346.71,
+        "e2e_p95": 380.2181,
+        "e2e_p99": 389.5246,
+        "ttft_p50": 167.547,
+        "ttft_p95": 195.61360000000002,
+        "ttft_p99": 197.19892000000002,
+        "first_chunk_p50": 159.547,
+        "first_chunk_p95": 187.61360000000002
+      },
+      "throughput": {
+        "duration_seconds": 23.637816,
+        "requests_per_second": 4.018983818132775,
+        "output_tokens_per_second": 486.0009063443086,
+        "total_tokens_per_second": 4384.838260861325
+      },
+      "tokens": {
+        "output_tokens": 11488,
+        "total_tokens": 103648,
+        "output_token_sources": [
+          "fallback_estimate",
+          "server_usage",
+          "unknown"
+        ]
+      },
+      "memory": {
+        "peak_device_used_bytes": null,
+        "peak_process_rss_bytes": 102760448
+      }
+    },
+    "c8_in4096_out128": {
+      "request_count": 115,
+      "latency_ms": {
+        "e2e_p50": 406.224,
+        "e2e_p95": 880.4395,
+        "e2e_p99": 897.37742,
+        "ttft_p50": 234.7035,
+        "ttft_p95": 616.36425,
+        "ttft_p99": 627.95254,
+        "first_chunk_p50": 226.7035,
+        "first_chunk_p95": 608.36425
+      },
+      "throughput": {
+        "duration_seconds": 29.522667,
+        "requests_per_second": 3.8953120326154815,
+        "output_tokens_per_second": 471.2311391108398,
+        "total_tokens_per_second": 15593.984107194652
+      },
+      "tokens": {
+        "output_tokens": 13912,
+        "total_tokens": 460376,
+        "output_token_sources": [
+          "fallback_estimate",
+          "server_usage",
+          "unknown"
+        ]
+      },
+      "memory": {
+        "peak_device_used_bytes": null,
+        "peak_process_rss_bytes": 102760448
+      }
+    }
+  }
+}
