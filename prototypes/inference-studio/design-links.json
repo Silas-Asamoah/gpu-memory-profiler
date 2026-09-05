@@ -1,0 +1,12 @@
+{
+  "file": "https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec",
+  "page": "03 · Request investigation v2",
+  "screens": {
+    "requests": "28:3",
+    "failedCase": "28:1765",
+    "comparison": "28:5192",
+    "sources": "28:4561",
+    "interactionContract": "28:5795"
+  },
+  "scope": "Editable text/vector visual states derived from the working fixture UI; functional interactions are in the companion app. Supersedes v1 investigation and comparison boards."
+}
