@@ -46,6 +46,28 @@ Fixed findings include import-HTML injection through workload fields, keyboard-i
 
 The implementation owner separately confirmed browser rendering, numeric/filter behavior, and no desktop document overflow. The selected 120-request case has 5 errors, TTFT p95 616.4 ms, and E2E p95 880.4 ms; the 8-request failed case has 8 errors and unavailable successful latency summaries. These values derive from the synthetic fixture, not a measured engine run.
 
-The owner confirmed five native editable Figma states on **03 · Request investigation v2**: [Requests](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3), [Failed case](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-1765), [Comparison](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-5192), [Sources](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-4561), and [Interaction contract](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-5795). They replace narrative-first layouts with numerical investigation and implementation guidance. **Figma contains static visual states; functional interactions are in the companion.** This review agent could not independently inspect the in-app Figma browser because its Computer tool returned `Browser is not available: iab`; Figma visual verification is attributed to the owner.
+The owner confirmed five native editable Figma states on **03 · Request investigation v2**: [Requests](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3), [Failed case](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-1765), [Comparison](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-5192), [Sources](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-4561), and [Interaction contract](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-5795). They replace narrative-first layouts with numerical investigation and implementation guidance. This was the initial visual-state review; native Figma navigation was added afterward and is checked separately below. Data filtering, parsing, replay and exports remain companion interactions. This review agent could not independently inspect the in-app Figma browser because its Computer tool returned `Browser is not available: iab`; Figma visual verification is attributed to the owner.
 
 This PASS is not certification of a production service, a GPU/engine adapter, full assistive-technology compatibility, mobile layout, arbitrary artifact sizes, or backend scientific-comparison features. Those remain implementation/qualification work under the linked roadmap issues.
+
+## Figma navigation follow-up
+
+[Play the request investigation flow](https://www.figma.com/proto/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3&scaling=min-zoom&content-scaling=fixed&page-id=28%3A2&starting-point-node-id=28%3A3). The flow starts at `28:3` on page `28:2`, with native click navigation across all five views.
+
+Owner verification in Figma Play, 2026-09-05, at 1567 × 969:
+
+| Action | Observed destination |
+| --- | --- |
+| Requests → Case comparison | `28:5192` |
+| Comparison → Sources & availability | `28:4561` |
+| Sources → Failed case | `28:1765` |
+| Failed case → Developer handoff | `28:5795` |
+| Handoff → Requests | `28:3` |
+| Requests → Failed case → Requests | `28:1765` → `28:3` |
+| Requests → Comparison → Requests | `28:5192` → `28:3` |
+| Requests → Sources → Requests | `28:4561` → `28:3` |
+| Scroll Requests to lower inspector | Timings, token provenance, chunk gaps and raw-record controls visible |
+
+Each navigation result was checked against the viewer URL; screen contents were inspected in Play. QA caught and removed duplicate navigation on Failed case and moved Handoff navigation below the Figma viewer toolbar. This check covers screen navigation and scrolling, not simulated data filtering or export in Figma.
+
+**PASS — independent Figma Play navigation QA, 2026-09-05.** The review agent reloaded the existing Chrome Play tab and clicked Requests → Comparison → Requests → Failed → Sources → Handoff → Requests, verifying the resulting node URL at each step. All five screens were reachable and the Handoff return worked. The agent used Chrome because its tool could not access the in-app browser; the owner separately tested in-app. This is navigation-only QA, independent of the companion’s 21 checks.

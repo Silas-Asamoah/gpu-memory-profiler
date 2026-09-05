@@ -1,6 +1,6 @@
 {
   "file": "https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec",
-  "page": "03 · Request investigation v2",
+  "page": "03 \u00b7 Request investigation v2",
   "screens": {
     "requests": "28:3",
     "failedCase": "28:1765",
@@ -8,5 +8,8 @@
     "sources": "28:4561",
     "interactionContract": "28:5795"
   },
-  "scope": "Editable text/vector visual states derived from the working fixture UI; functional interactions are in the companion app. Supersedes v1 investigation and comparison boards."
+  "scope": "Editable text/vector screens with connected Figma navigation across Requests, Failed case, Comparison, Sources and Handoff. Parsing, data filters, replay and export execute in the companion app. Supersedes v1 investigation and comparison boards.",
+  "prototype": "https://www.figma.com/proto/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3&scaling=min-zoom&content-scaling=fixed&page-id=28%3A2&starting-point-node-id=28%3A3",
+  "pageId": "28:2",
+  "flowStartingPoint": "28:3"
 }

@@ -2,7 +2,9 @@
 
 Implementation companion to [Web UI #227](https://github.com/Silas-Asamoah/stormlog/issues/227) and [roadmap #210](https://github.com/Silas-Asamoah/stormlog/issues/210). This revision replaces narrative diagnosis with a working request population, linked measurements and raw-record inspection.
 
-The revised [Figma page, “03 · Request investigation v2”](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3) contains editable request, failed-case, comparison and sources screens, plus an [interaction-contract board](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-5795). These are visual states derived from this app. The functional controls run in the browser companion below; Figma does not run the parser or calculations. Exact node IDs are in `design-links.json`.
+The revised [Figma page, “03 · Request investigation v2”](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3) contains editable request, failed-case, comparison and sources screens, plus an [interaction-contract board](https://www.figma.com/design/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-5795). These are visual states derived from this app, connected with native Figma prototype navigation. Figma does not run the parser, data filters, replay or exports; those controls run in the browser companion below. Exact node IDs are in `design-links.json`.
+
+[Play the connected Figma walkthrough](https://www.figma.com/proto/gyf50thoqYq3ZubXJPeQzv/Stormlog-Studio---Native-Product-Spec?node-id=28-3&scaling=min-zoom&content-scaling=fixed&page-id=28%3A2&starting-point-node-id=28%3A3). Start at Requests, then use the navigation to open Failed case, Case comparison, Sources & availability, or Developer handoff. Each destination has a Requests return path. Scroll to inspect the lower panels. Use this flow link rather than the archived v1 prototype.
 
 ## Run it
 
