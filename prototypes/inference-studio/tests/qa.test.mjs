@@ -50,6 +50,12 @@ test("QA: request timestamps reject nulls, booleans and fractional values", () =
     }
 });
 
+test("QA: token exactness flags cannot contradict between inspector and summary", () => {
+    for (const field of ["prompt_token_exact", "output_token_exact"]) {
+        assert.throws(() => parseArtifact(encode([request({ [field]: "false" })])), undefined, field);
+    }
+});
+
 test("QA: malformed large JSON integer syntax is not silently repaired", () => {
     assert.throws(() => losslessJSON('{"timestamp_ns":0000000000000001}'));
 });
@@ -302,4 +308,13 @@ test("QA app: invalid import retains the existing usable artifact", async () =>
         assert.match(get("notice").textContent, /invalid JSON/);
         assert.equal(get("scope-count").innerHTML, before);
         assert.equal(get("export").disabled, false);
+    }));
+
+test("QA app: a large valid chunk array imports without unbounded plot markup", async () =>
+    withApp(async ({ get, importText }) => {
+        const own = request({ phase: "measured", started_at_ns: "1788609600000000000", ended_at_ns: "1788609760000000000", e2e_latency_ms: 160000, ttft_ms: 100, first_chunk_latency_ms: 90, chunk_interarrival_ms: Array(150000).fill(1) });
+        await importText(encode([own]));
+        assert.match(get("notice").textContent, /Opened 1 requests/);
+        assert.match(get("inspector").innerHTML, /150000|150,000/);
+        assert.ok(get("inspector").innerHTML.length < 200000, "collapsed inspector emits unbounded per-gap markup");
     }));

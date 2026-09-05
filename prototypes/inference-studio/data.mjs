@@ -80,6 +80,13 @@ export function parseArtifact(text) {
                 !["ok", "error"].includes(record.status)
             )
                 throw new Error(`Line ${i + 1}: unsupported phase or status.`);
+            for (const field of ["prompt_token_exact", "output_token_exact"]) {
+                if (
+                    record[field] !== undefined &&
+                    typeof record[field] !== "boolean"
+                )
+                    throw new Error(`Line ${i + 1}: invalid ${field}.`);
+            }
             for (const field of [
                 "concurrency",
                 "target_input_tokens",
