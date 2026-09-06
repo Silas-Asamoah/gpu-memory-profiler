@@ -683,14 +683,14 @@ class CPUMemoryTracker:
                 continue
 
             timestamps.append(start_time + current_bucket * interval)
-            allocated.append(float(last_event.memory_allocated))
-            reserved.append(float(last_event.memory_reserved))
+            allocated.append(float(last_event.memory_allocated or 0))
+            reserved.append(float(last_event.memory_reserved or 0))
             current_bucket = bucket
             last_event = event
 
         timestamps.append(start_time + current_bucket * interval)
-        allocated.append(float(last_event.memory_allocated))
-        reserved.append(float(last_event.memory_reserved))
+        allocated.append(float(last_event.memory_allocated or 0))
+        reserved.append(float(last_event.memory_reserved or 0))
 
         return {
             "timestamps": timestamps,
