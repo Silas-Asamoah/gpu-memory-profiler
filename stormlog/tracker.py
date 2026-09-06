@@ -10,7 +10,7 @@ from collections import deque
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
 
 import torch
 
@@ -29,11 +29,14 @@ from .cuda_native_debug import (
     stop_cuda_memory_history,
 )
 from .device_collectors import (
+    DeviceMemoryCapabilities,
+    DeviceMemoryCollector,
     DeviceMemorySample,
     DeviceMemorySampleResult,
     _resolve_device,
     build_device_memory_collector,
     detect_torch_runtime_backend,
+    validate_device_memory_sample,
 )
 from .oom_flight_recorder import (
     OOMFlightRecorder,
@@ -52,8 +55,9 @@ from .session import (
     update_session_summary,
 )
 from .telemetry import (
+    SCHEMA_VERSION_V4,
+    TelemetryEvent,
     resolve_distributed_identity,
-    telemetry_event_from_record,
     telemetry_event_to_dict,
 )
 from .telemetry_sink import AppendOnlyTelemetrySink, TelemetrySinkConfig
@@ -68,9 +72,9 @@ class TrackingEvent:
 
     timestamp: float
     event_type: str  # 'allocation', 'deallocation', 'peak', 'warning', 'error'
-    memory_allocated: int
-    memory_reserved: int
-    memory_change: int
+    memory_allocated: Optional[int]
+    memory_reserved: Optional[int]
+    memory_change: Optional[int]
     device_id: int
     session_id: Optional[str] = None
     context: Optional[str] = None
@@ -108,6 +112,7 @@ class MemoryTracker:
         enable_native_cuda_history: bool = False,
         native_history_max_entries: int = DEFAULT_TRACE_ALLOC_MAX_ENTRIES,
         telemetry_sink_config: Optional[TelemetrySinkConfig] = None,
+        collector: Optional[DeviceMemoryCollector] = None,
     ):
         """
         Initialize the memory tracker.
@@ -122,6 +127,9 @@ class MemoryTracker:
             oom_buffer_size: Event ring-buffer size used for OOM dumps
             oom_max_dumps: Maximum number of retained OOM dump bundles
             oom_max_total_mb: Maximum retained OOM dump storage in MB
+            collector: Optional runtime memory collector. When provided, the
+                tracker bypasses torch device resolution and ``device`` must be
+                ``None``.
         """
         if sampling_interval <= 0:
             raise ValueError("sampling_interval must be > 0")
@@ -130,10 +138,31 @@ class MemoryTracker:
         if native_history_max_entries <= 0:
             raise ValueError("native_history_max_entries must be >= 1")
 
-        self.device = self._setup_device(device)
-        self.collector = build_device_memory_collector(self.device)
+        if collector is not None and device is not None:
+            raise ValueError("device and collector cannot be provided together")
+        self.device = self._setup_device(device) if collector is None else None
+        self.collector = (
+            build_device_memory_collector(self.device)
+            if collector is None
+            else collector
+        )
         self.backend = self.collector.name()
-        self.collector_capabilities = self.collector.capabilities()
+        raw_capabilities = self.collector.capabilities()
+        self.collector_capabilities = (
+            raw_capabilities
+            if isinstance(raw_capabilities, DeviceMemoryCapabilities)
+            else DeviceMemoryCapabilities.from_mapping(
+                cast(Mapping[str, Any], raw_capabilities)
+            )
+        )
+        if (
+            enable_native_cuda_history
+            and not self.collector_capabilities.supports_native_allocator_history
+        ):
+            raise ValueError(
+                "native allocator history is unavailable for backend "
+                f"{self.backend!r}"
+            )
         self.sampling_interval = sampling_interval
         self.max_events = max_events
         self.enable_alerts = enable_alerts
@@ -200,6 +229,7 @@ class MemoryTracker:
         # Statistics
         self.stats: Dict[str, Any] = {
             "peak_memory": 0,
+            "peak_device_used": 0,
             "total_allocations": 0,
             "total_deallocations": 0,
             "total_allocation_bytes": 0,
@@ -210,11 +240,25 @@ class MemoryTracker:
         }
 
         # Get memory limits with backend-aware fallback.
-        self.gpu_info = get_gpu_info(self.device) if self.device.type == "cuda" else {}
+        self.gpu_info = (
+            get_gpu_info(self.device)
+            if self.device is not None and self.device.type == "cuda"
+            else {}
+        )
         initial_result = self.collector.sample_with_diagnostics()
         initial_sample = initial_result.sample
         if initial_sample is not None:
-            self._last_observed_sample = initial_sample
+            try:
+                validate_device_memory_sample(
+                    initial_sample,
+                    self.collector_capabilities,
+                    partial_fields=initial_result.partial_fields,
+                )
+            except ValueError as exc:
+                logger.debug("Initial collector sample rejected: %s", exc)
+                initial_sample = None
+            else:
+                self._last_observed_sample = initial_sample
         total_memory = (
             initial_sample.total_bytes if initial_sample is not None else None
         )
@@ -254,6 +298,7 @@ class MemoryTracker:
         self.stats.update(
             {
                 "peak_memory": 0,
+                "peak_device_used": 0,
                 "total_allocations": 0,
                 "total_deallocations": 0,
                 "total_allocation_bytes": 0,
@@ -331,7 +376,16 @@ class MemoryTracker:
         """Collect one backend sample for ad-hoc diagnostics with fallback values."""
         result = self.collector.sample_with_diagnostics()
         if result.sample is not None:
-            return result.sample
+            try:
+                validate_device_memory_sample(
+                    result.sample,
+                    self.collector_capabilities,
+                    partial_fields=result.partial_fields,
+                )
+            except ValueError as exc:
+                logger.debug("Rejected invalid %s sample: %s", self.backend, exc)
+            else:
+                return result.sample
 
         logger.debug(
             "Could not sample %s memory: %s",
@@ -343,7 +397,7 @@ class MemoryTracker:
     def _empty_sample(self) -> DeviceMemorySample:
         """Build a zeroed sample for status-only events without live telemetry."""
         device_id = 0
-        if self.device.type == "cuda":
+        if self.device is not None and self.device.type == "cuda":
             try:
                 device_id = (
                     self.device.index
@@ -353,9 +407,9 @@ class MemoryTracker:
             except Exception:
                 device_id = 0
         return DeviceMemorySample(
-            allocated_bytes=0,
-            reserved_bytes=0,
-            used_bytes=0,
+            allocated_bytes=None,
+            reserved_bytes=None,
+            used_bytes=None,
             free_bytes=None,
             total_bytes=None,
             active_bytes=None,
@@ -506,15 +560,42 @@ class MemoryTracker:
             return last_allocated
 
         sample = result.sample
+        try:
+            validate_device_memory_sample(
+                sample,
+                self.collector_capabilities,
+                partial_fields=result.partial_fields,
+            )
+        except ValueError as exc:
+            invalid_result = DeviceMemorySampleResult(
+                sample=None,
+                errors={"sample_contract": str(exc)},
+                core_error=str(exc),
+            )
+            self._transition_to_core_failure(invalid_result, event_time=now)
+            return last_allocated
+
         self._last_observed_sample = sample
         current_allocated = sample.allocated_bytes
-        current_reserved = sample.reserved_bytes
-        memory_change = current_allocated - last_allocated
+        has_allocator = self.collector_capabilities.supports_allocator_allocated
+        memory_change = (
+            current_allocated - last_allocated
+            if has_allocator and current_allocated is not None
+            else None
+        )
         is_partial = self._transition_to_sampled_state(result, sample=sample)
 
         self.stats["last_memory_check"] = now
 
-        if current_allocated > self.stats["peak_memory"]:
+        if sample.used_bytes is not None:
+            self.stats["peak_device_used"] = max(
+                self.stats["peak_device_used"], sample.used_bytes
+            )
+
+        if (
+            current_allocated is not None
+            and current_allocated > self.stats["peak_memory"]
+        ):
             self.stats["peak_memory"] = current_allocated
             self._add_event(
                 "peak",
@@ -523,7 +604,7 @@ class MemoryTracker:
                 sample=sample,
             )
 
-        if memory_change > 0:
+        if memory_change is not None and memory_change > 0:
             self.stats["total_allocations"] += 1
             self.stats["total_allocation_bytes"] += memory_change
             self._add_event(
@@ -532,7 +613,7 @@ class MemoryTracker:
                 f"Memory allocated: {format_bytes(memory_change)}",
                 sample=sample,
             )
-        elif memory_change < 0:
+        elif memory_change is not None and memory_change < 0:
             self.stats["total_deallocations"] += 1
             self.stats["total_deallocation_bytes"] += abs(memory_change)
             self._add_event(
@@ -543,12 +624,7 @@ class MemoryTracker:
             )
 
         if self.enable_alerts:
-            self._check_alerts(
-                current_allocated,
-                current_reserved,
-                memory_change,
-                sample=sample,
-            )
+            self._check_alerts(memory_change, sample=sample)
 
         partial_fields = ", ".join(result.partial_fields)
         sample_context = (
@@ -558,12 +634,12 @@ class MemoryTracker:
         )
         self._add_event(
             "sample",
-            0,
+            memory_change,
             sample_context,
             sample=sample,
         )
 
-        return current_allocated
+        return current_allocated if current_allocated is not None else last_allocated
 
     def start_tracking(self) -> None:
         """Start real-time memory tracking."""
@@ -629,12 +705,14 @@ class MemoryTracker:
     def _add_event(
         self,
         event_type: str,
-        memory_change: int,
+        memory_change: Optional[int],
         context: str,
         metadata: Optional[Dict[str, Any]] = None,
         sample: Optional[DeviceMemorySample] = None,
     ) -> None:
         """Add a tracking event."""
+        if not self.collector_capabilities.supports_allocator_allocated:
+            memory_change = None
         snapshot = self._event_sample(sample)
         current_allocated = snapshot.allocated_bytes
         current_reserved = snapshot.reserved_bytes
@@ -732,18 +810,25 @@ class MemoryTracker:
 
     def _check_alerts(
         self,
-        allocated: int,
-        reserved: int,
-        change: int,
+        change: Optional[int],
         *,
-        sample: Optional[DeviceMemorySample] = None,
+        sample: DeviceMemorySample,
     ) -> bool:
         """Check for memory alerts and warnings."""
         if self.total_memory == 0:
             return False
 
-        # Memory usage percentage
-        usage_percent = (allocated / self.total_memory) * 100
+        allocated = sample.allocated_bytes
+        reserved = sample.reserved_bytes
+        usage_value = (
+            allocated
+            if self.collector_capabilities.supports_allocator_allocated
+            else sample.used_bytes
+        )
+        if usage_value is None:
+            return False
+
+        usage_percent = (usage_value / self.total_memory) * 100
         emitted = False
 
         # Critical memory usage
@@ -769,7 +854,11 @@ class MemoryTracker:
             emitted = True
 
         # Large allocation warning
-        if change > self.thresholds["memory_leak_threshold"]:
+        if (
+            change is not None
+            and self.collector_capabilities.supports_allocator_allocated
+            and change > self.thresholds["memory_leak_threshold"]
+        ):
             self._add_event(
                 "warning",
                 change,
@@ -780,7 +869,12 @@ class MemoryTracker:
             emitted = True
 
         # Fragmentation warning
-        if reserved > 0:
+        if (
+            self.collector_capabilities.supports_fragmentation_analysis
+            and reserved is not None
+            and allocated is not None
+            and reserved > 0
+        ):
             fragmentation = (reserved - allocated) / reserved
             if fragmentation > self.thresholds["fragmentation_threshold"]:
                 self._add_event(
@@ -824,29 +918,18 @@ class MemoryTracker:
         pid = os.getpid()
         sampling_interval_ms = int(round(self.sampling_interval * 1000))
         session_id = event.session_id or self._open_session().session_id
-        default_collector = str(
-            self.collector_capabilities.get(
-                "telemetry_collector", "stormlog.cuda_tracker"
-            )
-        )
+        default_collector = self.collector_capabilities.telemetry_collector
+        serialized_capabilities = self.collector_capabilities.to_metadata()
         capability_metadata = {
             "backend": self.backend,
-            "supports_device_total": bool(
-                self.collector_capabilities.get("supports_device_total", False)
-            ),
-            "supports_device_free": bool(
-                self.collector_capabilities.get("supports_device_free", False)
-            ),
-            "sampling_source": str(
-                self.collector_capabilities.get("sampling_source", "unknown")
-            ),
+            "supports_device_total": self.collector_capabilities.supports_device_total,
+            "supports_device_free": self.collector_capabilities.supports_device_free,
+            "sampling_source": self.collector_capabilities.sampling_source,
+            "memory_capabilities": serialized_capabilities,
         }
         metadata = dict(event.metadata or {})
         metadata.update(capability_metadata)
         partial_fields = set(metadata.get("collector_partial_fields", []) or [])
-        device_used = event.device_used
-        if device_used is None:
-            device_used = max(event.memory_allocated, event.memory_reserved)
         event_total = event.device_total
         if (
             event_total is None
@@ -854,36 +937,30 @@ class MemoryTracker:
             and self.total_memory
         ):
             event_total = self.total_memory
-        legacy = {
-            "session_id": session_id,
-            "timestamp": event.timestamp,
-            "event_type": event.event_type,
-            "memory_allocated": event.memory_allocated,
-            "memory_reserved": event.memory_reserved,
-            "memory_change": event.memory_change,
-            "allocator_active_bytes": event.active_memory,
-            "allocator_inactive_bytes": event.inactive_memory,
-            "device_used_bytes": device_used,
-            "device_free_bytes": event.device_free,
-            "device_total_bytes": event_total,
-            "device_id": event.device_id,
-            "context": event.context,
-            "job_id": event.job_id,
-            "rank": event.rank,
-            "local_rank": event.local_rank,
-            "world_size": event.world_size,
-            "metadata": metadata,
-            "total_memory": event_total,
-            "pid": pid,
-            "host": host,
-            "collector": default_collector,
-            "sampling_interval_ms": sampling_interval_ms,
-        }
-        telemetry_event = telemetry_event_from_record(
-            legacy,
-            default_collector=default_collector,
-            default_sampling_interval_ms=sampling_interval_ms,
-            default_session_id=session_id,
+        telemetry_event = TelemetryEvent(
+            schema_version=SCHEMA_VERSION_V4,
+            session_id=session_id,
+            timestamp_ns=int(event.timestamp * 1_000_000_000),
+            event_type=event.event_type,
+            collector=default_collector,
+            sampling_interval_ms=sampling_interval_ms,
+            pid=pid,
+            host=host,
+            device_id=event.device_id,
+            allocator_allocated_bytes=event.memory_allocated,
+            allocator_reserved_bytes=event.memory_reserved,
+            allocator_active_bytes=event.active_memory,
+            allocator_inactive_bytes=event.inactive_memory,
+            allocator_change_bytes=event.memory_change,
+            device_used_bytes=event.device_used,
+            device_free_bytes=event.device_free,
+            device_total_bytes=event_total,
+            context=event.context,
+            job_id=event.job_id,
+            rank=event.rank,
+            local_rank=event.local_rank,
+            world_size=event.world_size,
+            metadata=metadata,
         )
         return telemetry_event_to_dict(telemetry_event)
 
@@ -964,9 +1041,12 @@ class MemoryTracker:
         if not self._oom_flight_recorder.config.enabled:
             return None
 
+        capabilities: Any = self.collector_capabilities
+        if not isinstance(capabilities, DeviceMemoryCapabilities):
+            capabilities = DeviceMemoryCapabilities.from_mapping(capabilities)
         dump_metadata: Dict[str, Any] = {
             "tracker_stats": self.get_statistics(),
-            "collector_capabilities": dict(self.collector_capabilities),
+            "collector_capabilities": capabilities.to_metadata(),
             "total_memory_bytes": self.total_memory,
             "sampling_interval_s": self.sampling_interval,
             "session_id": None,
@@ -1020,6 +1100,8 @@ class MemoryTracker:
 
     def _capture_native_history_dump(self, bundle_dir: Path) -> None:
         """Add CUDA allocator snapshot artifacts into an OOM dump bundle."""
+        if self.device is None:
+            return
         try:
             files_written = capture_cuda_snapshot_artifacts(
                 bundle_dir,
@@ -1079,6 +1161,7 @@ class MemoryTracker:
             self.enable_native_cuda_history
             and self._oom_flight_recorder.config.enabled
             and self.backend == "cuda"
+            and self.device is not None
             and cuda_memory_history_supported()
         ):
             try:
@@ -1171,14 +1254,24 @@ class MemoryTracker:
             events_snapshot = list(self.events)
 
         if not events_snapshot:
-            return {"timestamps": [], "allocated": [], "reserved": []}
+            return {
+                "timestamps": [],
+                "allocated": [],
+                "reserved": [],
+                "device_used": [],
+                "device_free": [],
+                "device_total": [],
+            }
 
         # Group events by time intervals
         start_time = events_snapshot[0].timestamp
 
         timestamps = []
-        allocated_values = []
-        reserved_values = []
+        allocated_values: list[Optional[int]] = []
+        reserved_values: list[Optional[int]] = []
+        device_used_values: list[Optional[int]] = []
+        device_free_values: list[Optional[int]] = []
+        device_total_values: list[Optional[int]] = []
 
         current_bucket = 0
         last_event = events_snapshot[0]
@@ -1191,17 +1284,26 @@ class MemoryTracker:
             timestamps.append(start_time + current_bucket * interval)
             allocated_values.append(last_event.memory_allocated)
             reserved_values.append(last_event.memory_reserved)
+            device_used_values.append(getattr(last_event, "device_used", None))
+            device_free_values.append(getattr(last_event, "device_free", None))
+            device_total_values.append(getattr(last_event, "device_total", None))
             current_bucket = bucket
             last_event = event
 
         timestamps.append(start_time + current_bucket * interval)
         allocated_values.append(last_event.memory_allocated)
         reserved_values.append(last_event.memory_reserved)
+        device_used_values.append(getattr(last_event, "device_used", None))
+        device_free_values.append(getattr(last_event, "device_free", None))
+        device_total_values.append(getattr(last_event, "device_total", None))
 
         return {
             "timestamps": timestamps,
             "allocated": allocated_values,
             "reserved": reserved_values,
+            "device_used": device_used_values,
+            "device_free": device_free_values,
+            "device_total": device_total_values,
         }
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -1243,29 +1345,66 @@ class MemoryTracker:
                 "current_memory_reserved": (
                     sample.reserved_bytes if sample is not None else None
                 ),
+                "current_device_used": (
+                    sample.used_bytes if sample is not None else None
+                ),
+                "current_device_free": (
+                    sample.free_bytes if sample is not None else None
+                ),
+                "device_total": sample.total_bytes if sample is not None else None,
+                "memory_capabilities": self.collector_capabilities.to_metadata(),
                 "memory_utilization_percent": (
                     (sample.used_bytes / self.total_memory * 100)
-                    if sample is not None and self.total_memory > 0
+                    if sample is not None
+                    and sample.used_bytes is not None
+                    and self.total_memory > 0
                     else None
                 ),
-                "average_allocation_size": self.stats["total_allocation_bytes"]
-                / max(self.stats["total_allocations"], 1),
-                "average_deallocation_size": self.stats["total_deallocation_bytes"]
-                / max(self.stats["total_deallocations"], 1),
+                "average_allocation_size": (
+                    self.stats["total_allocation_bytes"]
+                    / max(self.stats["total_allocations"], 1)
+                    if self.collector_capabilities.supports_allocator_allocated
+                    else None
+                ),
+                "average_deallocation_size": (
+                    self.stats["total_deallocation_bytes"]
+                    / max(self.stats["total_deallocations"], 1)
+                    if self.collector_capabilities.supports_allocator_allocated
+                    else None
+                ),
             }
         )
         current_stats.update(self._collector_health.to_dict())
         current_stats.update(self._last_sink_diagnostics)
+
+        if not self.collector_capabilities.supports_allocator_allocated:
+            current_stats.update(
+                {
+                    "peak_memory": None,
+                    "total_allocations": None,
+                    "total_deallocations": None,
+                    "total_allocation_bytes": None,
+                    "total_deallocation_bytes": None,
+                    "allocations_per_second": None,
+                    "bytes_allocated_per_second": None,
+                }
+            )
 
         if self.stats["tracking_start_time"]:
             tracking_duration = time.time() - self.stats["tracking_start_time"]
             current_stats.update(
                 {
                     "tracking_duration_seconds": tracking_duration,
-                    "allocations_per_second": self.stats["total_allocations"]
-                    / max(tracking_duration, 1),
-                    "bytes_allocated_per_second": self.stats["total_allocation_bytes"]
-                    / max(tracking_duration, 1),
+                    "allocations_per_second": (
+                        self.stats["total_allocations"] / max(tracking_duration, 1)
+                        if self.collector_capabilities.supports_allocator_allocated
+                        else None
+                    ),
+                    "bytes_allocated_per_second": (
+                        self.stats["total_allocation_bytes"] / max(tracking_duration, 1)
+                        if self.collector_capabilities.supports_allocator_allocated
+                        else None
+                    ),
                 }
             )
 
@@ -1313,6 +1452,7 @@ class MemoryTracker:
         self.stats.update(
             {
                 "peak_memory": 0,
+                "peak_device_used": 0,
                 "total_allocations": 0,
                 "total_deallocations": 0,
                 "total_allocation_bytes": 0,

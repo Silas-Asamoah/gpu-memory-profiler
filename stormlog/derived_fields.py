@@ -38,7 +38,7 @@ class DerivedFields(TypedDict, total=False):
     ``None`` in the returned dict rather than a missing key.
     """
 
-    allocator_gap_bytes: int
+    allocator_gap_bytes: int | None
     utilization_ratio: None | float
     fragmentation_ratio: None | float
     is_degraded_collector: bool
@@ -84,42 +84,44 @@ def _collector_is_degraded(collector: None | str) -> bool:
 
 
 def _compute_allocator_gap_bytes(
-    allocator_allocated_bytes: int,
-    allocator_reserved_bytes: int,
-) -> int:
+    allocator_allocated_bytes: int | None,
+    allocator_reserved_bytes: int | None,
+) -> int | None:
     """Reserved memory that the allocator holds but has not actively allocated.
 
     Clamped to zero - negative values indicate a stale or inconsistent snapshot
     rather than a meaningful metric.
     """
+    if allocator_allocated_bytes is None or allocator_reserved_bytes is None:
+        return None
     return max(0, allocator_reserved_bytes - allocator_allocated_bytes)
 
 
 def _compute_utilization_ratio(
-    allocator_allocated_bytes: int,
+    used_bytes: int | None,
     device_total_bytes: None | int,
 ) -> None | float:
     """Fraction of device capacity currently allocated (0.0 - 1.0)."""
-    if device_total_bytes is None or device_total_bytes <= 0:
+    if used_bytes is None or device_total_bytes is None or device_total_bytes <= 0:
         return None
-    return allocator_allocated_bytes / device_total_bytes
+    return used_bytes / device_total_bytes
 
 
 def _compute_fragmentation_ratio(
-    allocator_allocated_bytes: int,
-    allocator_reserved_bytes: int,
+    allocator_allocated_bytes: int | None,
+    allocator_reserved_bytes: int | None,
 ) -> None | float:
     """Fraction of reserved memory that is fragmented (unused gap / reserved).
 
     Returns ``None`` when ``allocator_reserved_bytes`` is zero to avoid
     division-by-zero.
     """
-    if allocator_reserved_bytes == 0:
+    if allocator_allocated_bytes is None or not allocator_reserved_bytes:
         return None
     gap = _compute_allocator_gap_bytes(
         allocator_allocated_bytes, allocator_reserved_bytes
     )
-    return gap / allocator_reserved_bytes
+    return gap / allocator_reserved_bytes if gap is not None else None
 
 
 # ---------------------------------------------------------------------------
@@ -155,14 +157,31 @@ def compute_event_fields(event: Any) -> DerivedFields:
     Returns:
         A :class:`DerivedFields` dict.
     """
-    allocated: int = int(_event_get(event, "allocator_allocated_bytes", 0) or 0)
-    reserved: int = int(_event_get(event, "allocator_reserved_bytes", 0) or 0)
+    raw_allocated = _event_get(event, "allocator_allocated_bytes")
+    raw_reserved = _event_get(event, "allocator_reserved_bytes")
+    raw_device_used = _event_get(event, "device_used_bytes")
+    allocated = int(raw_allocated) if raw_allocated is not None else None
+    reserved = int(raw_reserved) if raw_reserved is not None else None
+    device_used = int(raw_device_used) if raw_device_used is not None else allocated
+    metadata = _event_get(event, "metadata", {})
+    capabilities = (
+        metadata.get("memory_capabilities", {})
+        if isinstance(metadata, MappingABC)
+        else {}
+    )
+    use_device_utilization = allocated is None or (
+        isinstance(capabilities, MappingABC)
+        and not capabilities.get("supports_allocator_allocated", True)
+    )
     device_total: None | int = _event_get(event, "device_total_bytes")
     collector: None | str = _event_get(event, "collector")
 
     result: DerivedFields = {
         "allocator_gap_bytes": _compute_allocator_gap_bytes(allocated, reserved),
-        "utilization_ratio": _compute_utilization_ratio(allocated, device_total),
+        "utilization_ratio": _compute_utilization_ratio(
+            device_used if use_device_utilization else allocated,
+            device_total,
+        ),
         "fragmentation_ratio": _compute_fragmentation_ratio(allocated, reserved),
         "is_degraded_collector": _collector_is_degraded(collector),
     }

@@ -190,9 +190,21 @@ class TrackerSession:
                     timestamp=event.timestamp,
                     event_type=event.event_type,
                     message=event.context or "",
-                    allocated=format_bytes(event.memory_allocated),
-                    reserved=format_bytes(event.memory_reserved),
-                    change=format_bytes(event.memory_change),
+                    allocated=(
+                        format_bytes(event.memory_allocated)
+                        if event.memory_allocated is not None
+                        else "N/A"
+                    ),
+                    reserved=(
+                        format_bytes(event.memory_reserved)
+                        if event.memory_reserved is not None
+                        else "N/A"
+                    ),
+                    change=(
+                        format_bytes(event.memory_change)
+                        if event.memory_change is not None
+                        else "N/A"
+                    ),
                 )
             )
         return views
@@ -242,6 +254,15 @@ class TrackerSession:
 
         normalized: list[TelemetryEvent] = []
         for raw_event in raw_events:
+            if hasattr(tracker, "_telemetry_record_from_event"):
+                try:
+                    record = tracker._telemetry_record_from_event(raw_event)
+                    normalized.append(telemetry_event_from_record(record))
+                    continue
+                except Exception as exc:
+                    logger.debug(
+                        "TrackerSession canonical event conversion failed: %s", exc
+                    )
             timestamp = getattr(raw_event, "timestamp", None)
             if timestamp is None:
                 continue

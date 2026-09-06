@@ -17,7 +17,7 @@ from plotly.subplots import make_subplots
 
 from .distributed_analysis import RankTimelinePoint, analyze_cross_rank_events
 from .profiler import GPUMemoryProfiler, MemorySnapshot, ProfileResult
-from .telemetry import TelemetryEventV2
+from .telemetry import TelemetryEventLike
 
 
 class MemoryVisualizer:
@@ -134,7 +134,7 @@ class MemoryVisualizer:
 
     def plot_cross_rank_timeline(
         self,
-        events: List[TelemetryEventV2],
+        events: List[TelemetryEventLike],
         save_path: Optional[str] = None,
     ) -> plt.Figure:
         """Plot a merged, aligned cross-rank device-memory timeline."""

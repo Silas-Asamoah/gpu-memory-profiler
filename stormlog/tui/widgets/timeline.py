@@ -20,15 +20,27 @@ class TimelineCanvas(Static):
     def render_timeline(self, timeline: dict[str, Any]) -> None:
         allocated = timeline.get("allocated") if timeline else None
         reserved = timeline.get("reserved") if timeline else None
-        if not allocated:
+        device_used = timeline.get("device_used") if timeline else None
+        values = (
+            allocated
+            if allocated and any(v is not None for v in allocated)
+            else device_used
+        )
+        if not values:
             self.render_placeholder(
                 "No timeline data yet. Start live tracking and press Refresh."
             )
             return
 
-        allocated_lines = self._build_chart_lines("Allocated", allocated)
+        label = "Allocated" if values is allocated else "Device Used"
+        numeric_values = [float(value) for value in values if value is not None]
+        allocated_lines = self._build_chart_lines(label, numeric_values)
         reserved_lines = (
-            self._build_chart_lines("Reserved", reserved) if reserved else []
+            self._build_chart_lines(
+                "Reserved", [float(value) for value in reserved if value is not None]
+            )
+            if reserved and any(value is not None for value in reserved)
+            else []
         )
         text = (
             "\n".join(allocated_lines + [""] + reserved_lines)
@@ -113,11 +125,13 @@ class DistributedTimelineCanvas(Static):
         for rank in chosen_ranks:
             rank_payload = timelines.get(rank, {})
             allocated = rank_payload.get("allocated", [])
+            device_used = rank_payload.get("device_used", [])
             gaps = rank_payload.get("gap", [])
-            if not allocated:
+            values = allocated or device_used
+            if not values:
                 continue
 
-            sampled_allocated = self._resample([float(value) for value in allocated])
+            sampled_allocated = self._resample([float(value) for value in values])
             alloc_mb = [value / (1024**2) for value in sampled_allocated]
             alloc_latest = alloc_mb[-1] if alloc_mb else 0.0
             alloc_max = max(alloc_mb) if alloc_mb else 0.0
@@ -128,10 +142,16 @@ class DistributedTimelineCanvas(Static):
             gap_mb = [value / (1024**2) for value in sampled_gap] if sampled_gap else []
             gap_latest = gap_mb[-1] if gap_mb else 0.0
             marker = "*" if rank == active_rank else " "
-            lines.append(
-                f"{marker}r{rank:02d} alloc(max={alloc_max:.1f}MB latest={alloc_latest:.1f}MB) "
-                f"gap_latest={gap_latest:.1f}MB"
-            )
+            if allocated:
+                lines.append(
+                    f"{marker}r{rank:02d} alloc(max={alloc_max:.1f}MB "
+                    f"latest={alloc_latest:.1f}MB) gap_latest={gap_latest:.1f}MB"
+                )
+            else:
+                lines.append(
+                    f"{marker}r{rank:02d} device-used(max={alloc_max:.1f}MB "
+                    f"latest={alloc_latest:.1f}MB) allocator=N/A"
+                )
             lines.append(f"    [{self._generate_sparkline(alloc_mb)}]")
             rank_markers = (
                 list(markers_by_rank.get(rank, [])) if markers_by_rank else []
