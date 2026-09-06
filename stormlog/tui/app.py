@@ -1011,6 +1011,14 @@ class GPUMemoryProfilerTUI(App):
             self._format_bytes_metric(stats.get("peak_memory")),
         )
         table.add_row(
+            "Current Device Used",
+            self._format_bytes_metric(stats.get("current_device_used")),
+        )
+        table.add_row(
+            "Peak Device Used",
+            self._format_bytes_metric(stats.get("peak_device_used")),
+        )
+        table.add_row(
             "Utilization",
             (
                 f"{float(utilization):.1f}%"
@@ -1018,9 +1026,14 @@ class GPUMemoryProfilerTUI(App):
                 else "-"
             ),
         )
+        allocations_per_second = stats.get("allocations_per_second")
         table.add_row(
             "Alloc/sec",
-            f"{stats.get('allocations_per_second', 0.0):.2f}",
+            (
+                f"{float(allocations_per_second):.2f}"
+                if isinstance(allocations_per_second, (int, float))
+                else "N/A"
+            ),
         )
         table.add_row("Alert Count", str(stats.get("alert_count", 0)))
         table.add_row("Total Events", str(stats.get("total_events", 0)))
