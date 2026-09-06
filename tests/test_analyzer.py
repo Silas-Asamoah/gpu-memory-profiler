@@ -46,7 +46,7 @@ def _make_result(
 @pytest.mark.parametrize(
     "method_name",
     ["generate_performance_insights", "generate_optimization_report"],
-)
+)  # type: ignore[misc]
 def test_zero_execution_times_do_not_crash_performance_analysis(
     method_name: str,
 ) -> None:

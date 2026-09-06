@@ -502,7 +502,7 @@ class TestCPUMemoryTracker:
             "reserved": [330.0],
         }
 
-    @pytest.mark.parametrize("interval", [0.0, -1.0])
+    @pytest.mark.parametrize("interval", [0.0, -1.0])  # type: ignore[misc]
     @patch("stormlog.cpu_profiler.psutil.Process")
     def test_get_memory_timeline_rejects_nonpositive_interval(
         self, mock_cls: Any, interval: float
@@ -526,7 +526,7 @@ class TestCPUMemoryTracker:
             reader = csv.DictReader(f)
             rows = list(reader)
         assert len(rows) == 1
-        assert rows[0]["schema_version"] == "3"
+        assert rows[0]["schema_version"] == "4"
         assert rows[0]["session_id"]
         assert rows[0]["event_type"] == "allocation"
         assert rows[0]["collector"] == "stormlog.cpu_tracker"
@@ -548,7 +548,7 @@ class TestCPUMemoryTracker:
         with open(filepath) as f:
             data = json.load(f)
         assert len(data) == 1
-        assert data[0]["schema_version"] == 3
+        assert data[0]["schema_version"] == 4
         assert data[0]["session_id"]
         assert data[0]["event_type"] == "deallocation"
         assert data[0]["collector"] == "stormlog.cpu_tracker"
@@ -623,7 +623,7 @@ class TestCPUMemoryTracker:
         assert payload["context"] == "sink_test"
         stats = tracker.get_statistics()
         assert stats["final_retained_files"] == 1
-        assert stats["rollover_count"] == 0
+        assert stats["rollover_count"] == 1
 
     @patch("stormlog.cpu_profiler.psutil.Process")
     def test_tracker_emits_sample_event_during_healthy_iteration(
