@@ -560,6 +560,44 @@ class TestCPUMemoryTracker:
         assert data[0]["local_rank"] == 0
         assert data[0]["world_size"] == 1
         assert isinstance(data[0]["metadata"], dict)
+        capabilities = data[0]["metadata"]["memory_capabilities"]
+        assert capabilities["backend"] == "cpu"
+        assert capabilities["telemetry_collector"] == "stormlog.cpu_tracker"
+        assert capabilities["supports_allocator_allocated"] is True
+
+    @patch("stormlog.cpu_profiler.psutil.Process")
+    def test_telemetry_export_bypasses_legacy_capability_inference(
+        self, mock_cls: Any
+    ) -> None:
+        mock_cls.return_value = _make_mock_process(rss=4096)
+        tracker = CPUMemoryTracker()
+        tracker._add_event("sample", 0, "direct_v4", rss=4096)
+
+        with patch(
+            "stormlog.telemetry._with_inferred_memory_capabilities",
+            side_effect=AssertionError("legacy inference must not run"),
+        ):
+            record = tracker._telemetry_record_from_event(tracker.get_events()[0])
+
+        assert record["schema_version"] == 4
+        assert record["allocator_allocated_bytes"] == 4096
+        assert record["device_used_bytes"] == 4096
+        assert record["metadata"]["memory_capabilities"] == {
+            "backend": "cpu",
+            "telemetry_collector": "stormlog.cpu_tracker",
+            "sampling_source": "legacy",
+            "supports_allocator_allocated": True,
+            "supports_allocator_reserved": True,
+            "supports_allocator_active": False,
+            "supports_allocator_inactive": False,
+            "supports_device_used": True,
+            "supports_device_free": False,
+            "supports_device_total": False,
+            "supports_native_allocator_history": False,
+            "supports_fragmentation_analysis": True,
+            "supports_allocator_attribution": True,
+            "supports_bounded_profiling": False,
+        }
 
     @patch("stormlog.cpu_profiler.psutil.Process")
     def test_explicit_distributed_identity_is_exported(
