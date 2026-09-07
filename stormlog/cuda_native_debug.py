@@ -8,6 +8,7 @@ import logging
 import pickle
 import warnings as _warnings
 from collections import defaultdict
+from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, Optional, Union, cast
@@ -133,6 +134,36 @@ def _tensor_size_bytes(tensor: torch.Tensor) -> int:
         return 0
 
 
+def _index_named_cuda_tensors(
+    pointer_to_names: dict[int, set[str]],
+    tensors: Iterable[tuple[str, torch.Tensor]],
+    device_index: int,
+) -> None:
+    for name, tensor in tensors:
+        if not tensor.is_cuda or tensor.device.index != device_index:
+            continue
+        storage_ptr = _safe_storage_ptr(tensor)
+        if storage_ptr is not None:
+            pointer_to_names[storage_ptr].add(name)
+
+
+def _index_python_cuda_names(
+    pointer_to_names: dict[int, set[str]],
+    namespace: dict[Any, Any],
+    device_index: int,
+) -> None:
+    for key, value in namespace.items():
+        if not isinstance(key, str) or key.startswith("__"):
+            continue
+        if not isinstance(value, torch.Tensor) or not value.is_cuda:
+            continue
+        if value.device.index != device_index:
+            continue
+        storage_ptr = _safe_storage_ptr(value)
+        if storage_ptr is not None:
+            pointer_to_names[storage_ptr].add(key)
+
+
 def _collect_module_name_index(device_index: int) -> dict[int, set[str]]:
     pointer_to_names: dict[int, set[str]] = defaultdict(set)
     pointer_to_python_names: dict[int, set[str]] = defaultdict(set)
@@ -142,32 +173,16 @@ def _collect_module_name_index(device_index: int) -> dict[int, set[str]]:
         for obj in gc.get_objects():
             try:
                 if isinstance(obj, torch.nn.Module):
-                    for name, parameter in obj.named_parameters(recurse=True):
-                        if (
-                            not parameter.is_cuda
-                            or parameter.device.index != device_index
-                        ):
-                            continue
-                        storage_ptr = _safe_storage_ptr(parameter)
-                        if storage_ptr is not None:
-                            pointer_to_names[storage_ptr].add(name)
-                    for name, buffer in obj.named_buffers(recurse=True):
-                        if not buffer.is_cuda or buffer.device.index != device_index:
-                            continue
-                        storage_ptr = _safe_storage_ptr(buffer)
-                        if storage_ptr is not None:
-                            pointer_to_names[storage_ptr].add(name)
+                    _index_named_cuda_tensors(
+                        pointer_to_names,
+                        obj.named_parameters(recurse=True),
+                        device_index,
+                    )
+                    _index_named_cuda_tensors(
+                        pointer_to_names, obj.named_buffers(recurse=True), device_index
+                    )
                 elif isinstance(obj, dict):
-                    for key, value in obj.items():
-                        if not isinstance(key, str) or key.startswith("__"):
-                            continue
-                        if not isinstance(value, torch.Tensor) or not value.is_cuda:
-                            continue
-                        if value.device.index != device_index:
-                            continue
-                        storage_ptr = _safe_storage_ptr(value)
-                        if storage_ptr is not None:
-                            pointer_to_python_names[storage_ptr].add(key)
+                    _index_python_cuda_names(pointer_to_python_names, obj, device_index)
             except Exception:
                 continue
 

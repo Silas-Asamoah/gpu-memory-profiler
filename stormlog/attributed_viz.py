@@ -200,17 +200,27 @@ def _device_traces_for(snapshot: Dict[str, Any], device: int) -> List[Dict[str, 
     return first_traces if isinstance(first_traces, list) else []
 
 
-def _process_snapshot(
-    snapshot: Dict[str, Any],
-    tensor_index: Dict[str, Any],
-    device: int = 0,
-) -> Dict[str, Any]:
-    """Pre-process snapshot + attribution into a clean JSON payload."""
-    ptr_map = _build_pointer_lookup(tensor_index)
+def _allocation_details(
+    entry: Dict[str, Any] | None, frames: List[Dict[str, str]]
+) -> tuple[str, str, str]:
+    name = ""
+    shape = ""
+    dtype = ""
+    if entry:
+        name = _best_name(entry)
+        shape = _shape_str(entry)
+        dtype = _dtype_str(entry)
+    if not name and frames:
+        name = _get_fallback_name(frames)
+    elif not name:
+        name = "Unnamed Tensor"
+    return name, shape, dtype
 
-    traces = _device_traces_for(snapshot, device)
 
-    # Build timeline events
+def _snapshot_timeline(
+    traces: List[Dict[str, Any]], ptr_map: Dict[int, Dict[str, Any]]
+) -> tuple[List[Dict[str, Any]], int]:
+    """Replay allocation history; memory is released only on free completion."""
     events = []
     t0 = None
     cumulative = 0
@@ -233,10 +243,8 @@ def _process_snapshot(
             peak = max(peak, cumulative)
 
             # Attribution lookup
-            entry = ptr_map.get(addr)
-            name = _best_name(entry) if entry else ""
-            shape = _shape_str(entry) if entry else ""
-            dtype = _dtype_str(entry) if entry else ""
+            frames = _format_frames(t.get("frames", []))
+            name, shape, dtype = _allocation_details(ptr_map.get(addr), frames)
 
             ev = {
                 "t": round((time_us - t0) / 1000, 2),  # ms
@@ -248,13 +256,9 @@ def _process_snapshot(
                 "name": name,
                 "shape": shape,
                 "dtype": dtype,
-                "frames": _format_frames(t.get("frames", [])),
+                "frames": frames,
             }
             addr_to_frames[addr] = ev["frames"]
-            if not ev["name"] and ev["frames"]:
-                ev["name"] = _get_fallback_name(ev["frames"])
-            elif not ev["name"]:
-                ev["name"] = "Unnamed Tensor"
 
             events.append(ev)
             live_allocs[addr] = ev
@@ -294,9 +298,13 @@ def _process_snapshot(
                 }
             )
 
-    raw_segments = snapshot.get("segments", [])
+    return events, peak
 
-    # Process Segments and embed block address/name lookups
+
+def _format_snapshot_segments(
+    raw_segments: List[Dict[str, Any]], ptr_map: Dict[int, Dict[str, Any]]
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Resolve block addresses and collect currently active allocations."""
     formatted_segments = []
     active_memory_table = []
 
@@ -319,15 +327,7 @@ def _process_snapshot(
             dtype = ""
 
             if state == "active_allocated":
-                if entry:
-                    name = _best_name(entry)
-                    shape = _shape_str(entry)
-                    dtype = _dtype_str(entry)
-
-                if not name and frames_fmt:
-                    name = _get_fallback_name(frames_fmt)
-                elif not name:
-                    name = "Unnamed Tensor"
+                name, shape, dtype = _allocation_details(entry, frames_fmt)
 
                 active_memory_table.append(
                     {
@@ -367,6 +367,22 @@ def _process_snapshot(
         )
 
     active_memory_table.sort(key=lambda x: x["size"], reverse=True)
+    return formatted_segments, active_memory_table
+
+
+def _process_snapshot(
+    snapshot: Dict[str, Any],
+    tensor_index: Dict[str, Any],
+    device: int = 0,
+) -> Dict[str, Any]:
+    """Pre-process snapshot + attribution into a clean JSON payload."""
+    ptr_map = _build_pointer_lookup(tensor_index)
+    traces = _device_traces_for(snapshot, device)
+    events, peak = _snapshot_timeline(traces, ptr_map)
+    raw_segments = snapshot.get("segments", [])
+    formatted_segments, active_memory_table = _format_snapshot_segments(
+        raw_segments, ptr_map
+    )
     offenders = _build_snapshot_offenders(active_memory_table)
     active_allocated = sum(int(row.get("size", 0)) for row in active_memory_table)
     history_recorded = bool(traces)
