@@ -645,34 +645,7 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
     except OSError:
         return 1
 
-    # Structured stdout summary
-    print(f"Artifact: {artifact_dir}")
-    if exit_code == 0:
-        status = "OK"
-    elif exit_code == 2:
-        status = "MEMORY_RISK"
-    else:
-        status = "FAILED"
-    print(f"Status: {status} (exit_code={exit_code})")
-
-    try:
-        manifest_path = artifact_dir / "manifest.json"
-        if manifest_path.exists():
-            with open(manifest_path) as f:
-                manifest = json.load(f)
-            if manifest.get("risk_detected"):
-                summary_path = artifact_dir / "diagnostic_summary.json"
-                if summary_path.exists():
-                    with open(summary_path) as f:
-                        summary = json.load(f)
-                    flags = summary.get("risk_flags", {})
-                    parts = [k for k, v in flags.items() if v]
-                    if parts:
-                        print(f"Findings: {', '.join(parts)}")
-        if exit_code == 0 and status == "OK":
-            print("Findings: no memory risk detected")
-    except (OSError, json.JSONDecodeError):
-        pass
+    _print_diagnose_summary(artifact_dir, exit_code)
 
     if wandb_config.enabled:
         try:
@@ -697,6 +670,40 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
             _warn_mlflow_export_failure("tfmemprof diagnose", exc)
 
     return exit_code
+
+
+def _print_diagnose_summary(artifact_dir: Path, exit_code: int) -> None:
+    # Structured stdout summary
+    print(f"Artifact: {artifact_dir}")
+    if exit_code == 0:
+        status = "OK"
+    elif exit_code == 2:
+        status = "MEMORY_RISK"
+    else:
+        status = "FAILED"
+    print(f"Status: {status} (exit_code={exit_code})")
+    _print_diagnose_findings(artifact_dir, exit_code, status)
+
+
+def _print_diagnose_findings(artifact_dir: Path, exit_code: int, status: str) -> None:
+    try:
+        manifest_path = artifact_dir / "manifest.json"
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            if manifest.get("risk_detected"):
+                summary_path = artifact_dir / "diagnostic_summary.json"
+                if summary_path.exists():
+                    with open(summary_path) as f:
+                        summary = json.load(f)
+                    flags = summary.get("risk_flags", {})
+                    parts = [k for k, v in flags.items() if v]
+                    if parts:
+                        print(f"Findings: {', '.join(parts)}")
+        if exit_code == 0 and status == "OK":
+            print("Findings: no memory risk detected")
+    except (OSError, json.JSONDecodeError):
+        pass
 
 
 def main() -> int:
