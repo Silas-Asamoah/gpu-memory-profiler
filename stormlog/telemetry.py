@@ -318,40 +318,47 @@ def resolve_distributed_identity(
 ) -> dict[str, Any]:
     """Normalize distributed identity fields from explicit, metadata, or env inputs."""
     metadata_values = dict(metadata or {})
-    raw_job_id = job_id if job_id is not None else metadata_values.get("job_id")
-    raw_rank = rank if rank is not None else metadata_values.get("rank")
-    raw_local_rank = (
-        local_rank if local_rank is not None else metadata_values.get("local_rank")
-    )
-    raw_world_size = (
-        world_size if world_size is not None else metadata_values.get("world_size")
-    )
+    raw = {
+        "job_id": job_id,
+        "rank": rank,
+        "local_rank": local_rank,
+        "world_size": world_size,
+    }
+    for name, value in raw.items():
+        if value is None:
+            raw[name] = metadata_values.get(name)
+    _fill_identity_from_env(raw, env)
+    return _normalize_distributed_identity(raw)
 
-    needs_rank_env = (
-        raw_rank is None or raw_local_rank is None or raw_world_size is None
+
+def _fill_identity_from_env(
+    raw: dict[str, Any], env: Optional[Mapping[str, str]]
+) -> None:
+    """Fill only missing fields, without parsing rank env for complete identities."""
+    needs_rank_env = any(
+        raw[name] is None for name in ("rank", "local_rank", "world_size")
     )
     if needs_rank_env:
         inferred = _infer_distributed_identity_from_env(env)
-        if raw_rank is None:
-            raw_rank = inferred["rank"]
-        if raw_local_rank is None:
-            raw_local_rank = inferred["local_rank"]
-        if raw_world_size is None:
-            raw_world_size = inferred["world_size"]
-        if raw_job_id is None:
-            raw_job_id = inferred["job_id"]
-    elif raw_job_id is None and env is not None:
-        raw_job_id = _first_env_value(env, _JOB_ID_ENV_KEYS)
+        for name, value in raw.items():
+            if value is None:
+                raw[name] = inferred[name]
+    elif raw["job_id"] is None and env is not None:
+        raw["job_id"] = _first_env_value(env, _JOB_ID_ENV_KEYS)
 
+
+def _normalize_distributed_identity(raw: Mapping[str, Any]) -> dict[str, Any]:
+    raw_rank = raw["rank"]
+    raw_local_rank = raw["local_rank"]
+    raw_world_size = raw["world_size"]
     if raw_world_size is None:
         raw_world_size = 1
     if raw_rank is None:
         raw_rank = 0
-
-    if raw_rank is not None and raw_local_rank is None:
+    if raw_local_rank is None:
         raw_local_rank = raw_rank
 
-    normalized_job_id = _coerce_optional_non_empty_string(raw_job_id, "job_id")
+    normalized_job_id = _coerce_optional_non_empty_string(raw["job_id"], "job_id")
     normalized_rank = _coerce_non_negative_int(raw_rank, "rank")
     normalized_local_rank = _coerce_non_negative_int(raw_local_rank, "local_rank")
     normalized_world_size = _coerce_positive_int(raw_world_size, "world_size")
@@ -643,6 +650,23 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
         ValueError: if the record is invalid or partial.
     """
 
+    _validate_telemetry_shape(record)
+    _validate_telemetry_process(record)
+    _validate_telemetry_identity_fields(record)
+    _coerce_int(record["device_id"], "device_id")
+    _validate_allocator_counters(record)
+    _validate_device_counters(record)
+    _coerce_string(record["context"], "context", allow_none=True)
+    _coerce_metadata_dict(record["metadata"])
+    resolve_distributed_identity(
+        job_id=record.get("job_id"),
+        rank=record.get("rank"),
+        local_rank=record.get("local_rank"),
+        world_size=record.get("world_size"),
+    )
+
+
+def _validate_telemetry_shape(record: Mapping[str, Any]) -> None:
     schema_version = _coerce_int(record.get("schema_version"), "schema_version")
     required_fields: tuple[str, ...]
     known_fields: frozenset[str]
@@ -668,6 +692,8 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if require_session_id:
         _coerce_required_string(record["session_id"], "session_id")
 
+
+def _validate_telemetry_process(record: Mapping[str, Any]) -> None:
     timestamp_ns = _coerce_int(record["timestamp_ns"], "timestamp_ns")
     if timestamp_ns < 0:
         raise ValueError("timestamp_ns must be >= 0")
@@ -687,6 +713,8 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
 
     _coerce_required_string(record["host"], "host")
 
+
+def _validate_telemetry_identity_fields(record: Mapping[str, Any]) -> None:
     if "job_id" in record:
         _coerce_optional_non_empty_string(record["job_id"], "job_id")
 
@@ -699,8 +727,8 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if "world_size" in record:
         _coerce_positive_int(record["world_size"], "world_size")
 
-    _coerce_int(record["device_id"], "device_id")
 
+def _validate_allocator_counters(record: Mapping[str, Any]) -> None:
     allocator_allocated_bytes = _coerce_int(
         record["allocator_allocated_bytes"], "allocator_allocated_bytes"
     )
@@ -724,6 +752,8 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if allocator_inactive_bytes is not None and allocator_inactive_bytes < 0:
         raise ValueError("allocator_inactive_bytes must be >= 0 when provided")
 
+
+def _validate_device_counters(record: Mapping[str, Any]) -> None:
     device_used_bytes = _coerce_int(record["device_used_bytes"], "device_used_bytes")
     device_free_bytes = _coerce_optional_int(
         record["device_free_bytes"], "device_free_bytes"
@@ -739,24 +769,12 @@ def validate_telemetry_record(record: Mapping[str, Any]) -> None:
     if device_total_bytes is not None and device_total_bytes < 0:
         raise ValueError("device_total_bytes must be >= 0 when provided")
 
-    if device_total_bytes is not None and device_used_bytes > device_total_bytes:
+    if device_total_bytes is None:
+        return
+    if device_used_bytes > device_total_bytes:
         raise ValueError("device_used_bytes cannot exceed device_total_bytes")
-    if (
-        device_total_bytes is not None
-        and device_free_bytes is not None
-        and device_free_bytes > device_total_bytes
-    ):
+    if device_free_bytes is not None and device_free_bytes > device_total_bytes:
         raise ValueError("device_free_bytes cannot exceed device_total_bytes")
-
-    _coerce_string(record["context"], "context", allow_none=True)
-
-    _coerce_metadata_dict(record["metadata"])
-    resolve_distributed_identity(
-        job_id=record.get("job_id"),
-        rank=record.get("rank"),
-        local_rank=record.get("local_rank"),
-        world_size=record.get("world_size"),
-    )
 
 
 def telemetry_event_from_record(
