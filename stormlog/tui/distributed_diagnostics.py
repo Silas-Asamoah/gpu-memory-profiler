@@ -292,56 +292,16 @@ def _merge_legacy_flat_sessions(
     if not loaded_sessions:
         raise ValueError("legacy flat session merge requires at least one session")
 
-    source_paths = sorted(
-        {source for loaded in loaded_sessions for source in loaded.sources_loaded}
-    )
+    source_paths = _merged_source_paths(loaded_sessions)
     merged_session_id = stable_legacy_session_id(
         "distributed.legacy",
         *source_paths,
     )
-    merged_events = _dedupe_events(
-        replace(event, session_id=merged_session_id)
-        for loaded in loaded_sessions
-        for event in loaded.events
-    )
-    merged_events.sort(key=lambda event: event.timestamp_ns)
-
-    summaries = [loaded.summary for loaded in loaded_sessions]
-    all_completed = all(
-        summary.status == SESSION_STATUS_COMPLETED for summary in summaries
-    )
-    host = _collect_common_optional_string(summary.host for summary in summaries)
-    started_at_ns = min(summary.started_at_ns for summary in summaries)
-    ended_at_candidates = [
-        summary.ended_at_ns for summary in summaries if summary.ended_at_ns is not None
-    ]
-    ended_at_ns = (
-        max(ended_at_candidates) if all_completed and ended_at_candidates else None
-    )
-    summary = create_session_summary(
+    return _merge_loaded_session_group(
+        loaded_sessions,
+        source_paths=source_paths,
         source="stormlog.diagnostics.legacy",
-        status=(
-            SESSION_STATUS_COMPLETED if all_completed else SESSION_STATUS_INCOMPLETE
-        ),
         session_id=merged_session_id,
-        started_at_ns=started_at_ns,
-        ended_at_ns=ended_at_ns,
-        host=host or "multiple",
-        pid=(
-            summaries[0].pid if len({summary.pid for summary in summaries}) == 1 else -1
-        ),
-        job_id=_collect_common_optional_string(summary.job_id for summary in summaries),
-        rank=min(summary.rank for summary in summaries),
-        local_rank=min(summary.local_rank for summary in summaries),
-        world_size=max(summary.world_size for summary in summaries),
-    )
-    return LoadedTelemetrySession(
-        summary=summary,
-        events=merged_events,
-        sources_loaded=source_paths,
-        warnings=_unique_strings(
-            warning for loaded in loaded_sessions for warning in loaded.warnings
-        ),
     )
 
 
@@ -351,9 +311,7 @@ def _merge_distributed_path_sessions(
     if not loaded_sessions:
         raise ValueError("distributed session merge requires at least one session")
 
-    source_paths = sorted(
-        {source for loaded in loaded_sessions for source in loaded.sources_loaded}
-    )
+    source_paths = _merged_source_paths(loaded_sessions)
     summaries = [loaded.summary for loaded in loaded_sessions]
     job_id = _collect_common_optional_string(summary.job_id for summary in summaries)
     if job_id is None:
@@ -366,48 +324,87 @@ def _merge_distributed_path_sessions(
         world_size,
         *sorted(summary.session_id for summary in summaries),
     )
+    return _merge_loaded_session_group(
+        loaded_sessions,
+        source_paths=source_paths,
+        source="stormlog.diagnostics.distributed",
+        session_id=merged_session_id,
+    )
+
+
+def _merged_source_paths(
+    loaded_sessions: Sequence[LoadedTelemetrySession],
+) -> list[str]:
+    return sorted(
+        {source for loaded in loaded_sessions for source in loaded.sources_loaded}
+    )
+
+
+def _merge_loaded_session_group(
+    loaded_sessions: Sequence[LoadedTelemetrySession],
+    *,
+    source_paths: list[str],
+    source: str,
+    session_id: str,
+) -> LoadedTelemetrySession:
     merged_events = _dedupe_events(
-        replace(event, session_id=merged_session_id)
+        replace(event, session_id=session_id)
         for loaded in loaded_sessions
         for event in loaded.events
     )
     merged_events.sort(key=lambda event: event.timestamp_ns)
+    return LoadedTelemetrySession(
+        summary=_create_merged_session_summary(
+            [loaded.summary for loaded in loaded_sessions],
+            source=source,
+            session_id=session_id,
+        ),
+        events=merged_events,
+        sources_loaded=source_paths,
+        warnings=_unique_strings(
+            warning for loaded in loaded_sessions for warning in loaded.warnings
+        ),
+    )
 
+
+def _merged_session_lifecycle(
+    summaries: Sequence[SessionSummary],
+) -> tuple[str, int, int | None]:
     all_completed = all(
         summary.status == SESSION_STATUS_COMPLETED for summary in summaries
     )
-    host = _collect_common_optional_string(summary.host for summary in summaries)
-    started_at_ns = min(summary.started_at_ns for summary in summaries)
+    status = SESSION_STATUS_COMPLETED if all_completed else SESSION_STATUS_INCOMPLETE
     ended_at_candidates = [
         summary.ended_at_ns for summary in summaries if summary.ended_at_ns is not None
     ]
     ended_at_ns = (
         max(ended_at_candidates) if all_completed and ended_at_candidates else None
     )
-    summary = create_session_summary(
-        source="stormlog.diagnostics.distributed",
-        status=(
-            SESSION_STATUS_COMPLETED if all_completed else SESSION_STATUS_INCOMPLETE
-        ),
-        session_id=merged_session_id,
+    return status, min(summary.started_at_ns for summary in summaries), ended_at_ns
+
+
+def _create_merged_session_summary(
+    summaries: Sequence[SessionSummary],
+    *,
+    source: str,
+    session_id: str,
+) -> SessionSummary:
+    status, started_at_ns, ended_at_ns = _merged_session_lifecycle(summaries)
+    host = _collect_common_optional_string(summary.host for summary in summaries)
+    return create_session_summary(
+        source=source,
+        status=status,
+        session_id=session_id,
         started_at_ns=started_at_ns,
         ended_at_ns=ended_at_ns,
         host=host or "multiple",
         pid=(
             summaries[0].pid if len({summary.pid for summary in summaries}) == 1 else -1
         ),
-        job_id=job_id,
+        job_id=_collect_common_optional_string(summary.job_id for summary in summaries),
         rank=min(summary.rank for summary in summaries),
         local_rank=min(summary.local_rank for summary in summaries),
-        world_size=world_size,
-    )
-    return LoadedTelemetrySession(
-        summary=summary,
-        events=merged_events,
-        sources_loaded=source_paths,
-        warnings=_unique_strings(
-            warning for loaded in loaded_sessions for warning in loaded.warnings
-        ),
+        world_size=max(summary.world_size for summary in summaries),
     )
 
 
@@ -583,13 +580,28 @@ def _unique_strings(values: Iterable[str]) -> list[str]:
     return ordered
 
 
-def load_distributed_artifacts(
+def _load_artifact_input(
+    path: Path,
+    rank_allocator: _TimelineRankAllocator,
+) -> tuple[list[LoadedTelemetrySession], list[str], bool]:
+    if not path.exists():
+        return [], [f"Path does not exist: {path}"], False
+    if path.is_file():
+        sessions, warnings = _load_artifact_file(path, rank_allocator=rank_allocator)
+        return sessions, warnings, _is_legacy_sessionless_flat_file(path, sessions)
+    if path.is_dir():
+        sessions, warnings = _load_artifact_directory(
+            path, rank_allocator=rank_allocator
+        )
+        return sessions, warnings, False
+    return [], [f"Unsupported path type: {path}"], False
+
+
+def _collect_artifact_sessions(
     paths: list[Path],
-    session_id: str | None = None,
-) -> ArtifactLoadResult:
-    """Load telemetry events from JSON/CSV files and artifact directories."""
-    warnings: list[str] = []
-    sources_loaded: set[str] = set()
+    warnings: list[str],
+    sources_loaded: set[str],
+) -> tuple[list[LoadedTelemetrySession], set[str]]:
     accumulators: dict[str, _LoadedSessionAccumulator] = {}
     legacy_flat_sessions: list[LoadedTelemetrySession] = []
     single_session_input_ids: set[str] = set()
@@ -597,58 +609,32 @@ def load_distributed_artifacts(
 
     for input_path in paths:
         path = input_path.expanduser().resolve()
-        if not path.exists():
-            warnings.append(f"Path does not exist: {path}")
-            continue
-
-        if path.is_file():
-            loaded_sessions, file_warnings = _load_artifact_file(
-                path,
-                rank_allocator=rank_allocator,
-            )
-            if len(loaded_sessions) == 1 and not _is_legacy_sessionless_flat_file(
-                path, loaded_sessions
-            ):
-                single_session_input_ids.add(loaded_sessions[0].summary.session_id)
-            _accumulate_path_loaded_sessions(
-                accumulators,
-                legacy_flat_sessions,
-                source_path=path,
-                loaded_sessions=loaded_sessions,
-            )
-            warnings.extend(file_warnings)
-            for loaded in loaded_sessions:
-                sources_loaded.update(loaded.sources_loaded)
-            continue
-
-        if path.is_dir():
-            loaded_sessions, dir_warnings = _load_artifact_directory(
-                path,
-                rank_allocator=rank_allocator,
-            )
+        loaded_sessions, path_warnings, is_legacy = _load_artifact_input(
+            path, rank_allocator
+        )
+        if is_legacy:
+            legacy_flat_sessions.extend(loaded_sessions)
+        else:
             if len(loaded_sessions) == 1:
                 single_session_input_ids.add(loaded_sessions[0].summary.session_id)
             _accumulate_loaded_sessions(accumulators, loaded_sessions)
-            warnings.extend(dir_warnings)
-            for loaded in loaded_sessions:
-                sources_loaded.update(loaded.sources_loaded)
-            continue
-
-        warnings.append(f"Unsupported path type: {path}")
+        warnings.extend(path_warnings)
+        for loaded in loaded_sessions:
+            sources_loaded.update(loaded.sources_loaded)
 
     if legacy_flat_sessions:
         merged_legacy = _merge_legacy_flat_sessions(legacy_flat_sessions)
         _accumulate_loaded_sessions(accumulators, [merged_legacy])
         sources_loaded.update(merged_legacy.sources_loaded)
 
-    sessions = _finalize_loaded_sessions(accumulators)
-    synthetic_sessions = _synthesize_distributed_sessions(
-        sessions,
-        single_session_input_ids,
-    )
-    if synthetic_sessions:
-        sessions = _order_loaded_sessions([*sessions, *synthetic_sessions])
-    selected: LoadedTelemetrySession | None = None
+    return _finalize_loaded_sessions(accumulators), single_session_input_ids
+
+
+def _select_artifact_session(
+    sessions: list[LoadedTelemetrySession],
+    synthetic_sessions: list[LoadedTelemetrySession],
+    session_id: str | None,
+) -> LoadedTelemetrySession | None:
     if session_id is not None:
         selected = next(
             (loaded for loaded in sessions if loaded.summary.session_id == session_id),
@@ -656,11 +642,34 @@ def load_distributed_artifacts(
         )
         if selected is None:
             raise ValueError(f"Requested session_id not found: {session_id}")
-    else:
-        if synthetic_sessions:
-            selected = select_default_loaded_session(synthetic_sessions)
-        if selected is None:
-            selected = select_default_loaded_session(sessions)
+        return selected
+    if synthetic_sessions:
+        selected = cast(
+            LoadedTelemetrySession | None,
+            select_default_loaded_session(synthetic_sessions),
+        )
+        if selected is not None:
+            return selected
+    return cast(LoadedTelemetrySession | None, select_default_loaded_session(sessions))
+
+
+def load_distributed_artifacts(
+    paths: list[Path],
+    session_id: str | None = None,
+) -> ArtifactLoadResult:
+    """Load telemetry events from JSON/CSV files and artifact directories."""
+    warnings: list[str] = []
+    sources_loaded: set[str] = set()
+    sessions, single_session_input_ids = _collect_artifact_sessions(
+        paths, warnings, sources_loaded
+    )
+    synthetic_sessions = _synthesize_distributed_sessions(
+        sessions,
+        single_session_input_ids,
+    )
+    if synthetic_sessions:
+        sessions = _order_loaded_sessions([*sessions, *synthetic_sessions])
+    selected = _select_artifact_session(sessions, synthetic_sessions, session_id)
 
     selected_events = list(selected.events) if selected is not None else []
     selected_markers = (
@@ -681,6 +690,57 @@ def load_distributed_artifacts(
     )
 
 
+def _group_rank_events(
+    events: Sequence[TelemetryCompatibleEvent],
+) -> tuple[
+    dict[int, list[TelemetryCompatibleEvent]],
+    dict[int, list[TelemetryCompatibleEvent]],
+    set[int],
+]:
+    grouped: dict[int, list[TelemetryCompatibleEvent]] = {}
+    sample_grouped: dict[int, list[TelemetryCompatibleEvent]] = {}
+    world_sizes: set[int] = set()
+    for event in sorted(events, key=lambda item: item.timestamp_ns):
+        grouped.setdefault(event.rank, []).append(event)
+        if _is_sample_event(event):
+            sample_grouped.setdefault(event.rank, []).append(event)
+        if event.world_size > 0:
+            world_sizes.add(event.world_size)
+    return grouped, sample_grouped, world_sizes
+
+
+def _expected_ranks(present_ranks: list[int], world_sizes: set[int]) -> list[int]:
+    expected_world_size = max(world_sizes) if world_sizes else len(present_ranks)
+    return sorted(
+        set(present_ranks)
+        | (
+            set(range(expected_world_size))
+            if expected_world_size > 0
+            else set(present_ranks)
+        )
+    )
+
+
+def _filter_ranks(ranks: list[int], selected_ranks: set[int] | None) -> list[int]:
+    if selected_ranks is None:
+        return ranks
+    return [rank for rank in ranks if rank in selected_ranks]
+
+
+def _build_rank_timeline(
+    samples: Sequence[TelemetryCompatibleEvent],
+) -> dict[str, list[int]]:
+    return {
+        "timestamps_ns": [event.timestamp_ns for event in samples],
+        "allocated": [event.allocator_allocated_bytes for event in samples],
+        "reserved": [event.allocator_reserved_bytes for event in samples],
+        "gap": [
+            event.device_used_bytes - event.allocator_reserved_bytes
+            for event in samples
+        ],
+    }
+
+
 def build_distributed_model(
     events: Sequence[TelemetryCompatibleEvent],
     selected_ranks: set[int] | None = None,
@@ -697,31 +757,14 @@ def build_distributed_model(
             warnings=["No telemetry events loaded."],
         )
 
-    grouped: dict[int, list[TelemetryCompatibleEvent]] = {}
-    sample_grouped: dict[int, list[TelemetryCompatibleEvent]] = {}
-    world_sizes: set[int] = set()
     phase_resolver = (
         PhaseReplayIndex.from_events(events)
         if hasattr(PhaseReplayIndex, "from_events")
         else None
     )
-    for event in sorted(events, key=lambda item: item.timestamp_ns):
-        grouped.setdefault(event.rank, []).append(event)
-        if _is_sample_event(event):
-            sample_grouped.setdefault(event.rank, []).append(event)
-        if event.world_size > 0:
-            world_sizes.add(event.world_size)
-
+    grouped, sample_grouped, world_sizes = _group_rank_events(events)
     present_ranks = sorted(grouped.keys())
-    expected_world_size = max(world_sizes) if world_sizes else len(present_ranks)
-    expected_ranks = sorted(
-        set(present_ranks)
-        | (
-            set(range(expected_world_size))
-            if expected_world_size > 0
-            else set(present_ranks)
-        )
-    )
+    expected_ranks = _expected_ranks(present_ranks, world_sizes)
 
     warnings: list[str] = []
     if len(world_sizes) > 1:
@@ -730,16 +773,8 @@ def build_distributed_model(
         )
 
     selected = set(selected_ranks) if selected_ranks is not None else None
-    filtered_expected = (
-        [rank for rank in expected_ranks if rank in selected]
-        if selected is not None
-        else expected_ranks
-    )
-    filtered_present = (
-        [rank for rank in present_ranks if rank in selected]
-        if selected is not None
-        else present_ranks
-    )
+    filtered_expected = _filter_ranks(expected_ranks, selected)
+    filtered_present = _filter_ranks(present_ranks, selected)
     filtered_missing = sorted(set(filtered_expected) - set(filtered_present))
 
     markers_by_rank = _group_timeline_markers_by_rank(
@@ -781,15 +816,7 @@ def build_distributed_model(
         )
         rows.append(row)
         candidates.extend(rank_candidates)
-        timelines[rank] = {
-            "timestamps_ns": [event.timestamp_ns for event in rank_samples],
-            "allocated": [event.allocator_allocated_bytes for event in rank_samples],
-            "reserved": [event.allocator_reserved_bytes for event in rank_samples],
-            "gap": [
-                event.device_used_bytes - event.allocator_reserved_bytes
-                for event in rank_samples
-            ],
-        }
+        timelines[rank] = _build_rank_timeline(rank_samples)
 
     return DistributedDiagnosticsModel(
         rows=rows,
