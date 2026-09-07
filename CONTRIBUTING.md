@@ -154,8 +154,9 @@ python3 scripts/check_complexity.py --json
 Unchanged legacy callables above 10 are recorded in
 `.ci/complexity-baseline.json`. Each exception records its score and a hash of
 the parsed function, so moving lines or reformatting does not invalidate it.
-Fingerprints normalize empty type-parameter fields added by Python 3.12; CI
-checks the same baseline on Python 3.10 and 3.12.
+Fingerprints normalize empty type-parameter fields added by Python 3.12 and
+retain empty AST fields omitted by default since Python 3.13. CI checks the same
+baseline on Python 3.10, 3.12, 3.13, and 3.14.
 Changing its code, signature, annotations, decorators, or docstring requires
 bringing the callable to 10 or less. Prefer cohesive helpers and focused tests
 that preserve behavior, outputs, and error handling.

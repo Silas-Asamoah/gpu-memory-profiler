@@ -99,6 +99,25 @@ def test_unchanged_legacy_code_tolerates_line_shifts_and_formatting() -> None:
     assert evaluate(score_source(shifted, "test.py"), baseline)["status"] == "pass"
 
 
+def test_python_310_legacy_baseline_remains_valid() -> None:
+    baseline = {
+        "blocks": {
+            "test.py:legacy": {
+                "complexity": 11,
+                "source_hash": (
+                    "c48792a148fb4b2a2df00ae7509ef59e58199061a14dd37392eb64070c89f613"
+                ),
+            }
+        }
+    }
+
+    report = evaluate(score_source(_complex_source(), "test.py"), baseline)
+
+    assert report["status"] == "pass"
+    assert report["baselined"] == 1
+    assert report["stale_baseline_entries"] == []
+
+
 @pytest.mark.parametrize(
     "replacement",
     [_complex_source(11), _complex_source().replace("return -1", "return -2")],

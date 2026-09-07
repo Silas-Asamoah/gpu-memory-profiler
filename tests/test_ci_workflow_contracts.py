@@ -137,7 +137,7 @@ def test_ci_enforces_radon_complexity_without_framework_dependencies() -> None:
     job_block = content[start:end]
 
     assert "requirements-complexity.txt" in job_block
-    assert 'python-version: ["3.10", "3.12"]' in job_block
+    assert 'python-version: ["3.10", "3.12", "3.13", "3.14"]' in job_block
     assert "python-version: ${{ matrix.python-version }}" in job_block
     assert "python3 -m pytest tests/test_complexity_gate.py" in job_block
     assert "python3 scripts/check_complexity.py --json" in job_block

@@ -58,8 +58,10 @@ def _source_hash(node: ast.AST) -> str:
         # Python 3.12 adds this empty field even to pre-3.12 syntax.
         if getattr(child, "type_params", None) == []:
             delattr(child, "type_params")
+    # Python 3.13 omits empty lists by default; retain the pre-3.13 representation.
+    dump_options = {"show_empty": True} if sys.version_info >= (3, 13) else {}
     return hashlib.sha256(
-        ast.dump(normalized, include_attributes=False).encode("utf-8")
+        ast.dump(normalized, include_attributes=False, **dump_options).encode("utf-8")
     ).hexdigest()
 
 
