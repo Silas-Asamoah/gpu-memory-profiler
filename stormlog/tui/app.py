@@ -6,8 +6,9 @@ import asyncio
 import logging
 import os
 from datetime import datetime
+from functools import partial
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional
 
 # Suppress TensorFlow oneDNN warnings
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
@@ -611,80 +612,66 @@ class GPUMemoryProfilerTUI(App):
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id or ""
-        if button_id == "btn-refresh-overview":
-            self.action_refresh_overview()
-        elif button_id == "btn-log-system":
-            await self.run_cli_command("gpumemprof info")
-        elif button_id == "btn-log-pytorch":
-            await self.run_cli_command(
-                "gpumemprof monitor --duration 30 --interval 0.5"
-            )
-        elif button_id == "btn-log-tensorflow":
-            await self.run_cli_command("tfmemprof monitor --duration 30 --interval 0.5")
-        elif button_id == "btn-log-diagnose":
-            await self.run_cli_command(
-                "gpumemprof diagnose --duration 0 --output artifacts/tui_diagnose"
-            )
-        elif button_id == "btn-run-pytorch":
-            await self.run_pytorch_sample()
-        elif button_id == "btn-run-tf":
-            await self.run_tensorflow_sample()
-        elif button_id == "btn-run-oom-scenario":
-            await self.run_cli_command(
-                "python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated"
-            )
-        elif button_id == "btn-run-cap-matrix":
-            await self.run_cli_command(
-                "python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated --skip-tui"
-            )
-        elif button_id == "btn-cli-run":
-            await self.run_cli_command(self.cli_command_input.value)
-        elif button_id == "btn-cli-cancel":
-            await self.cancel_cli_command()
-        elif button_id == "btn-start-tracking":
-            await self.start_live_tracking()
-        elif button_id == "btn-stop-tracking":
-            self.stop_live_tracking()
-        elif button_id == "btn-toggle-watchdog":
-            self.toggle_auto_cleanup()
-        elif button_id == "btn-force-cleanup":
-            self.force_cleanup()
-        elif button_id == "btn-force-cleanup-aggressive":
-            self.force_cleanup(aggressive=True)
-        elif button_id == "btn-export-csv":
-            await self.export_tracker_events("csv")
-        elif button_id == "btn-export-json":
-            await self.export_tracker_events("json")
-        elif button_id == "btn-apply-thresholds":
-            self.apply_thresholds()
-        elif button_id == "btn-clear-monitor-log":
-            self.clear_monitor_log()
-        elif button_id == "btn-refresh-visual":
-            await self.refresh_visualizations()
-        elif button_id == "btn-visual-png":
-            await self.generate_visual_plot("png")
-        elif button_id == "btn-visual-html":
-            await self.generate_visual_plot("html")
-        elif button_id == "btn-diag-load-live":
-            await self.load_diagnostics_live()
-        elif button_id == "btn-diag-load-artifacts":
-            await self.load_diagnostics_artifacts()
-        elif button_id == "btn-diag-refresh":
-            await self.refresh_diagnostics()
-        elif button_id == "btn-diag-apply-session":
-            await self.apply_diagnostics_session_selection()
-        elif button_id == "btn-diag-apply-filter":
-            self.apply_diagnostics_rank_filter()
-        elif button_id == "btn-diag-reset-filter":
-            self.reset_diagnostics_rank_filter()
-        elif button_id == "btn-refresh-pt-profiles":
-            await self.refresh_pytorch_profiles()
-        elif button_id == "btn-clear-pt-profiles":
-            await self.clear_pytorch_profiles()
-        elif button_id == "btn-refresh-tf-profiles":
-            await self.refresh_tensorflow_profiles()
-        elif button_id == "btn-clear-tf-profiles":
-            await self.clear_tensorflow_profiles()
+        sync_handlers: dict[str, Callable[[], None]] = {
+            "btn-refresh-overview": self.action_refresh_overview,
+            "btn-stop-tracking": self.stop_live_tracking,
+            "btn-toggle-watchdog": self.toggle_auto_cleanup,
+            "btn-force-cleanup": self.force_cleanup,
+            "btn-force-cleanup-aggressive": partial(
+                self.force_cleanup, aggressive=True
+            ),
+            "btn-apply-thresholds": self.apply_thresholds,
+            "btn-clear-monitor-log": self.clear_monitor_log,
+            "btn-diag-apply-filter": self.apply_diagnostics_rank_filter,
+            "btn-diag-reset-filter": self.reset_diagnostics_rank_filter,
+        }
+        sync_handler = sync_handlers.get(button_id)
+        if sync_handler is not None:
+            sync_handler()
+            return
+
+        async_handlers: dict[str, Callable[[], Awaitable[None]]] = {
+            "btn-log-system": partial(self.run_cli_command, "gpumemprof info"),
+            "btn-log-pytorch": partial(
+                self.run_cli_command, "gpumemprof monitor --duration 30 --interval 0.5"
+            ),
+            "btn-log-tensorflow": partial(
+                self.run_cli_command, "tfmemprof monitor --duration 30 --interval 0.5"
+            ),
+            "btn-log-diagnose": partial(
+                self.run_cli_command,
+                "gpumemprof diagnose --duration 0 --output artifacts/tui_diagnose",
+            ),
+            "btn-run-pytorch": self.run_pytorch_sample,
+            "btn-run-tf": self.run_tensorflow_sample,
+            "btn-run-oom-scenario": partial(
+                self.run_cli_command,
+                "python -m examples.scenarios.oom_flight_recorder_scenario --mode simulated",
+            ),
+            "btn-run-cap-matrix": partial(
+                self.run_cli_command,
+                "python -m examples.cli.capability_matrix --mode smoke --target both --oom-mode simulated --skip-tui",
+            ),
+            "btn-cli-run": lambda: self.run_cli_command(self.cli_command_input.value),
+            "btn-cli-cancel": self.cancel_cli_command,
+            "btn-start-tracking": self.start_live_tracking,
+            "btn-export-csv": partial(self.export_tracker_events, "csv"),
+            "btn-export-json": partial(self.export_tracker_events, "json"),
+            "btn-refresh-visual": self.refresh_visualizations,
+            "btn-visual-png": partial(self.generate_visual_plot, "png"),
+            "btn-visual-html": partial(self.generate_visual_plot, "html"),
+            "btn-diag-load-live": self.load_diagnostics_live,
+            "btn-diag-load-artifacts": self.load_diagnostics_artifacts,
+            "btn-diag-refresh": self.refresh_diagnostics,
+            "btn-diag-apply-session": self.apply_diagnostics_session_selection,
+            "btn-refresh-pt-profiles": self.refresh_pytorch_profiles,
+            "btn-clear-pt-profiles": self.clear_pytorch_profiles,
+            "btn-refresh-tf-profiles": self.refresh_tensorflow_profiles,
+            "btn-clear-tf-profiles": self.clear_tensorflow_profiles,
+        }
+        async_handler = async_handlers.get(button_id)
+        if async_handler is not None:
+            await async_handler()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table is not self.diagnostics_rank_table:
