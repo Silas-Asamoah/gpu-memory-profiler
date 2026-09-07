@@ -198,16 +198,10 @@ def run_timeline_capture(
         return {"timestamps": [], "allocated": [], "reserved": []}
 
 
-def build_diagnostic_summary(
-    device: Optional[int] = None,
-) -> Tuple[Dict[str, Any], bool]:
-    """
-    Build diagnostic summary and risk flags from current state.
-    Returns (summary_dict, risk_detected).
-    """
-    system_info = get_system_info()
-    backend = system_info.get("detected_backend", "cpu")
-    gpu_info = get_gpu_info(device)
+def _diagnostic_memory_state(
+    backend: str, gpu_info: Dict[str, Any], device: Optional[int]
+) -> Tuple[int, int, int, int, Dict[str, Any]]:
+    """Collect allocated, reserved, total, peak, and backend fragmentation state."""
     frag_info: Dict[str, Any] = {}
 
     # Current memory state
@@ -230,6 +224,47 @@ def build_diagnostic_summary(
             total = sample.total_bytes or 0
             peak = max(allocated, reserved)
 
+    return allocated, reserved, total, peak, frag_info
+
+
+def _diagnostic_oom_count(backend: str, gpu_info: Dict[str, Any]) -> int:
+    if (
+        backend in {"cuda", "rocm"}
+        and "memory_stats" in gpu_info
+        and isinstance(gpu_info["memory_stats"], dict)
+    ):
+        return gpu_info["memory_stats"].get("num_ooms", 0) or 0
+    return 0
+
+
+def _diagnostic_suggestions(
+    backend: str,
+    gpu_info: Dict[str, Any],
+    frag_info: Dict[str, Any],
+    high_utilization: bool,
+) -> List[str]:
+    if backend in {"cuda", "rocm"} and not gpu_info.get("error"):
+        return suggest_memory_optimization(frag_info)
+    if backend == "mps" and high_utilization:
+        return [
+            "High MPS memory utilization detected. Consider reducing batch size or using mixed precision."
+        ]
+    return []
+
+
+def build_diagnostic_summary(
+    device: Optional[int] = None,
+) -> Tuple[Dict[str, Any], bool]:
+    """
+    Build diagnostic summary and risk flags from current state.
+    Returns (summary_dict, risk_detected).
+    """
+    system_info = get_system_info()
+    backend = system_info.get("detected_backend", "cpu")
+    gpu_info = get_gpu_info(device)
+    allocated, reserved, total, peak, frag_info = _diagnostic_memory_state(
+        backend, gpu_info, device
+    )
     _synthetic_event = {
         "allocator_allocated_bytes": allocated,
         "allocator_reserved_bytes": reserved,
@@ -243,13 +278,7 @@ def build_diagnostic_summary(
     # torch.cuda.memory_stats() — a richer source than the simple
     # (reserved - allocated) / reserved approximation in compute_event_fields.
     fragmentation_ratio = float(frag_info.get("fragmentation_ratio", 0))
-    num_ooms = 0
-    if (
-        backend in {"cuda", "rocm"}
-        and "memory_stats" in gpu_info
-        and isinstance(gpu_info["memory_stats"], dict)
-    ):
-        num_ooms = gpu_info["memory_stats"].get("num_ooms", 0) or 0
+    num_ooms = _diagnostic_oom_count(backend, gpu_info)
 
     # Risk flags
     oom_occurred = num_ooms > 0
@@ -257,13 +286,9 @@ def build_diagnostic_summary(
     fragmentation_warning = fragmentation_ratio >= FRAGMENTATION_WARNING_RATIO
     risk_detected = oom_occurred or high_utilization or fragmentation_warning
 
-    suggestions: List[str] = []
-    if backend in {"cuda", "rocm"} and not gpu_info.get("error"):
-        suggestions = suggest_memory_optimization(frag_info)
-    elif backend == "mps" and high_utilization:
-        suggestions = [
-            "High MPS memory utilization detected. Consider reducing batch size or using mixed precision."
-        ]
+    suggestions = _diagnostic_suggestions(
+        backend, gpu_info, frag_info, high_utilization
+    )
 
     summary: Dict[str, Any] = {
         "backend": backend,

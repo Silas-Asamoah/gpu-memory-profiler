@@ -784,30 +784,28 @@ class MemoryAnalyzer:
 
         patterns = self.analyze_memory_patterns(effective_results)
         insights = self.generate_performance_insights(effective_results)
+        report = self._build_profile_report(effective_results, patterns, insights)
 
-        # Categorize findings by severity/impact
-        critical_issues = [p for p in patterns if p.severity == "critical"]
-        high_impact_insights = [i for i in insights if i.impact == "high"]
+        # Hidden-memory gap analysis (only when telemetry events are supplied).
+        if events is not None:
+            self._add_telemetry_analysis(report, events)
 
-        # Generate summary statistics
-        total_memory_allocated = sum(r.memory_allocated for r in effective_results)
-        total_execution_time = sum(r.execution_time for r in effective_results)
-        unique_functions = len(set(r.function_name for r in effective_results))
+        return report
 
-        report: Dict[str, Any] = {
-            "summary": {
-                "total_functions_analyzed": unique_functions,
-                "total_function_calls": len(effective_results),
-                "total_memory_allocated": total_memory_allocated,
-                "total_execution_time": total_execution_time,
-                "analysis_timestamp": (
-                    effective_results[-1].memory_after.timestamp
-                    if effective_results
-                    else None
-                ),
-            },
-            "critical_issues": [p.__dict__ for p in critical_issues],
-            "high_impact_insights": [i.__dict__ for i in high_impact_insights],
+    def _build_profile_report(
+        self,
+        results: List[ProfileResult],
+        patterns: List[MemoryPattern],
+        insights: List[PerformanceInsight],
+    ) -> Dict[str, Any]:
+        return {
+            "summary": _summarize_profile_results(results),
+            "critical_issues": [
+                p.__dict__ for p in patterns if p.severity == "critical"
+            ],
+            "high_impact_insights": [
+                i.__dict__ for i in insights if i.impact == "high"
+            ],
             "all_patterns": [p.__dict__ for p in patterns],
             "all_insights": [i.__dict__ for i in insights],
             "recommendations": self._generate_priority_recommendations(
@@ -818,33 +816,32 @@ class MemoryAnalyzer:
             ),
         }
 
-        # Hidden-memory gap analysis (only when telemetry events are supplied).
-        if events is not None:
-            phase_resolver = (
-                PhaseReplayIndex.from_events(events)
-                if hasattr(PhaseReplayIndex, "from_events")
-                else None
-            )
-            gap_findings = self.analyze_memory_gaps(
+    def _add_telemetry_analysis(
+        self, report: Dict[str, Any], events: List[TelemetryEventV2]
+    ) -> None:
+        phase_resolver = (
+            PhaseReplayIndex.from_events(events)
+            if hasattr(PhaseReplayIndex, "from_events")
+            else None
+        )
+        gap_findings = self.analyze_memory_gaps(
+            events,
+            phase_resolver=phase_resolver,
+        )
+        collective_attribution = self.analyze_collective_attribution(
+            events,
+            phase_resolver=phase_resolver,
+        )
+        report["gap_analysis"] = [_serialize_gap_finding(f) for f in gap_findings]
+        report["collective_attribution"] = [
+            _serialize_collective_attribution(result)
+            for result in collective_attribution
+        ]
+        if len({event.rank for event in events}) > 1:
+            report["cross_rank_analysis"] = self.analyze_cross_rank_timeline(
                 events,
                 phase_resolver=phase_resolver,
             )
-            collective_attribution = self.analyze_collective_attribution(
-                events,
-                phase_resolver=phase_resolver,
-            )
-            report["gap_analysis"] = [_serialize_gap_finding(f) for f in gap_findings]
-            report["collective_attribution"] = [
-                _serialize_collective_attribution(result)
-                for result in collective_attribution
-            ]
-            if len({event.rank for event in events}) > 1:
-                report["cross_rank_analysis"] = self.analyze_cross_rank_timeline(
-                    events,
-                    phase_resolver=phase_resolver,
-                )
-
-        return report
 
     def _generate_priority_recommendations(
         self, patterns: List[MemoryPattern], insights: List[PerformanceInsight]
@@ -937,6 +934,16 @@ class MemoryAnalyzer:
             "description": description,
             "issues_found": len(patterns) + len(insights),
         }
+
+
+def _summarize_profile_results(results: List[ProfileResult]) -> Dict[str, Any]:
+    return {
+        "total_functions_analyzed": len(set(r.function_name for r in results)),
+        "total_function_calls": len(results),
+        "total_memory_allocated": sum(r.memory_allocated for r in results),
+        "total_execution_time": sum(r.execution_time for r in results),
+        "analysis_timestamp": results[-1].memory_after.timestamp if results else None,
+    }
 
 
 def _serialize_gap_finding(finding: GapFinding) -> dict[str, Any]:

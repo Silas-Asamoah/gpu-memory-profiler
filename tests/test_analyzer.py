@@ -8,6 +8,48 @@ from stormlog.analyzer import MemoryAnalyzer
 from stormlog.profiler import MemorySnapshot, ProfileResult
 
 
+@pytest.mark.parametrize("events", [None, []])
+def test_optimization_report_preserves_empty_telemetry_sections(
+    events: list | None,
+) -> None:
+    result = _make_result(0.5, 3.0, 100)
+
+    report = MemoryAnalyzer().generate_optimization_report([result], events=events)
+
+    assert report["summary"] == {
+        "total_functions_analyzed": 1,
+        "total_function_calls": 1,
+        "total_memory_allocated": 100,
+        "total_execution_time": 0.5,
+        "analysis_timestamp": 3.5,
+    }
+    assert list(report)[:7] == [
+        "summary",
+        "critical_issues",
+        "high_impact_insights",
+        "all_patterns",
+        "all_insights",
+        "recommendations",
+        "optimization_score",
+    ]
+    assert ("gap_analysis" in report) == (events is not None)
+    assert ("collective_attribution" in report) == (events is not None)
+    assert "cross_rank_analysis" not in report
+
+
+def test_empty_optimization_report_has_no_analysis_timestamp() -> None:
+    report = MemoryAnalyzer().generate_optimization_report([])
+
+    assert report["summary"] == {
+        "total_functions_analyzed": 0,
+        "total_function_calls": 0,
+        "total_memory_allocated": 0,
+        "total_execution_time": 0,
+        "analysis_timestamp": None,
+    }
+    assert report["optimization_score"]["score"] == 100
+
+
 def _make_snapshot(timestamp: float, allocated_memory: int) -> MemorySnapshot:
     return MemorySnapshot(
         timestamp=timestamp,
