@@ -1,0 +1,387 @@
+{
+  "blocks": {
+    "stormlog/_mlflow/attribution.py:log_attribution_outputs": {
+      "complexity": 17,
+      "source_hash": "afe6e9c228fae5706e46bde5ef4b81b95fa326c64b1cb24c3bdefd126d0ca55d"
+    },
+    "stormlog/_mlflow/core.py:resolve_run": {
+      "complexity": 11,
+      "source_hash": "62461d3b314d468bf4807d2f209bbe08aa27dfcfde62eb69e4ff483c99e72874"
+    },
+    "stormlog/_mlflow/tracking.py:export_tracking_run_to_mlflow": {
+      "complexity": 14,
+      "source_hash": "0dddb4cef7355e58c22f622d1f76403b4fc4a2659d4e2326e093a2aa8922f985"
+    },
+    "stormlog/_run_catalog_artifacts.py:sink_segment_attachment_rows": {
+      "complexity": 12,
+      "source_hash": "16902b540bbe4c6a2b6b89068873466eabc50d14232adb575242df0f7d6f8c6f"
+    },
+    "stormlog/_run_catalog_context.py:_explicit_run_contexts": {
+      "complexity": 12,
+      "source_hash": "0a2d89d6457c31d15993fcd60f34dc4b65db609fb686b4ea64cd16cb3002583b"
+    },
+    "stormlog/_run_catalog_context.py:run_attachment_matches": {
+      "complexity": 15,
+      "source_hash": "cedcecb89a5f410f1c16b84a3eaec29c8a5325dabe90421cfb61e5557f83e975"
+    },
+    "stormlog/_run_catalog_context.py:run_matches": {
+      "complexity": 13,
+      "source_hash": "0e26eed5d5558d9b8e82891c4a68d767b47f205f69b8a47482ec073b8029078f"
+    },
+    "stormlog/_run_catalog_parser.py:_is_valid_attachment_payload": {
+      "complexity": 16,
+      "source_hash": "d4d9f39e4a0ec12ede5026f061261671f14c2e8ee04b2d739211fd6ae6eb4b4b"
+    },
+    "stormlog/_run_catalog_parser.py:_is_valid_run_envelope_payload": {
+      "complexity": 20,
+      "source_hash": "ade2f028584a54a92322cdb7795d8081620c5c2f5cd8b069cefc223ea6152665"
+    },
+    "stormlog/_wandb/attribution.py:log_attribution_outputs": {
+      "complexity": 11,
+      "source_hash": "46b22bc62a154fca8ba479f610589359e39432d43317bb108137b4225f62fc42"
+    },
+    "stormlog/_wandb/attribution.py:tensor_attribution_rows": {
+      "complexity": 14,
+      "source_hash": "b23bbeddf3436804a7c9e357e23dedd8b24662a171baa3e7fb595f5207725ca7"
+    },
+    "stormlog/_wandb/dashboard.py:tracking_dashboard_html": {
+      "complexity": 16,
+      "source_hash": "f66c38a905dd7383ab8bf8769664687743d8b337bc5e4cd6caea1fdad7e5445d"
+    },
+    "stormlog/_wandb/diagnose.py:diagnose_metrics": {
+      "complexity": 11,
+      "source_hash": "384e99b2597f91a77bb81ec6e0b5f06a565569279b324027425838046669b66f"
+    },
+    "stormlog/_wandb/tracking.py:export_tracking_run_to_wandb": {
+      "complexity": 14,
+      "source_hash": "6a37ec56cf5508d51e69b301364d3003571c09cf4b68f2dd941c8fb69bbe186f"
+    },
+    "stormlog/_wandb/tracking.py:tracking_timeline_rows": {
+      "complexity": 13,
+      "source_hash": "c42e21923c8090a3e9e22791624e936e8abb4add67388a3ce5c132d2ba48e64f"
+    },
+    "stormlog/analyzer.py:MemoryAnalyzer._analyze_execution_times": {
+      "complexity": 15,
+      "source_hash": "bb623d64a66bdf7c2b442072e3cd2598060105afc16ef5067e49a06f32dfda5f"
+    },
+    "stormlog/analyzer.py:MemoryAnalyzer._calculate_optimization_score": {
+      "complexity": 11,
+      "source_hash": "f6f4d973f94448f008d27417ec707bf94f72c8944701d23a5947548d53cdcd12"
+    },
+    "stormlog/analyzer.py:MemoryAnalyzer._detect_inefficient_allocations": {
+      "complexity": 12,
+      "source_hash": "4ee192e0060a53b4124584b858cc97183f0191c7780681186e7cdef41326ae50"
+    },
+    "stormlog/attributed_viz.py:_render_preview_chart": {
+      "complexity": 12,
+      "source_hash": "2a063ab24f4d052450dd8777b936fc21833fe6ab5f32185c8e2fdace72b1a300"
+    },
+    "stormlog/attributed_viz.py:render_attributed_wandb_preview_html": {
+      "complexity": 11,
+      "source_hash": "f043f98fe2b2b79f1f6c7d6042b459df6f4e25addf784e6677bf902bb3f64e70"
+    },
+    "stormlog/cli.py:_build_analyze_summary": {
+      "complexity": 19,
+      "source_hash": "5d5748e4302627d63ffde663fed3692d31949f78ed77e2e78cd5c9fc4540652e"
+    },
+    "stormlog/cli.py:_phase_summary_from_payload": {
+      "complexity": 11,
+      "source_hash": "b3367ed4b0c80184735bdb135f68936e3139e5adba6bc746b0fb6bbab92e4062"
+    },
+    "stormlog/cli.py:cmd_diagnose": {
+      "complexity": 20,
+      "source_hash": "e21c2897e46bab8e4ec492915f5a42bc4be22c69a3365ee1841aa6a8121a352a"
+    },
+    "stormlog/cli.py:cmd_info": {
+      "complexity": 15,
+      "source_hash": "de236adacaf65c27a7348617a66ec16faedb4e4a786a70ab12bef529e5e907b7"
+    },
+    "stormlog/collective_attribution.py:attribute_collective_memory": {
+      "complexity": 11,
+      "source_hash": "a0c9b63215bc4033a9ed8afefebdd0919dd1046fb60292104e3489c4e8816c6e"
+    },
+    "stormlog/cuda_native_debug.py:build_snapshot_allocation_attribution": {
+      "complexity": 14,
+      "source_hash": "9db777a79c282cad85dcabf46d5bc3974e52fe02d4d2b0c98064e9a25e6a40d5"
+    },
+    "stormlog/diagnose.py:run_diagnose": {
+      "complexity": 11,
+      "source_hash": "94891ca4e48656bb548140a5e77153db0ea0c7d012b00f729be34f79b70d989d"
+    },
+    "stormlog/distributed_analysis.py:_select_cross_rank_analysis_events": {
+      "complexity": 11,
+      "source_hash": "12379da12a7d1754c11959b4acf5862d841063e5561316a61215218aef58c9d4"
+    },
+    "stormlog/distributed_analysis.py:merge_cross_rank_timelines": {
+      "complexity": 12,
+      "source_hash": "87a75d870cd954884cba4d0f7ad20ce5bb34a07c65618b18e0e42726e4a32835"
+    },
+    "stormlog/infer/analysis.py:analyze_inference_events": {
+      "complexity": 13,
+      "source_hash": "64041abcb4eccda820c3d01757d23d474ad855ecce80cd7246577f19a1c0fb23"
+    },
+    "stormlog/infer/cli.py:cmd_profile": {
+      "complexity": 14,
+      "source_hash": "1e953234ee52c77402090effdb056b9cf4ca4945e40e9e6eccf65373d1ebc320"
+    },
+    "stormlog/infer/openai_client.py:OpenAIChatCompletionsClient._read_streaming_response": {
+      "complexity": 17,
+      "source_hash": "e60ef4db536693a0109a2c99130f7bab93ab4287892aed5fee1f2a2c173806ca"
+    },
+    "stormlog/jax/analyzer.py:MemoryAnalyzer.analyze_efficiency": {
+      "complexity": 19,
+      "source_hash": "5b68f0f8b6f6edd2a0f39fa22d6c5df8e4d1d7c4ffa99cf5abf6296db34491fd"
+    },
+    "stormlog/jax/analyzer.py:MemoryAnalyzer.score_optimization": {
+      "complexity": 11,
+      "source_hash": "017298b52678ded02a8a582891d36660b39cdcdc811ef8052756f9f2c13c17a6"
+    },
+    "stormlog/jax/cli.py:cmd_analyze": {
+      "complexity": 14,
+      "source_hash": "c640c1f9825b7a13e0163b28eef5e407ad0115170cc25e9d43cd5fc7dd96ed61"
+    },
+    "stormlog/jax/cli.py:cmd_monitor": {
+      "complexity": 14,
+      "source_hash": "adaa27361f67116215e2a7ec6b9e14e26798014886f41732c6a551a8c156fe17"
+    },
+    "stormlog/jax/context_profiler.py:JAXProfiler.profile_training": {
+      "complexity": 14,
+      "source_hash": "cce07a2a1d89c949b6dc04b7b6e00487923f8cac943be6915ff1976dd10c7999"
+    },
+    "stormlog/jax/diagnose.py:build_diagnostic_summary": {
+      "complexity": 11,
+      "source_hash": "b232a307bc5c559cc2d67d9ad4eea9c27d4d42a40c38d78f66e59a1a58905109"
+    },
+    "stormlog/jax/pprof_parser.py:parse_jax_memory_profile": {
+      "complexity": 11,
+      "source_hash": "312912a26fd26b2293159fc7faeb0e7556834b687349b5bb52b6ddd15b69ab8c"
+    },
+    "stormlog/jax/profiler.py:JAXMemoryProfiler.get_results": {
+      "complexity": 13,
+      "source_hash": "a96a00b48d800f7018dd3606b61a8d69416626f3580c6da24d07c54e8557a57d"
+    },
+    "stormlog/jax/tracker.py:MemoryTracker.__init__": {
+      "complexity": 16,
+      "source_hash": "47910fa17235db5e0d88a6f5b4c87aa3a4cdc11287740f1592270420de973618"
+    },
+    "stormlog/jax/tracker.py:MemoryTracker._create_tracking_result": {
+      "complexity": 12,
+      "source_hash": "0cbaaf470babff33958f349f0d93a765f9bce6bd3d1f8a87e613fcd06c4bab75"
+    },
+    "stormlog/jax/tracker.py:MemoryTracker._run_tracking_iteration": {
+      "complexity": 11,
+      "source_hash": "7b09203920e6b24b5ed902466338e31bdcb160aa31a1aa09567d1d35409ccca4"
+    },
+    "stormlog/jax/tracker.py:MemoryTracker.get_statistics": {
+      "complexity": 11,
+      "source_hash": "fb26f50821e0b8e77c8d83390dc611acc3f0f83097e2ec77f3c32fb9d16573c8"
+    },
+    "stormlog/jax/tracker.py:MemoryTracker.handle_exception": {
+      "complexity": 16,
+      "source_hash": "a94810a0ab0ae5c60640246ec6013f1e4d723f7f3d0e6ab3bb079ddde5684d1e"
+    },
+    "stormlog/jax/utils.py:validate_jax_environment": {
+      "complexity": 13,
+      "source_hash": "239cd150395028975bcb39ca164e1ab79ba6e3fe6d27f5956ee8398b9aec9ff3"
+    },
+    "stormlog/jax/visualizer.py:MemoryVisualizer.create_memory_heatmap": {
+      "complexity": 12,
+      "source_hash": "a00e805700d4cb2185f5c40ba9160f46ff17b92162f5257dcdf444a495543f58"
+    },
+    "stormlog/jax/visualizer.py:MemoryVisualizer.plot_memory_timeline": {
+      "complexity": 16,
+      "source_hash": "0be3040dc4bd2a7cf3cdf7ba17863f3dc90eeb62df7f0f2d9ccece6063412c30"
+    },
+    "stormlog/phases/policy.py:merge_phase_attributions": {
+      "complexity": 11,
+      "source_hash": "8e75f44741e876d86781a2e32b32ca20a4efc71d423f2995abd576e5fbf340eb"
+    },
+    "stormlog/phases/replay.py:PhaseReplayIndex.from_events": {
+      "complexity": 18,
+      "source_hash": "50641b7db087978cdce6dde92b5211c839a3575feea13c349d3bf70d9d3b94da"
+    },
+    "stormlog/profiler.py:GPUMemoryProfiler.get_summary": {
+      "complexity": 12,
+      "source_hash": "152e6e56014fbbad6530fece5956787657d522d0e7d40bc828bb6360bf440fb1"
+    },
+    "stormlog/telemetry.py:_legacy_collector": {
+      "complexity": 11,
+      "source_hash": "48aad6c6d0c840f2697f83e3aa63ad45b62d5e6fe0171620e6ef3ce5c81802a2"
+    },
+    "stormlog/telemetry.py:load_telemetry_sessions": {
+      "complexity": 15,
+      "source_hash": "13b9655fd010a6bdad7a632cc7fb7e529cf3cba4fe3ecdf9c5d898f55ad758ee"
+    },
+    "stormlog/telemetry_model.py:project_telemetry_mapping": {
+      "complexity": 15,
+      "source_hash": "18433dab901b41ce832c5c54107ee6350efb12824e06910361438dfd39fb4514"
+    },
+    "stormlog/telemetry_sink.py:AppendOnlyTelemetrySink._load_existing_state": {
+      "complexity": 12,
+      "source_hash": "5c7553182e41104e02ebe48f845d64434152313cb2155ad5370838bf8e0e22e6"
+    },
+    "stormlog/telemetry_sink.py:read_telemetry_sink_manifest": {
+      "complexity": 16,
+      "source_hash": "682de58e6a2c1bfc522d89e24401b24288ad309a17d991de637f954db2750be7"
+    },
+    "stormlog/telemetry_sink.py:resolve_telemetry_sink_segment_paths": {
+      "complexity": 11,
+      "source_hash": "05815a825fee334af0f85cade51a12639fc455b9cfbe7f28b60c99a170519e83"
+    },
+    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.analyze_efficiency": {
+      "complexity": 16,
+      "source_hash": "3692b1479cd4c6a7b043b071e6bea93767da11e87c26c7b44910f25e28f7346c"
+    },
+    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.detect_memory_leaks": {
+      "complexity": 16,
+      "source_hash": "e76378e015961cf6480399065b00c7ce6de332391e13afeb8237bf6a4d182046"
+    },
+    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.detect_patterns": {
+      "complexity": 15,
+      "source_hash": "c3334aebe2148379e3d19e3a340e9b422004ae0dc82e1326729c56fdf90a366a"
+    },
+    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.score_optimization": {
+      "complexity": 11,
+      "source_hash": "9adf0fde3537d427d9c923b1d57f87232b9055fe35c70836bd8cba264102bb0d"
+    },
+    "stormlog/tensorflow/cli.py:cmd_analyze": {
+      "complexity": 14,
+      "source_hash": "5fbd3cade07a739bfce34a6dacd0a3cdd49ef3e570c1c816b223203114250241"
+    },
+    "stormlog/tensorflow/cli.py:cmd_info": {
+      "complexity": 11,
+      "source_hash": "83f3b0633e09c57bf62d83a6921cd22d801f92d4f126e2294b15d6873f459e20"
+    },
+    "stormlog/tensorflow/cli.py:cmd_monitor": {
+      "complexity": 11,
+      "source_hash": "2c80723cb18aa7d46f00c67d564cb05b4062bd7f384773878c227118facb889b"
+    },
+    "stormlog/tensorflow/cli.py:cmd_track": {
+      "complexity": 18,
+      "source_hash": "550a5c687d95d3695706d599c3c27f08e6ab9aab2618b55352524b9fc77d6e14"
+    },
+    "stormlog/tensorflow/diagnose.py:build_diagnostic_summary": {
+      "complexity": 14,
+      "source_hash": "00830b6fb1575193c386e24ee14b89ea1d193b15b68d4dceb6d6047bd8d20cb5"
+    },
+    "stormlog/tensorflow/tracker.py:MemoryTracker._create_tracking_result": {
+      "complexity": 11,
+      "source_hash": "7243a9e94f98af113305194242f08b584598452995940c642766aa3f4cb791b5"
+    },
+    "stormlog/tensorflow/utils.py:generate_summary_report": {
+      "complexity": 15,
+      "source_hash": "a356220bf0eb74b48423547f4597b4193f64e663627f8dbcb94b8a193f034d5c"
+    },
+    "stormlog/tensorflow/utils.py:suggest_optimizations": {
+      "complexity": 16,
+      "source_hash": "b9a25a6f64a269cc2330388f58f241478b37dd4cf56a88c3404245d7af91859c"
+    },
+    "stormlog/tensorflow/visualizer.py:MemoryVisualizer.create_memory_heatmap": {
+      "complexity": 12,
+      "source_hash": "609d17de0694dc844431fe3f52b3698c1cae241de7515c37b7b43c54c9c9836b"
+    },
+    "stormlog/tracker.py:MemoryTracker.__init__": {
+      "complexity": 12,
+      "source_hash": "531e91c5a348bafcebcfc78830d1e27d23460a092b8c25af1a6d0370f184c61e"
+    },
+    "stormlog/tracker.py:MemoryTracker.capture_oom": {
+      "complexity": 14,
+      "source_hash": "f873ebcd22e424391f9552b32ea682274bb986b0eb92eaf46cf00e4c5f774a7e"
+    },
+    "stormlog/tracker.py:MemoryTracker.get_statistics": {
+      "complexity": 11,
+      "source_hash": "aaebeb75449189619d0c829ea7efbffd45a5e92901b346cb63e0e22ff3e55dad"
+    },
+    "stormlog/tui/app.py:GPUMemoryProfilerTUI._save_timeline_plot": {
+      "complexity": 17,
+      "source_hash": "dce005e76dc35aedc575d8a1519bca5f9ab8a440580fc73a071f657dbb03480b"
+    },
+    "stormlog/tui/app.py:GPUMemoryProfilerTUI._set_diagnostics_sessions": {
+      "complexity": 13,
+      "source_hash": "b5fcc5163271a85e7cb7abdfb82274eba28de49dad1a2fc29c5916bbaf731cc0"
+    },
+    "stormlog/tui/app.py:GPUMemoryProfilerTUI._update_monitor_stats": {
+      "complexity": 14,
+      "source_hash": "0c11765ce2a6ed712d8650b887d52b717e12836fad8d9fdecc305b9063c19ec5"
+    },
+    "stormlog/tui/app.py:GPUMemoryProfilerTUI._update_monitor_status": {
+      "complexity": 11,
+      "source_hash": "d1691bb4790fcc8985caed52d3affd83d96d6d8872f7a5110041b0690ed6d34e"
+    },
+    "stormlog/tui/app.py:GPUMemoryProfilerTUI._update_timeline_stats_table": {
+      "complexity": 11,
+      "source_hash": "ce570e92fc1f40af70123dcceb0f10df3424ed02d100fd61d4ecfeb28a680346"
+    },
+    "stormlog/tui/distributed_diagnostics.py:_build_rank_row": {
+      "complexity": 14,
+      "source_hash": "41f521b279daf28745b26014d7683677c8565a427cbb4a8432df7c15a1abf32e"
+    },
+    "stormlog/tui/distributed_diagnostics.py:_derive_rank_anomaly_candidates": {
+      "complexity": 20,
+      "source_hash": "96502693e7406546d64cab7955e8243fa4884a4becc97a14f16cfaa9a4f7e341"
+    },
+    "stormlog/tui/distributed_diagnostics.py:_resolve_timeline_rank_context": {
+      "complexity": 14,
+      "source_hash": "6f960b89f9009a1f968963b5c2222b05deec9f0d6b17f112ef913a857afba847"
+    },
+    "stormlog/tui/distributed_diagnostics.py:_synthesize_distributed_sessions": {
+      "complexity": 11,
+      "source_hash": "48d8c2c56fc78c1ec3448cb67bb1198101bacd589a9136df45d7c33f2790e32b"
+    },
+    "stormlog/tui/distributed_diagnostics.py:_synthesize_sessions_from_timeline": {
+      "complexity": 13,
+      "source_hash": "894f378728908e1838593921a653f633331002cd130125ea142af23854de9c2d"
+    },
+    "stormlog/tui/distributed_diagnostics.py:parse_rank_filter": {
+      "complexity": 14,
+      "source_hash": "ee31f1e1862279dc3a133dbd46b663021c2bc8bbbe16adf196c966fdb947d625"
+    },
+    "stormlog/tui/monitor.py:TrackerSession.get_telemetry_events": {
+      "complexity": 18,
+      "source_hash": "1b55d04c642fc3586b68073e9fb95ad3fd40f4e8ffc57cf4d5bf0c48c10a7503"
+    },
+    "stormlog/tui/monitor.py:TrackerSession.start": {
+      "complexity": 11,
+      "source_hash": "13ffa0738e0be1cfdb790c8e08d0643b1d13074b5efc868bee265b778b5a1a30"
+    },
+    "stormlog/utils.py:check_memory_fragmentation": {
+      "complexity": 14,
+      "source_hash": "dec77d2074654a93d4a46b64ff4350508d2a5dfb7192f33d4c1b86d6a539cf8a"
+    },
+    "stormlog/utils.py:get_gpu_info": {
+      "complexity": 11,
+      "source_hash": "cc9d53c0eea1daa56ba28b6bfb961c7ee884fd5cae8c3ef02bc9233f64b82e31"
+    },
+    "stormlog/utils.py:get_system_info": {
+      "complexity": 12,
+      "source_hash": "10a4325a10c1d0ce955915529b778c984a444967e211c7338145f95e7fd6bc29"
+    },
+    "stormlog/visualizer.py:MemoryVisualizer.create_dashboard": {
+      "complexity": 19,
+      "source_hash": "03c331c96488d42c67bfc3ade036926a79806ee445934203f214168fbeb45b57"
+    },
+    "stormlog/visualizer.py:MemoryVisualizer.export_data": {
+      "complexity": 19,
+      "source_hash": "27728ee768132315ffc9af8ecd190c3f61223f5eb398f15e1b7b70cabbb09079"
+    },
+    "stormlog/visualizer.py:MemoryVisualizer.plot_cross_rank_timeline": {
+      "complexity": 16,
+      "source_hash": "f2a78bc933090705b8bf042cf93393e74a588cd6070536931e411f2980be4753"
+    },
+    "stormlog/visualizer.py:MemoryVisualizer.plot_function_comparison": {
+      "complexity": 14,
+      "source_hash": "1c9ee8e22c445b474584b6b7164009d4fba833f39d985ccc1602641365b5fb01"
+    },
+    "stormlog/visualizer.py:MemoryVisualizer.plot_memory_heatmap": {
+      "complexity": 18,
+      "source_hash": "d0695546dc8a35a78ab16f152f7818c196b2895e82c79ea1a403cd5f26e6b957"
+    },
+    "stormlog/visualizer.py:MemoryVisualizer.plot_memory_timeline": {
+      "complexity": 19,
+      "source_hash": "814220cbeba87c795d009dbc0c11acba93aae8edd52bd6b8b5252fc3c442b40b"
+    }
+  },
+  "max_complexity": 10,
+  "radon_version": "6.0.1",
+  "schema_version": 1
+}
