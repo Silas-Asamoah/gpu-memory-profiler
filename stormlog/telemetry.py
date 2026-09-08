@@ -32,6 +32,13 @@ SCHEMA_VERSION_LATEST: Literal[3] = SCHEMA_VERSION_V3
 UNKNOWN_PID = -1
 UNKNOWN_HOST = "unknown"
 
+_LEGACY_BACKEND_COLLECTORS = {
+    "mps": "stormlog.mps_tracker",
+    "rocm": "stormlog.rocm_tracker",
+    "cuda": "stormlog.cuda_tracker",
+    "cpu": "stormlog.cpu_tracker",
+}
+
 REQUIRED_V3_FIELDS = (
     "schema_version",
     "session_id",
@@ -569,14 +576,8 @@ def _legacy_collector(
     backend_value = record.get("backend", metadata.get("backend"))
     if isinstance(backend_value, str):
         backend = backend_value.strip().lower()
-        if backend == "mps":
-            return "stormlog.mps_tracker"
-        if backend == "rocm":
-            return "stormlog.rocm_tracker"
-        if backend == "cuda":
-            return "stormlog.cuda_tracker"
-        if backend == "cpu":
-            return "stormlog.cpu_tracker"
+        if backend in _LEGACY_BACKEND_COLLECTORS:
+            return _LEGACY_BACKEND_COLLECTORS[backend]
 
     if "memory_mb" in record:
         return "stormlog.tensorflow.memory_tracker"
@@ -1096,32 +1097,14 @@ def load_telemetry_sessions(
     manifest = read_telemetry_sink_manifest(payload_path)
     segment_paths = resolve_telemetry_sink_segment_paths(payload_path)
     if segment_paths:
-        grouped_events: dict[str, list[TelemetryEvent]] = {}
-        sources_by_session: dict[str, set[str]] = {}
         segment_session_ids = {
             segment.filename: segment.session_id
             for segment in (manifest.segments if manifest is not None else [])
         }
         fallback_session_id = stable_legacy_session_id(default_source_path, "sink")
-        for segment_path in segment_paths:
-            hint_session_id = (
-                segment_session_ids.get(segment_path.name) or fallback_session_id
-            )
-            segment_events = _load_jsonl_events(
-                segment_path,
-                permissive_legacy=permissive_legacy,
-                default_session_id=hint_session_id,
-            )
-            session_groups = _group_session_events(segment_events)
-            for session_id, events in session_groups.items():
-                grouped_events.setdefault(session_id, []).extend(events)
-                sources_by_session.setdefault(session_id, set()).add(str(segment_path))
-            if not segment_events and hint_session_id:
-                sources_by_session.setdefault(hint_session_id, set()).add(
-                    str(segment_path)
-                )
-        for events in grouped_events.values():
-            events.sort(key=lambda event: event.timestamp_ns)
+        grouped_events, sources_by_session = _group_sink_events(
+            segment_paths, segment_session_ids, fallback_session_id, permissive_legacy
+        )
         return _assemble_loaded_sessions(
             grouped_events=grouped_events,
             manifest_summaries=manifest.sessions if manifest is not None else None,
@@ -1198,6 +1181,34 @@ def project_telemetry_events(
     """Project existing telemetry events into backend-neutral records."""
 
     return [project_telemetry_event(event) for event in events]
+
+
+def _group_sink_events(
+    segment_paths: list[Path],
+    segment_session_ids: Mapping[str, str | None],
+    fallback_session_id: str,
+    permissive_legacy: bool,
+) -> tuple[dict[str, list[TelemetryEvent]], dict[str, set[str]]]:
+    grouped_events: dict[str, list[TelemetryEvent]] = {}
+    sources_by_session: dict[str, set[str]] = {}
+    for segment_path in segment_paths:
+        hint_session_id = (
+            segment_session_ids.get(segment_path.name) or fallback_session_id
+        )
+        segment_events = _load_jsonl_events(
+            segment_path,
+            permissive_legacy=permissive_legacy,
+            default_session_id=hint_session_id,
+        )
+        session_groups = _group_session_events(segment_events)
+        for session_id, events in session_groups.items():
+            grouped_events.setdefault(session_id, []).extend(events)
+            sources_by_session.setdefault(session_id, set()).add(str(segment_path))
+        if not segment_events and hint_session_id:
+            sources_by_session.setdefault(hint_session_id, set()).add(str(segment_path))
+    for events in grouped_events.values():
+        events.sort(key=lambda event: event.timestamp_ns)
+    return grouped_events, sources_by_session
 
 
 __all__ = [

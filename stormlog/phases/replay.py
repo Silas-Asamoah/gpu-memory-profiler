@@ -61,42 +61,7 @@ class PhaseReplayIndex:
     @classmethod
     def from_events(cls, events: Sequence[Any]) -> "PhaseReplayIndex":
         """Build a replay index from telemetry events."""
-        session_end_by_group: dict[tuple[str, int], int] = {}
-        boundaries: list[tuple[int, int, str, int, PhaseBoundaryRecord]] = []
-        for event in events:
-            session_id = _event_field(event, "session_id")
-            timestamp_ns = _event_field(event, "timestamp_ns")
-            if not isinstance(session_id, str) or not isinstance(timestamp_ns, int):
-                continue
-            rank = _coerce_rank(_event_field(event, "rank", 0))
-            if rank is not None:
-                group_key = (session_id, rank)
-                previous_end = session_end_by_group.get(group_key)
-                if previous_end is None or timestamp_ns > previous_end:
-                    session_end_by_group[group_key] = timestamp_ns
-
-            event_type = _event_field(event, "event_type", "")
-            if event_type not in {PHASE_ENTER_EVENT, PHASE_EXIT_EVENT}:
-                continue
-            if rank is None:
-                continue
-
-            scope = parse_phase_boundary(event)
-            if scope is None:
-                continue
-            boundaries.append(
-                (
-                    timestamp_ns,
-                    scope.sequence,
-                    scope.scope_id,
-                    rank,
-                    scope,
-                )
-            )
-
-        boundaries.sort(
-            key=lambda item: (item[4].session_id, item[3], item[0], item[1], item[2])
-        )
+        boundaries, session_end_by_group = _replay_boundaries(events)
 
         active_by_thread: dict[tuple[str, int, int], list[PhaseBoundaryRecord]] = {}
         intervals_by_group: dict[tuple[str, int], list[PhaseSpan]] = {}
@@ -346,6 +311,52 @@ def _coerce_rank(value: Any) -> int | None:
         except ValueError:
             return None
     return None
+
+
+def _replay_boundaries(
+    events: Sequence[Any],
+) -> tuple[
+    list[tuple[int, int, str, int, PhaseBoundaryRecord]],
+    dict[tuple[str, int], int],
+]:
+    session_end_by_group: dict[tuple[str, int], int] = {}
+    boundaries: list[tuple[int, int, str, int, PhaseBoundaryRecord]] = []
+    for event in events:
+        session_id = _event_field(event, "session_id")
+        timestamp_ns = _event_field(event, "timestamp_ns")
+        if not isinstance(session_id, str) or not isinstance(timestamp_ns, int):
+            continue
+        rank = _coerce_rank(_event_field(event, "rank", 0))
+        if rank is not None:
+            group_key = (session_id, rank)
+            previous_end = session_end_by_group.get(group_key)
+            if previous_end is None or timestamp_ns > previous_end:
+                session_end_by_group[group_key] = timestamp_ns
+
+        event_type = _event_field(event, "event_type", "")
+        if event_type not in {PHASE_ENTER_EVENT, PHASE_EXIT_EVENT}:
+            continue
+        if rank is None:
+            continue
+
+        scope = parse_phase_boundary(event)
+        if scope is None:
+            continue
+        boundaries.append(
+            (
+                timestamp_ns,
+                scope.sequence,
+                scope.scope_id,
+                rank,
+                scope,
+            )
+        )
+
+    boundaries.sort(
+        key=lambda item: (item[4].session_id, item[3], item[0], item[1], item[2])
+    )
+
+    return boundaries, session_end_by_group
 
 
 __all__ = [

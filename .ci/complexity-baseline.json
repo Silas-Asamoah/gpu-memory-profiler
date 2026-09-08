@@ -132,41 +132,9 @@
       "complexity": 16,
       "source_hash": "0be3040dc4bd2a7cf3cdf7ba17863f3dc90eeb62df7f0f2d9ccece6063412c30"
     },
-    "stormlog/phases/policy.py:merge_phase_attributions": {
-      "complexity": 11,
-      "source_hash": "8e75f44741e876d86781a2e32b32ca20a4efc71d423f2995abd576e5fbf340eb"
-    },
-    "stormlog/phases/replay.py:PhaseReplayIndex.from_events": {
-      "complexity": 18,
-      "source_hash": "50641b7db087978cdce6dde92b5211c839a3575feea13c349d3bf70d9d3b94da"
-    },
     "stormlog/profiler.py:GPUMemoryProfiler.get_summary": {
       "complexity": 12,
       "source_hash": "152e6e56014fbbad6530fece5956787657d522d0e7d40bc828bb6360bf440fb1"
-    },
-    "stormlog/telemetry.py:_legacy_collector": {
-      "complexity": 11,
-      "source_hash": "48aad6c6d0c840f2697f83e3aa63ad45b62d5e6fe0171620e6ef3ce5c81802a2"
-    },
-    "stormlog/telemetry.py:load_telemetry_sessions": {
-      "complexity": 15,
-      "source_hash": "13b9655fd010a6bdad7a632cc7fb7e529cf3cba4fe3ecdf9c5d898f55ad758ee"
-    },
-    "stormlog/telemetry_model.py:project_telemetry_mapping": {
-      "complexity": 15,
-      "source_hash": "18433dab901b41ce832c5c54107ee6350efb12824e06910361438dfd39fb4514"
-    },
-    "stormlog/telemetry_sink.py:AppendOnlyTelemetrySink._load_existing_state": {
-      "complexity": 12,
-      "source_hash": "5c7553182e41104e02ebe48f845d64434152313cb2155ad5370838bf8e0e22e6"
-    },
-    "stormlog/telemetry_sink.py:read_telemetry_sink_manifest": {
-      "complexity": 16,
-      "source_hash": "682de58e6a2c1bfc522d89e24401b24288ad309a17d991de637f954db2750be7"
-    },
-    "stormlog/telemetry_sink.py:resolve_telemetry_sink_segment_paths": {
-      "complexity": 11,
-      "source_hash": "05815a825fee334af0f85cade51a12639fc455b9cfbe7f28b60c99a170519e83"
     },
     "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.analyze_efficiency": {
       "complexity": 16,

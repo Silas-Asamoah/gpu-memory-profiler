@@ -532,6 +532,39 @@ def test_merge_phase_attributions_keeps_same_label_multi_thread_overlap_ambiguou
     assert merged.phase_path is None
 
 
+@pytest.mark.parametrize(
+    "overrides,resolution,paths",
+    [
+        ({}, "unique", ["train"]),
+        ({"scope_id": "other"}, "ambiguous", ["train"]),
+        ({"thread_id": 12}, "ambiguous", ["train"]),
+        ({"phase_resolution": "ambiguous"}, "ambiguous", ["train"]),
+        (
+            {"phase_path": "eval", "phase_paths": ["eval"]},
+            "ambiguous",
+            ["eval", "train"],
+        ),
+    ],
+)
+def test_merge_phase_attributions_preserves_unique_scope_identity(
+    overrides: dict[str, Any], resolution: str, paths: list[str]
+) -> None:
+    fields = dict(
+        phase_resolution="unique",
+        phase_path="train",
+        phase_paths=["train"],
+        scope_id="scope",
+        thread_id=11,
+    )
+    first = PhaseAttribution(**fields)
+    second = PhaseAttribution(**(fields | overrides))
+    merged = merge_phase_attributions(first, second)
+    assert merged is not None
+    assert merged.phase_resolution == resolution
+    assert merged.phase_paths == paths
+    assert (merged is first) is (resolution == "unique")
+
+
 def test_summarize_phase_attribution_marks_ambiguous_single_label() -> None:
     summary = summarize_phase_attribution(
         PhaseAttribution(

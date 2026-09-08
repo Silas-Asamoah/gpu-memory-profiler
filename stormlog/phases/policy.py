@@ -207,13 +207,7 @@ def merge_phase_attributions(
     merged_paths = sorted(set(first_paths) | set(second_paths))
     if len(merged_paths) == 1:
         phase_path = merged_paths[0]
-        if (
-            first.phase_resolution == "unique"
-            and second.phase_resolution == "unique"
-            and first.phase_path == second.phase_path
-            and first.scope_id == second.scope_id
-            and first.thread_id == second.thread_id
-        ):
+        if _same_unique_scope(first, second):
             return first
         return PhaseAttribution(
             phase_resolution="ambiguous",
@@ -339,6 +333,16 @@ def _coerce_rank(value: Any) -> int | None:
         except ValueError:
             return None
     return None
+
+
+def _same_unique_scope(first: PhaseAttribution, second: PhaseAttribution) -> bool:
+    return (
+        first.phase_resolution == "unique"
+        and second.phase_resolution == "unique"
+        and first.phase_path == second.phase_path
+        and first.scope_id == second.scope_id
+        and first.thread_id == second.thread_id
+    )
 
 
 __all__ = [
