@@ -12,30 +12,6 @@
       "complexity": 14,
       "source_hash": "0dddb4cef7355e58c22f622d1f76403b4fc4a2659d4e2326e093a2aa8922f985"
     },
-    "stormlog/_run_catalog_artifacts.py:sink_segment_attachment_rows": {
-      "complexity": 12,
-      "source_hash": "16902b540bbe4c6a2b6b89068873466eabc50d14232adb575242df0f7d6f8c6f"
-    },
-    "stormlog/_run_catalog_context.py:_explicit_run_contexts": {
-      "complexity": 12,
-      "source_hash": "0a2d89d6457c31d15993fcd60f34dc4b65db609fb686b4ea64cd16cb3002583b"
-    },
-    "stormlog/_run_catalog_context.py:run_attachment_matches": {
-      "complexity": 15,
-      "source_hash": "cedcecb89a5f410f1c16b84a3eaec29c8a5325dabe90421cfb61e5557f83e975"
-    },
-    "stormlog/_run_catalog_context.py:run_matches": {
-      "complexity": 13,
-      "source_hash": "0e26eed5d5558d9b8e82891c4a68d767b47f205f69b8a47482ec073b8029078f"
-    },
-    "stormlog/_run_catalog_parser.py:_is_valid_attachment_payload": {
-      "complexity": 16,
-      "source_hash": "d4d9f39e4a0ec12ede5026f061261671f14c2e8ee04b2d739211fd6ae6eb4b4b"
-    },
-    "stormlog/_run_catalog_parser.py:_is_valid_run_envelope_payload": {
-      "complexity": 20,
-      "source_hash": "ade2f028584a54a92322cdb7795d8081620c5c2f5cd8b069cefc223ea6152665"
-    },
     "stormlog/_wandb/attribution.py:log_attribution_outputs": {
       "complexity": 11,
       "source_hash": "46b22bc62a154fca8ba479f610589359e39432d43317bb108137b4225f62fc42"
