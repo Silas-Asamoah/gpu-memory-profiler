@@ -329,54 +329,7 @@ def cmd_monitor(args: argparse.Namespace) -> int:
     finally:
         results = tracker.stop_tracking()
 
-        print("\nMonitoring Results:")
-        print("-" * 20)
-        capability = _tracking_memory_capability(results)
-        device_memory_available = capability["device_memory_available"]
-        if device_memory_available:
-            print(f"Peak Memory: {results.peak_memory_bytes / (1024 * 1024):.1f} MB")
-            print(
-                f"Average Memory: {results.average_memory_bytes / (1024 * 1024):.1f} MB"
-            )
-        else:
-            print("Device Memory: unavailable")
-            print(
-                f"Process RSS: {(capability['process_memory_bytes'] or 0) / (1024 * 1024):.1f} MB"
-            )
-        print(f"Duration: {results.duration:.1f} seconds")
-        print(f"Samples Collected: {len(results.memory_usage)}")
-        dropped_samples = getattr(results, "history_dropped_samples", 0)
-        if dropped_samples:
-            print(f"Dropped Samples: {dropped_samples}")
-
-        if results.alert_count:
-            print(f"Alerts Triggered: {results.alert_count}")
-
-        if args.output:
-            # Save results
-            output_data = {
-                "peak_memory": results.peak_memory_bytes / (1024 * 1024),
-                "average_memory": results.average_memory_bytes / (1024 * 1024),
-                "duration": results.duration,
-                "memory_usage": results.memory_usage,
-                "timestamps": results.timestamps,
-                "alerts": results.alert_count,
-                "history_window_limit": getattr(results, "history_window_limit", 0),
-                "history_retained_samples": getattr(
-                    results, "history_retained_samples", 0
-                ),
-                "history_dropped_samples": getattr(
-                    results, "history_dropped_samples", 0
-                ),
-                **capability,
-            }
-
-            output_path = Path(args.output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            with output_path.open("w", encoding="utf-8") as f:
-                json.dump(output_data, f, indent=2)
-
-            print(f"Results saved to {args.output}")
+        _report_monitor_results(results, args.output)
 
     return 0
 
@@ -745,25 +698,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
 
     wrapper = ResultWrapper(data)
 
-    if (
-        getattr(args, "plot", None) or getattr(args, "visualize", False)
-    ) and memory_available:
-        from .visualizer import MemoryVisualizer
-
-        visualizer = MemoryVisualizer()
-
-        plot = getattr(args, "plot", None)
-        plot_name = plot if isinstance(plot, str) else "memory_timeline.png"
-
-        if getattr(args, "output", None):
-            output_dir = Path(args.output)
-            output_dir.mkdir(parents=True, exist_ok=True)
-            plot_path = str(output_dir / plot_name)
-        else:
-            plot_path = plot_name
-
-        visualizer.plot_memory_timeline(wrapper, save_path=plot_path)
-        print(f"Memory timeline plot saved to {plot_path}")
+    _plot_analysis_timeline(args, wrapper, memory_available)
 
     if getattr(args, "detect_leaks", False) and memory_available:
         from .analyzer import MemoryAnalyzer
@@ -1030,6 +965,75 @@ Cookbook:
     else:
         print(f"Unknown command: {args.command}")
         return 1
+
+
+def _report_monitor_results(results: Any, output: str | None) -> None:
+    print("\nMonitoring Results:")
+    print("-" * 20)
+    capability = _tracking_memory_capability(results)
+    device_memory_available = capability["device_memory_available"]
+    if device_memory_available:
+        print(f"Peak Memory: {results.peak_memory_bytes / (1024 * 1024):.1f} MB")
+        print(f"Average Memory: {results.average_memory_bytes / (1024 * 1024):.1f} MB")
+    else:
+        print("Device Memory: unavailable")
+        print(
+            f"Process RSS: {(capability['process_memory_bytes'] or 0) / (1024 * 1024):.1f} MB"
+        )
+    print(f"Duration: {results.duration:.1f} seconds")
+    print(f"Samples Collected: {len(results.memory_usage)}")
+    dropped_samples = getattr(results, "history_dropped_samples", 0)
+    if dropped_samples:
+        print(f"Dropped Samples: {dropped_samples}")
+
+    if results.alert_count:
+        print(f"Alerts Triggered: {results.alert_count}")
+
+    if output:
+        # Save results
+        output_data = {
+            "peak_memory": results.peak_memory_bytes / (1024 * 1024),
+            "average_memory": results.average_memory_bytes / (1024 * 1024),
+            "duration": results.duration,
+            "memory_usage": results.memory_usage,
+            "timestamps": results.timestamps,
+            "alerts": results.alert_count,
+            "history_window_limit": getattr(results, "history_window_limit", 0),
+            "history_retained_samples": getattr(results, "history_retained_samples", 0),
+            "history_dropped_samples": getattr(results, "history_dropped_samples", 0),
+            **capability,
+        }
+
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8") as f:
+            json.dump(output_data, f, indent=2)
+
+        print(f"Results saved to {output}")
+
+
+def _plot_analysis_timeline(
+    args: argparse.Namespace, wrapper: Any, memory_available: bool
+) -> None:
+    if (
+        getattr(args, "plot", None) or getattr(args, "visualize", False)
+    ) and memory_available:
+        from .visualizer import MemoryVisualizer
+
+        visualizer = MemoryVisualizer()
+
+        plot = getattr(args, "plot", None)
+        plot_name = plot if isinstance(plot, str) else "memory_timeline.png"
+
+        if getattr(args, "output", None):
+            output_dir = Path(args.output)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            plot_path = str(output_dir / plot_name)
+        else:
+            plot_path = plot_name
+
+        visualizer.plot_memory_timeline(wrapper, save_path=plot_path)
+        print(f"Memory timeline plot saved to {plot_path}")
 
 
 if __name__ == "__main__":
