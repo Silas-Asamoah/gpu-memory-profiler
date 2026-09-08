@@ -8,34 +8,6 @@
       "complexity": 11,
       "source_hash": "f043f98fe2b2b79f1f6c7d6042b459df6f4e25addf784e6677bf902bb3f64e70"
     },
-    "stormlog/cli.py:_build_analyze_summary": {
-      "complexity": 19,
-      "source_hash": "5d5748e4302627d63ffde663fed3692d31949f78ed77e2e78cd5c9fc4540652e"
-    },
-    "stormlog/cli.py:_phase_summary_from_payload": {
-      "complexity": 11,
-      "source_hash": "b3367ed4b0c80184735bdb135f68936e3139e5adba6bc746b0fb6bbab92e4062"
-    },
-    "stormlog/cli.py:cmd_diagnose": {
-      "complexity": 20,
-      "source_hash": "e21c2897e46bab8e4ec492915f5a42bc4be22c69a3365ee1841aa6a8121a352a"
-    },
-    "stormlog/cli.py:cmd_info": {
-      "complexity": 15,
-      "source_hash": "de236adacaf65c27a7348617a66ec16faedb4e4a786a70ab12bef529e5e907b7"
-    },
-    "stormlog/infer/analysis.py:analyze_inference_events": {
-      "complexity": 13,
-      "source_hash": "64041abcb4eccda820c3d01757d23d474ad855ecce80cd7246577f19a1c0fb23"
-    },
-    "stormlog/infer/cli.py:cmd_profile": {
-      "complexity": 14,
-      "source_hash": "1e953234ee52c77402090effdb056b9cf4ca4945e40e9e6eccf65373d1ebc320"
-    },
-    "stormlog/infer/openai_client.py:OpenAIChatCompletionsClient._read_streaming_response": {
-      "complexity": 17,
-      "source_hash": "e60ef4db536693a0109a2c99130f7bab93ab4287892aed5fee1f2a2c173806ca"
-    },
     "stormlog/jax/analyzer.py:MemoryAnalyzer.analyze_efficiency": {
       "complexity": 19,
       "source_hash": "5b68f0f8b6f6edd2a0f39fa22d6c5df8e4d1d7c4ffa99cf5abf6296db34491fd"

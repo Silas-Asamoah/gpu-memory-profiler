@@ -502,60 +502,11 @@ def cmd_info(args: argparse.Namespace) -> None:
             print(
                 "CUDA is not available. MPS backend is available for supported PyTorch workloads."
             )
-        process = psutil.Process()
-        with process.oneshot():
-            mem = process.memory_info()
-        print(f"Process RSS: {format_bytes(mem.rss)}")
-        print(f"Process VMS: {format_bytes(mem.vms)}")
-        print(
-            f"CPU Count: {psutil.cpu_count(logical=False)} physical / {psutil.cpu_count()} logical"
-        )
+        _print_process_memory_info()
         return
 
     if not system_info.get("cuda_available", False):
-        print(f"MPS Built: {system_info.get('mps_built', False)}")
-        print(f"MPS Available: {system_info.get('mps_available', False)}")
-        hardware_info = _detect_gpu_hardware()
-        devices = hardware_info.get("devices", [])
-
-        print(
-            "GPU Hardware Detected: "
-            f"{'Yes' if hardware_info.get('hardware_gpu_detected', False) else 'No'}"
-        )
-        if args.device is not None:
-            print(
-                "Ignoring --device because no supported PyTorch GPU runtime is active."
-            )
-
-        if devices:
-            print("Detected GPU Hardware:")
-            for device in devices:
-                print(f"  {device.get('name', 'Unknown')}")
-        print("GPU Available to PyTorch Runtime: No")
-
-        if devices:
-            print(
-                "Supported PyTorch GPU runtimes: NVIDIA CUDA, AMD ROCm-backed "
-                "PyTorch on Linux, Apple MPS."
-            )
-            if args.detailed:
-                print("\nHardware Probe Details:")
-                print("-" * 30)
-                for index, device in enumerate(devices):
-                    print(f"  Device {index}: {device.get('name', 'Unknown')}")
-                    print(f"    Vendor: {device.get('vendor', 'unknown')}")
-                    print(f"    Source: {device.get('source', 'unknown')}")
-        else:
-            print("CUDA is not available. Falling back to CPU-only profiling.")
-
-        process = psutil.Process()
-        with process.oneshot():
-            mem = process.memory_info()
-        print(f"Process RSS: {format_bytes(mem.rss)}")
-        print(f"Process VMS: {format_bytes(mem.vms)}")
-        print(
-            f"CPU Count: {psutil.cpu_count(logical=False)} physical / {psutil.cpu_count()} logical"
-        )
+        _print_cpu_runtime_info(args, system_info)
         return
 
     print(f"CUDA Version: {system_info.get('cuda_version', 'Unknown')}")
@@ -1011,14 +962,9 @@ def _input_artifact_size_bytes(path: Path) -> int:
 def _phase_summary_from_payload(payload: Any) -> str | None:
     if not isinstance(payload, dict):
         return None
-    phase_summary = payload.get("phase_summary")
-    if isinstance(phase_summary, dict):
-        summary_path = phase_summary.get("phase_path")
-        summary_source = phase_summary.get("source")
-        if isinstance(summary_path, str) and summary_path:
-            if summary_source == "heuristic":
-                return f"(likely) {summary_path}"
-            return summary_path
+    explicit_summary = _explicit_phase_summary(payload.get("phase_summary"))
+    if explicit_summary is not None:
+        return explicit_summary
     if summarize_phase_resolution is None:
         return None  # type: ignore[unreachable]
     phase_path = payload.get("phase_path")
@@ -1049,65 +995,11 @@ def _build_analyze_summary(
         f"File size: {file_size_bytes} bytes",
     ]
 
-    if "gap_analysis" in report:
-        lines.append(f"Gap findings: {len(report['gap_analysis'])}")
-        if report["gap_analysis"]:
-            top_gap_phase = next(
-                (
-                    _phase_summary_from_payload(item.get("phase_attribution"))
-                    for item in report["gap_analysis"]
-                    if isinstance(item, dict)
-                    and _phase_summary_from_payload(item.get("phase_attribution"))
-                ),
-                None,
-            )
-            if top_gap_phase:
-                lines.append(f"Top gap phase: {top_gap_phase}")
+    lines.extend(_gap_summary_lines(report))
 
     cross_rank_analysis = report.get("cross_rank_analysis")
     if isinstance(cross_rank_analysis, dict):
-        participating_ranks = cross_rank_analysis.get("participating_ranks", [])
-        missing_ranks = cross_rank_analysis.get("missing_ranks", [])
-        suspects = cross_rank_analysis.get("first_cause_suspects", [])
-        lines.extend(
-            [
-                "",
-                "Distributed Analysis:",
-                "Participating ranks: "
-                + (", ".join(str(rank) for rank in participating_ranks) or "none"),
-                "Missing ranks: "
-                + (", ".join(str(rank) for rank in missing_ranks) or "none"),
-            ]
-        )
-
-        cluster_onset = cross_rank_analysis.get("cluster_onset_timestamp_ns")
-        if cluster_onset is not None:
-            lines.append(f"Cluster onset (aligned ns): {cluster_onset}")
-
-        if suspects:
-            top_suspect = suspects[0]
-            lines.extend(
-                [
-                    "Top first-cause suspect: "
-                    f"rank {top_suspect['rank']} ({top_suspect['confidence']})",
-                    "Evidence: "
-                    f"timestamp_ns={top_suspect['first_spike_timestamp_ns']}, "
-                    f"aligned_timestamp_ns={top_suspect['aligned_first_spike_timestamp_ns']}, "
-                    f"lead_ns={top_suspect['lead_over_cluster_onset_ns']}, "
-                    f"delta={format_bytes(int(top_suspect['peak_delta_bytes']))}",
-                ]
-            )
-            top_suspect_phase = _phase_summary_from_payload(
-                top_suspect.get("phase_attribution")
-            )
-            if top_suspect_phase:
-                lines.append(f"Suspect phase: {top_suspect_phase}")
-        else:
-            lines.append("No qualifying first-cause suspect identified.")
-
-        notes = cross_rank_analysis.get("notes", [])
-        if notes:
-            lines.append("Notes: " + " ".join(str(note) for note in notes))
+        lines.extend(_cross_rank_summary_lines(cross_rank_analysis))
     else:
         notes = report.get("notes", [])
         if notes:
@@ -1329,14 +1221,7 @@ def _render_analysis_visualization(
 
 def cmd_diagnose(args: argparse.Namespace) -> int:
     """Produce a portable diagnostic bundle. Returns 0 (OK), 1 (failure), or 2 (memory risk)."""
-    if args.duration < 0:
-        print("Error: --duration must be >= 0", file=sys.stderr)
-        return 1
-    if args.interval <= 0:
-        print("Error: --interval must be > 0", file=sys.stderr)
-        return 1
-    if getattr(args, "native_history_max_entries", 100000) <= 0:
-        print("Error: --native-history-max-entries must be > 0", file=sys.stderr)
+    if not _valid_diagnose_arguments(args):
         return 1
 
     wandb_config = _resolve_wandb_config_or_exit(args)
@@ -1373,25 +1258,7 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
         status = "FAILED"
     print(f"Status: {status} (exit_code={exit_code})")
 
-    # One-line findings from manifest/summary
-    try:
-        manifest_path = artifact_dir / "manifest.json"
-        if manifest_path.exists():
-            with open(manifest_path) as f:
-                manifest = json.load(f)
-            if manifest.get("risk_detected"):
-                summary_path = artifact_dir / "diagnostic_summary.json"
-                if summary_path.exists():
-                    with open(summary_path) as f:
-                        summary = json.load(f)
-                    flags = summary.get("risk_flags", {})
-                    parts = [k for k, v in flags.items() if v]
-                    if parts:
-                        print(f"Findings: {', '.join(parts)}")
-        if exit_code == 0 and status == "OK":
-            print("Findings: no memory risk detected")
-    except (OSError, json.JSONDecodeError):
-        pass
+    _print_diagnostic_findings(artifact_dir, exit_code, status)
 
     if wandb_config.enabled:
         try:
@@ -1416,6 +1283,170 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
             _warn_mlflow_export_failure("gpumemprof diagnose", exc)
 
     return int(exit_code)
+
+
+def _print_cpu_runtime_info(
+    args: argparse.Namespace, system_info: dict[str, Any]
+) -> None:
+    print(f"MPS Built: {system_info.get('mps_built', False)}")
+    print(f"MPS Available: {system_info.get('mps_available', False)}")
+    hardware_info = _detect_gpu_hardware()
+    devices = hardware_info.get("devices", [])
+
+    print(
+        "GPU Hardware Detected: "
+        f"{'Yes' if hardware_info.get('hardware_gpu_detected', False) else 'No'}"
+    )
+    if args.device is not None:
+        print("Ignoring --device because no supported PyTorch GPU runtime is active.")
+
+    if devices:
+        print("Detected GPU Hardware:")
+        for device in devices:
+            print(f"  {device.get('name', 'Unknown')}")
+    print("GPU Available to PyTorch Runtime: No")
+
+    if devices:
+        print(
+            "Supported PyTorch GPU runtimes: NVIDIA CUDA, AMD ROCm-backed "
+            "PyTorch on Linux, Apple MPS."
+        )
+        if args.detailed:
+            print("\nHardware Probe Details:")
+            print("-" * 30)
+            for index, device in enumerate(devices):
+                print(f"  Device {index}: {device.get('name', 'Unknown')}")
+                print(f"    Vendor: {device.get('vendor', 'unknown')}")
+                print(f"    Source: {device.get('source', 'unknown')}")
+    else:
+        print("CUDA is not available. Falling back to CPU-only profiling.")
+
+    _print_process_memory_info()
+
+
+def _explicit_phase_summary(phase_summary: Any) -> str | None:
+    if isinstance(phase_summary, dict):
+        summary_path = phase_summary.get("phase_path")
+        summary_source = phase_summary.get("source")
+        if isinstance(summary_path, str) and summary_path:
+            if summary_source == "heuristic":
+                return f"(likely) {summary_path}"
+            return summary_path
+    return None
+
+
+def _gap_summary_lines(report: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    if "gap_analysis" in report:
+        lines.append(f"Gap findings: {len(report['gap_analysis'])}")
+        if report["gap_analysis"]:
+            top_gap_phase = next(
+                (
+                    _phase_summary_from_payload(item.get("phase_attribution"))
+                    for item in report["gap_analysis"]
+                    if isinstance(item, dict)
+                    and _phase_summary_from_payload(item.get("phase_attribution"))
+                ),
+                None,
+            )
+            if top_gap_phase:
+                lines.append(f"Top gap phase: {top_gap_phase}")
+
+    return lines
+
+
+def _cross_rank_summary_lines(cross_rank_analysis: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    participating_ranks = cross_rank_analysis.get("participating_ranks", [])
+    missing_ranks = cross_rank_analysis.get("missing_ranks", [])
+    suspects = cross_rank_analysis.get("first_cause_suspects", [])
+    lines.extend(
+        [
+            "",
+            "Distributed Analysis:",
+            "Participating ranks: "
+            + (", ".join(str(rank) for rank in participating_ranks) or "none"),
+            "Missing ranks: "
+            + (", ".join(str(rank) for rank in missing_ranks) or "none"),
+        ]
+    )
+
+    cluster_onset = cross_rank_analysis.get("cluster_onset_timestamp_ns")
+    if cluster_onset is not None:
+        lines.append(f"Cluster onset (aligned ns): {cluster_onset}")
+
+    if suspects:
+        top_suspect = suspects[0]
+        lines.extend(
+            [
+                "Top first-cause suspect: "
+                f"rank {top_suspect['rank']} ({top_suspect['confidence']})",
+                "Evidence: "
+                f"timestamp_ns={top_suspect['first_spike_timestamp_ns']}, "
+                f"aligned_timestamp_ns={top_suspect['aligned_first_spike_timestamp_ns']}, "
+                f"lead_ns={top_suspect['lead_over_cluster_onset_ns']}, "
+                f"delta={format_bytes(int(top_suspect['peak_delta_bytes']))}",
+            ]
+        )
+        top_suspect_phase = _phase_summary_from_payload(
+            top_suspect.get("phase_attribution")
+        )
+        if top_suspect_phase:
+            lines.append(f"Suspect phase: {top_suspect_phase}")
+    else:
+        lines.append("No qualifying first-cause suspect identified.")
+
+    notes = cross_rank_analysis.get("notes", [])
+    if notes:
+        lines.append("Notes: " + " ".join(str(note) for note in notes))
+    return lines
+
+
+def _valid_diagnose_arguments(args: argparse.Namespace) -> bool:
+    if args.duration < 0:
+        print("Error: --duration must be >= 0", file=sys.stderr)
+        return False
+    if args.interval <= 0:
+        print("Error: --interval must be > 0", file=sys.stderr)
+        return False
+    if getattr(args, "native_history_max_entries", 100000) <= 0:
+        print("Error: --native-history-max-entries must be > 0", file=sys.stderr)
+        return False
+
+    return True
+
+
+def _print_diagnostic_findings(artifact_dir: Path, exit_code: int, status: str) -> None:
+    # One-line findings from manifest/summary
+    try:
+        manifest_path = artifact_dir / "manifest.json"
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            if manifest.get("risk_detected"):
+                summary_path = artifact_dir / "diagnostic_summary.json"
+                if summary_path.exists():
+                    with open(summary_path) as f:
+                        summary = json.load(f)
+                    flags = summary.get("risk_flags", {})
+                    parts = [k for k, v in flags.items() if v]
+                    if parts:
+                        print(f"Findings: {', '.join(parts)}")
+        if exit_code == 0 and status == "OK":
+            print("Findings: no memory risk detected")
+    except (OSError, json.JSONDecodeError):
+        pass
+
+
+def _print_process_memory_info() -> None:
+    process = psutil.Process()
+    with process.oneshot():
+        mem = process.memory_info()
+    print(f"Process RSS: {format_bytes(mem.rss)}")
+    print(f"Process VMS: {format_bytes(mem.vms)}")
+    print(
+        f"CPU Count: {psutil.cpu_count(logical=False)} physical / {psutil.cpu_count()} logical"
+    )
 
 
 if __name__ == "__main__":
