@@ -122,13 +122,7 @@ def _select_cross_rank_analysis_events(
         )
         return [], None, notes
 
-    job_id = _select_job_id(sample_events)
-    observed_job_ids = {event.job_id for event in sample_events if event.job_id}
-    if len(observed_job_ids) > 1 and job_id is not None:
-        notes.append(
-            "Multiple job_id values were observed; filtering to the most common value."
-        )
-        sample_events = [event for event in sample_events if event.job_id == job_id]
+    sample_events, job_id = _select_job_samples(sample_events, notes)
 
     return sample_events, job_id, notes
 
@@ -215,39 +209,8 @@ def merge_cross_rank_timelines(
             + "."
         )
 
-    anchor_rank = 0 if 0 in grouped else participating_ranks[0]
-    anchor_timestamp = grouped[anchor_rank][0].timestamp_ns
-    alignment_offsets_ns: dict[int, int] = {}
-    merged_points: list[RankTimelinePoint] = []
-    median_interval_ns = _median_sampling_interval_ns(grouped)
-
-    for rank in participating_ranks:
-        offset_ns = grouped[rank][0].timestamp_ns - anchor_timestamp
-        alignment_offsets_ns[rank] = offset_ns
-        if (
-            median_interval_ns > 0
-            and abs(offset_ns) > _SKEW_NOTE_MULTIPLIER * median_interval_ns
-        ):
-            notes.append(
-                "Rank "
-                f"{rank} starts {offset_ns} ns from the anchor; "
-                "first-sample alignment may be approximate."
-            )
-        for event in grouped[rank]:
-            merged_points.append(
-                RankTimelinePoint(
-                    rank=rank,
-                    timestamp_ns=event.timestamp_ns,
-                    aligned_timestamp_ns=event.timestamp_ns - offset_ns,
-                    device_used_bytes=event.device_used_bytes,
-                    allocator_reserved_bytes=event.allocator_reserved_bytes,
-                    allocator_allocated_bytes=event.allocator_allocated_bytes,
-                    allocator_change_bytes=event.allocator_change_bytes,
-                )
-            )
-
-    merged_points.sort(
-        key=lambda point: (point.aligned_timestamp_ns, point.rank, point.timestamp_ns)
+    alignment_offsets_ns, merged_points = _align_rank_streams(
+        grouped, participating_ranks, notes
     )
 
     return CrossRankMergeResult(
@@ -578,6 +541,63 @@ def _serialize_first_cause_suspect(suspect: FirstCauseSuspect) -> dict[str, Any]
         suspect.phase_attribution
     )
     return payload
+
+
+def _select_job_samples(
+    sample_events: list[TelemetryEventV2], notes: list[str]
+) -> tuple[list[TelemetryEventV2], str | None]:
+    job_id = _select_job_id(sample_events)
+    observed_job_ids = {event.job_id for event in sample_events if event.job_id}
+    if len(observed_job_ids) > 1 and job_id is not None:
+        notes.append(
+            "Multiple job_id values were observed; filtering to the most common value."
+        )
+        sample_events = [event for event in sample_events if event.job_id == job_id]
+
+    return sample_events, job_id
+
+
+def _align_rank_streams(
+    grouped: dict[int, list[TelemetryEventV2]],
+    participating_ranks: list[int],
+    notes: list[str],
+) -> tuple[dict[int, int], list[RankTimelinePoint]]:
+    anchor_rank = 0 if 0 in grouped else participating_ranks[0]
+    anchor_timestamp = grouped[anchor_rank][0].timestamp_ns
+    alignment_offsets_ns: dict[int, int] = {}
+    merged_points: list[RankTimelinePoint] = []
+    median_interval_ns = _median_sampling_interval_ns(grouped)
+
+    for rank in participating_ranks:
+        offset_ns = grouped[rank][0].timestamp_ns - anchor_timestamp
+        alignment_offsets_ns[rank] = offset_ns
+        if (
+            median_interval_ns > 0
+            and abs(offset_ns) > _SKEW_NOTE_MULTIPLIER * median_interval_ns
+        ):
+            notes.append(
+                "Rank "
+                f"{rank} starts {offset_ns} ns from the anchor; "
+                "first-sample alignment may be approximate."
+            )
+        for event in grouped[rank]:
+            merged_points.append(
+                RankTimelinePoint(
+                    rank=rank,
+                    timestamp_ns=event.timestamp_ns,
+                    aligned_timestamp_ns=event.timestamp_ns - offset_ns,
+                    device_used_bytes=event.device_used_bytes,
+                    allocator_reserved_bytes=event.allocator_reserved_bytes,
+                    allocator_allocated_bytes=event.allocator_allocated_bytes,
+                    allocator_change_bytes=event.allocator_change_bytes,
+                )
+            )
+
+    merged_points.sort(
+        key=lambda point: (point.aligned_timestamp_ns, point.rank, point.timestamp_ns)
+    )
+
+    return alignment_offsets_ns, merged_points
 
 
 __all__ = [

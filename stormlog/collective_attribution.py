@@ -184,16 +184,9 @@ def attribute_collective_memory(
     if not grouped_samples:
         return []
 
-    spikes_by_rank: dict[int, list[_RankSpike]] = {}
-    for rank, rank_samples in grouped_samples.items():
-        spikes = _detect_rank_spikes(
-            rank=rank,
-            rank_events=rank_samples,
-            marker_timestamps=marker_timestamps_by_rank.get(rank, ()),
-            config=resolved,
-        )
-        if spikes:
-            spikes_by_rank[rank] = spikes
+    spikes_by_rank = _detect_grouped_spikes(
+        grouped_samples, marker_timestamps_by_rank, resolved
+    )
 
     if not spikes_by_rank:
         return []
@@ -652,6 +645,25 @@ def _contains_collective_token(text: str) -> bool:
         token in normalized or token.replace("_", "") in collapsed
         for token in _COLLECTIVE_TOKENS
     )
+
+
+def _detect_grouped_spikes(
+    grouped_samples: Mapping[int, list[TelemetryEventV2]],
+    marker_timestamps_by_rank: Mapping[int, tuple[int, ...]],
+    config: CollectiveAttributionConfig,
+) -> dict[int, list[_RankSpike]]:
+    spikes_by_rank: dict[int, list[_RankSpike]] = {}
+    for rank, rank_samples in grouped_samples.items():
+        spikes = _detect_rank_spikes(
+            rank=rank,
+            rank_events=rank_samples,
+            marker_timestamps=marker_timestamps_by_rank.get(rank, ()),
+            config=config,
+        )
+        if spikes:
+            spikes_by_rank[rank] = spikes
+
+    return spikes_by_rank
 
 
 __all__ = [

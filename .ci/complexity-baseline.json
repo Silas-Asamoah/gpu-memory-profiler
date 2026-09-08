@@ -1,17 +1,5 @@
 {
   "blocks": {
-    "stormlog/analyzer.py:MemoryAnalyzer._analyze_execution_times": {
-      "complexity": 15,
-      "source_hash": "bb623d64a66bdf7c2b442072e3cd2598060105afc16ef5067e49a06f32dfda5f"
-    },
-    "stormlog/analyzer.py:MemoryAnalyzer._calculate_optimization_score": {
-      "complexity": 11,
-      "source_hash": "f6f4d973f94448f008d27417ec707bf94f72c8944701d23a5947548d53cdcd12"
-    },
-    "stormlog/analyzer.py:MemoryAnalyzer._detect_inefficient_allocations": {
-      "complexity": 12,
-      "source_hash": "4ee192e0060a53b4124584b858cc97183f0191c7780681186e7cdef41326ae50"
-    },
     "stormlog/attributed_viz.py:_render_preview_chart": {
       "complexity": 12,
       "source_hash": "2a063ab24f4d052450dd8777b936fc21833fe6ab5f32185c8e2fdace72b1a300"
@@ -36,25 +24,9 @@
       "complexity": 15,
       "source_hash": "de236adacaf65c27a7348617a66ec16faedb4e4a786a70ab12bef529e5e907b7"
     },
-    "stormlog/collective_attribution.py:attribute_collective_memory": {
-      "complexity": 11,
-      "source_hash": "a0c9b63215bc4033a9ed8afefebdd0919dd1046fb60292104e3489c4e8816c6e"
-    },
-    "stormlog/cuda_native_debug.py:build_snapshot_allocation_attribution": {
-      "complexity": 14,
-      "source_hash": "9db777a79c282cad85dcabf46d5bc3974e52fe02d4d2b0c98064e9a25e6a40d5"
-    },
     "stormlog/diagnose.py:run_diagnose": {
       "complexity": 11,
       "source_hash": "94891ca4e48656bb548140a5e77153db0ea0c7d012b00f729be34f79b70d989d"
-    },
-    "stormlog/distributed_analysis.py:_select_cross_rank_analysis_events": {
-      "complexity": 11,
-      "source_hash": "12379da12a7d1754c11959b4acf5862d841063e5561316a61215218aef58c9d4"
-    },
-    "stormlog/distributed_analysis.py:merge_cross_rank_timelines": {
-      "complexity": 12,
-      "source_hash": "87a75d870cd954884cba4d0f7ad20ce5bb34a07c65618b18e0e42726e4a32835"
     },
     "stormlog/infer/analysis.py:analyze_inference_events": {
       "complexity": 13,

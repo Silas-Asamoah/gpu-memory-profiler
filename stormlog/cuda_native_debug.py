@@ -274,22 +274,7 @@ def build_snapshot_allocation_attribution(
     for segment in snapshot_dict.get("segments", []):
         segment_address = int(segment.get("address", 0) or 0)
         for block in segment.get("blocks", []):
-            history_entries = list(block.get("history", []))
-            if history_entries:
-                candidate_allocations = [
-                    (
-                        int(history_entry.get("addr", 0) or 0),
-                        int(history_entry.get("real_size", 0) or 0),
-                    )
-                    for history_entry in history_entries
-                ]
-            else:
-                candidate_allocations = [
-                    (
-                        int(block.get("address", 0) or 0),
-                        int(block.get("size", 0) or 0),
-                    )
-                ]
+            candidate_allocations = _block_allocations(block)
 
             for addr, size_bytes in candidate_allocations:
                 tensor_entry = pointer_map.get(addr)
@@ -450,6 +435,27 @@ def capture_cuda_snapshot_artifacts(
         history_recorded=history_recorded,
         device=device,
     )
+
+
+def _block_allocations(block: dict[str, Any]) -> list[tuple[int, int]]:
+    history_entries = list(block.get("history", []))
+    if history_entries:
+        candidate_allocations = [
+            (
+                int(history_entry.get("addr", 0) or 0),
+                int(history_entry.get("real_size", 0) or 0),
+            )
+            for history_entry in history_entries
+        ]
+    else:
+        candidate_allocations = [
+            (
+                int(block.get("address", 0) or 0),
+                int(block.get("size", 0) or 0),
+            )
+        ]
+
+    return candidate_allocations
 
 
 __all__ = [

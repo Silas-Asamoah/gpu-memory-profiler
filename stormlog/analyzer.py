@@ -261,27 +261,7 @@ class MemoryAnalyzer:
         """Detect inefficient memory allocation patterns."""
         patterns: List[MemoryPattern] = []
 
-        # Look for functions that allocate much more than they actually use
-        inefficient_functions: List[Dict[str, Any]] = []
-
-        for result in results:
-            allocated = result.memory_allocated
-            peak_usage = (
-                result.peak_memory_usage() - result.memory_before.allocated_memory
-            )
-
-            if allocated > 0 and peak_usage > 0:
-                efficiency_ratio = peak_usage / allocated
-
-                if efficiency_ratio < self.thresholds["inefficient_allocation_ratio"]:
-                    inefficient_functions.append(
-                        {
-                            "function": result.function_name,
-                            "efficiency_ratio": efficiency_ratio,
-                            "allocated": allocated,
-                            "peak_usage": peak_usage,
-                        }
-                    )
+        inefficient_functions = self._inefficient_allocation_samples(results)
 
         if inefficient_functions:
             # Group by function name
@@ -325,6 +305,33 @@ class MemoryAnalyzer:
                 )
 
         return patterns
+
+    def _inefficient_allocation_samples(
+        self, results: List[ProfileResult]
+    ) -> List[Dict[str, Any]]:
+        # Look for functions that allocate much more than they actually use
+        inefficient_functions: List[Dict[str, Any]] = []
+
+        for result in results:
+            allocated = result.memory_allocated
+            peak_usage = (
+                result.peak_memory_usage() - result.memory_before.allocated_memory
+            )
+
+            if allocated > 0 and peak_usage > 0:
+                efficiency_ratio = peak_usage / allocated
+
+                if efficiency_ratio < self.thresholds["inefficient_allocation_ratio"]:
+                    inefficient_functions.append(
+                        {
+                            "function": result.function_name,
+                            "efficiency_ratio": efficiency_ratio,
+                            "allocated": allocated,
+                            "peak_usage": peak_usage,
+                        }
+                    )
+
+        return inefficient_functions
 
     def _detect_memory_spikes(
         self, results: List[ProfileResult]
@@ -527,6 +534,14 @@ class MemoryAnalyzer:
                     )
                 )
 
+        insights.extend(self._execution_time_variance_insights(function_times))
+
+        return insights
+
+    def _execution_time_variance_insights(
+        self, function_times: Mapping[str, List[float]]
+    ) -> List[PerformanceInsight]:
+        insights = []
         # Analyze execution time variance
         high_variance_functions = []
         for func_name, times in function_times.items():
@@ -912,21 +927,7 @@ class MemoryAnalyzer:
 
         score = max(0, base_score)
 
-        if score >= 90:
-            grade = "A"
-            description = "Excellent memory usage patterns"
-        elif score >= 80:
-            grade = "B"
-            description = "Good memory usage with minor issues"
-        elif score >= 70:
-            grade = "C"
-            description = "Acceptable memory usage with some optimization potential"
-        elif score >= 60:
-            grade = "D"
-            description = "Poor memory usage patterns requiring attention"
-        else:
-            grade = "F"
-            description = "Critical memory usage issues requiring immediate attention"
+        grade, description = _optimization_grade(score)
 
         return {
             "score": score,
@@ -962,3 +963,23 @@ def _serialize_collective_attribution(
         result.phase_attribution
     )
     return payload
+
+
+def _optimization_grade(score: int) -> tuple[str, str]:
+    if score >= 90:
+        grade = "A"
+        description = "Excellent memory usage patterns"
+    elif score >= 80:
+        grade = "B"
+        description = "Good memory usage with minor issues"
+    elif score >= 70:
+        grade = "C"
+        description = "Acceptable memory usage with some optimization potential"
+    elif score >= 60:
+        grade = "D"
+        description = "Poor memory usage patterns requiring attention"
+    else:
+        grade = "F"
+        description = "Critical memory usage issues requiring immediate attention"
+
+    return grade, description
