@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from html import escape
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -1096,20 +1096,7 @@ def _render_preview_chart(
             f'class="preview-axis">{label}</text>'
         )
 
-    x_ticks = []
-    for tick in range(5):
-        time_value = t_min + ((t_max - t_min) * tick / 4 if t_max > t_min else 0)
-        x = x_scale(time_value)
-        text_anchor = "middle"
-        if tick == 0:
-            text_anchor = "start"
-        elif tick == 4:
-            text_anchor = "end"
-        x_ticks.append(
-            f'<text x="{x:.2f}" y="{baseline + 12:.2f}" text-anchor="{text_anchor}" '
-            f'dominant-baseline="hanging" class="preview-axis">'
-            f"{escape(_fmt_preview_time(time_value))}</text>"
-        )
+    x_ticks = _preview_time_ticks(t_min, t_max, x_scale, baseline)
 
     marker_nodes = []
     for marker in alloc_markers:
@@ -1150,10 +1137,45 @@ def _render_preview_chart(
     )
 
 
+def _preview_time_ticks(
+    t_min: float, t_max: float, x_scale: Callable[[float], float], baseline: float
+) -> List[str]:
+    x_ticks = []
+    for tick in range(5):
+        time_value = t_min + ((t_max - t_min) * tick / 4 if t_max > t_min else 0)
+        x = x_scale(time_value)
+        text_anchor = "middle"
+        if tick == 0:
+            text_anchor = "start"
+        elif tick == 4:
+            text_anchor = "end"
+        x_ticks.append(
+            f'<text x="{x:.2f}" y="{baseline + 12:.2f}" text-anchor="{text_anchor}" '
+            f'dominant-baseline="hanging" class="preview-axis">'
+            f"{escape(_fmt_preview_time(time_value))}</text>"
+        )
+    return x_ticks
+
+
 def _fmt_preview_time(value_ms: float) -> str:
     if value_ms >= 1000:
         return f"{value_ms / 1000:.2f}s"
     return f"{value_ms:.1f}ms"
+
+
+def _preview_active_rows(active_rows: List[Dict[str, Any]]) -> str:
+    active_rows_html = "".join(
+        (
+            "<tr>"
+            f'<td>{escape(str(row["name"]))}</td>'
+            f'<td>{escape(str(row["size_h"]))}</td>'
+            f'<td>{escape(str(row.get("shape", "—") or "—"))}</td>'
+            f'<td>{escape(str(row.get("dtype", "—") or "—"))}</td>'
+            "</tr>"
+        )
+        for row in active_rows
+    )
+    return active_rows_html
 
 
 def render_attributed_wandb_preview_html(
@@ -1213,17 +1235,7 @@ def render_attributed_wandb_preview_html(
         )
         for item in offenders
     )
-    active_rows_html = "".join(
-        (
-            "<tr>"
-            f'<td>{escape(str(row["name"]))}</td>'
-            f'<td>{escape(str(row["size_h"]))}</td>'
-            f'<td>{escape(str(row.get("shape", "—") or "—"))}</td>'
-            f'<td>{escape(str(row.get("dtype", "—") or "—"))}</td>'
-            "</tr>"
-        )
-        for row in active_rows
-    )
+    active_rows_html = _preview_active_rows(active_rows)
 
     history_banner = (
         ""

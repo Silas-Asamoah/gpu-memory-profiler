@@ -1,38 +1,5 @@
 {
-  "blocks": {
-    "stormlog/attributed_viz.py:_render_preview_chart": {
-      "complexity": 12,
-      "source_hash": "2a063ab24f4d052450dd8777b936fc21833fe6ab5f32185c8e2fdace72b1a300"
-    },
-    "stormlog/attributed_viz.py:render_attributed_wandb_preview_html": {
-      "complexity": 11,
-      "source_hash": "f043f98fe2b2b79f1f6c7d6042b459df6f4e25addf784e6677bf902bb3f64e70"
-    },
-    "stormlog/visualizer.py:MemoryVisualizer.create_dashboard": {
-      "complexity": 19,
-      "source_hash": "03c331c96488d42c67bfc3ade036926a79806ee445934203f214168fbeb45b57"
-    },
-    "stormlog/visualizer.py:MemoryVisualizer.export_data": {
-      "complexity": 19,
-      "source_hash": "27728ee768132315ffc9af8ecd190c3f61223f5eb398f15e1b7b70cabbb09079"
-    },
-    "stormlog/visualizer.py:MemoryVisualizer.plot_cross_rank_timeline": {
-      "complexity": 16,
-      "source_hash": "f2a78bc933090705b8bf042cf93393e74a588cd6070536931e411f2980be4753"
-    },
-    "stormlog/visualizer.py:MemoryVisualizer.plot_function_comparison": {
-      "complexity": 14,
-      "source_hash": "1c9ee8e22c445b474584b6b7164009d4fba833f39d985ccc1602641365b5fb01"
-    },
-    "stormlog/visualizer.py:MemoryVisualizer.plot_memory_heatmap": {
-      "complexity": 18,
-      "source_hash": "d0695546dc8a35a78ab16f152f7818c196b2895e82c79ea1a403cd5f26e6b957"
-    },
-    "stormlog/visualizer.py:MemoryVisualizer.plot_memory_timeline": {
-      "complexity": 19,
-      "source_hash": "814220cbeba87c795d009dbc0c11acba93aae8edd52bd6b8b5252fc3c442b40b"
-    }
-  },
+  "blocks": {},
   "max_complexity": 10,
   "radon_version": "6.0.1",
   "schema_version": 1
