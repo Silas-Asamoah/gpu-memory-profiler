@@ -232,18 +232,7 @@ def parse_rank_filter(expr: str, available_ranks: list[int]) -> set[int]:
         chunk = token.strip()
         if not chunk:
             continue
-        if "-" in chunk:
-            parts = chunk.split("-", 1)
-            if len(parts) != 2 or not parts[0] or not parts[1]:
-                raise ValueError(f"Invalid rank range: {chunk!r}")
-            start = int(parts[0])
-            end = int(parts[1])
-            if start > end:
-                raise ValueError(f"Invalid rank range (start>end): {chunk!r}")
-            selected.update(range(start, end + 1))
-            continue
-
-        selected.add(int(chunk))
+        selected.update(_parse_rank_token(chunk))
 
     return {rank for rank in selected if rank in available_set}
 
@@ -544,16 +533,7 @@ def _synthesize_distributed_sessions(
     sessions: Sequence[LoadedTelemetrySession],
     candidate_session_ids: set[str],
 ) -> list[LoadedTelemetrySession]:
-    grouped: dict[tuple[str, int], list[LoadedTelemetrySession]] = {}
-    for loaded in sessions:
-        summary = loaded.summary
-        if summary.session_id not in candidate_session_ids:
-            continue
-        if summary.job_id is None or summary.world_size <= 1:
-            continue
-        if not loaded.events:
-            continue
-        grouped.setdefault((summary.job_id, summary.world_size), []).append(loaded)
+    grouped = _group_distributed_sessions(sessions, candidate_session_ids)
 
     merged_sessions: list[LoadedTelemetrySession] = []
     for (_, world_size), group in grouped.items():
@@ -854,19 +834,7 @@ def _build_rank_row(
     *,
     phase_resolver: PhaseReplayIndex | None = None,
 ) -> tuple[RankDiagnosticsRow, list[_AnomalyCandidate]]:
-    first_event = rank_samples[0] if rank_samples else None
-    last_event = rank_samples[-1] if rank_samples else None
-
-    allocated_delta = (
-        last_event.allocator_allocated_bytes - first_event.allocator_allocated_bytes
-        if first_event is not None and last_event is not None
-        else 0
-    )
-    reserved_delta = (
-        last_event.allocator_reserved_bytes - first_event.allocator_reserved_bytes
-        if first_event is not None and last_event is not None
-        else 0
-    )
+    allocated_delta, reserved_delta = _rank_memory_deltas(rank_samples)
     gaps = [
         event.device_used_bytes - event.allocator_reserved_bytes
         for event in rank_samples
@@ -911,51 +879,11 @@ def _derive_rank_anomaly_candidates(
     phase_resolver: PhaseReplayIndex | None = None,
 ) -> list[_AnomalyCandidate]:
     candidates: list[_AnomalyCandidate] = []
-    first_gap_breach_ts: int | None = None
+    _append_alert_candidates(rank, rank_events, candidates, phase_resolver)
 
-    for event in rank_events:
-        if event.event_type in _ALERT_TYPES:
-            phase_path = (
-                summarize_phase_attribution(phase_resolver.resolve_for_event(event))
-                if phase_resolver is not None
-                and hasattr(phase_resolver, "resolve_for_event")
-                else None
-            )
-            severity = _ALERT_SEVERITY.get(event.event_type, "warning")
-            candidates.append(
-                _AnomalyCandidate(
-                    rank=rank,
-                    severity=severity,
-                    timestamp_ns=event.timestamp_ns,
-                    signal=f"alert:{event.event_type}",
-                    details=event.context or "Alert event",
-                    phase_path=phase_path,
-                )
-            )
-
-    for event in rank_samples:
-        if event.device_total_bytes and event.device_total_bytes > 0:
-            gap_value = event.device_used_bytes - event.allocator_reserved_bytes
-            gap_ratio = abs(gap_value) / event.device_total_bytes
-            if gap_ratio >= GAP_RATIO_THRESHOLD:
-                if first_gap_breach_ts is None:
-                    first_gap_breach_ts = event.timestamp_ns
-                phase_path = (
-                    summarize_phase_attribution(phase_resolver.resolve_for_event(event))
-                    if phase_resolver is not None
-                    and hasattr(phase_resolver, "resolve_for_event")
-                    else None
-                )
-                candidates.append(
-                    _AnomalyCandidate(
-                        rank=rank,
-                        severity="warning",
-                        timestamp_ns=event.timestamp_ns,
-                        signal="gap_ratio_breach",
-                        details=f"gap ratio {gap_ratio:.1%} exceeded threshold",
-                        phase_path=phase_path,
-                    )
-                )
+    first_gap_breach_ts = _append_gap_ratio_candidates(
+        rank, rank_samples, candidates, phase_resolver
+    )
 
     gap_findings = analyze_hidden_memory_gaps(
         events=cast(Sequence[TelemetryEventV2], rank_events),
@@ -1390,65 +1318,11 @@ def _synthesize_sessions_from_timeline(
         payload=payload,
         rank_allocator=allocator,
     )
-    session_summary = _load_diagnose_session_summary(timeline_file, rank_context)
-    if session_summary is None:
-        session_summary = create_session_summary(
-            source="stormlog.diagnose.timeline",
-            status=SESSION_STATUS_INCOMPLETE,
-            session_id=stable_legacy_session_id(
-                str(timeline_file.resolve()),
-                "diagnose.timeline",
-            ),
-            started_at_ns=int(float(timestamps[0]) * 1_000_000_000),
-            host="unknown",
-            pid=-1,
-            rank=rank_context.rank,
-            local_rank=rank_context.local_rank,
-            world_size=rank_context.world_size,
-        )
+    session_summary = _timeline_session_summary(timeline_file, rank_context, timestamps)
 
-    events: list[TelemetryEvent] = []
-    previous_allocated = 0
-    previous_timestamp = float(timestamps[0])
-
-    for index in range(sample_count):
-        timestamp = float(timestamps[index])
-        allocated_bytes = int(allocated[index])
-        reserved_bytes = int(reserved[index])
-        interval_ms = (
-            int(round((timestamp - previous_timestamp) * 1000)) if index > 0 else 0
-        )
-        record = {
-            "session_id": session_summary.session_id,
-            "timestamp": timestamp,
-            "event_type": "sample",
-            "collector": "stormlog.diagnose.timeline",
-            "sampling_interval_ms": max(0, interval_ms),
-            "pid": session_summary.pid,
-            "host": session_summary.host,
-            "device_id": 0,
-            "memory_allocated": allocated_bytes,
-            "memory_reserved": reserved_bytes,
-            "memory_change": allocated_bytes - previous_allocated,
-            "device_used_bytes": max(allocated_bytes, reserved_bytes),
-            "device_total_bytes": None,
-            "context": "diagnose timeline sample",
-            "job_id": session_summary.job_id,
-            "rank": session_summary.rank,
-            "local_rank": session_summary.local_rank,
-            "world_size": session_summary.world_size,
-            "metadata": {"source": "diagnose.telemetry_timeline"},
-        }
-        event = telemetry_event_from_record(
-            record,
-            permissive_legacy=True,
-            default_collector="stormlog.diagnose.timeline",
-            default_sampling_interval_ms=max(0, interval_ms),
-            default_session_id=session_summary.session_id,
-        )
-        events.append(event)
-        previous_allocated = allocated_bytes
-        previous_timestamp = timestamp
+    events = _timeline_events(
+        timestamps, allocated, reserved, sample_count, session_summary
+    )
 
     sessions = _load_sessions_from_events(
         events,
@@ -1471,30 +1345,8 @@ def _resolve_timeline_rank_context(
     payload: Mapping[str, Any],
     rank_allocator: _TimelineRankAllocator,
 ) -> _TimelineRankContext:
-    metadata = payload.get("metadata") if isinstance(payload, Mapping) else None
-    identity = (
-        payload.get("distributed_identity")
-        if isinstance(payload.get("distributed_identity"), Mapping)
-        else None
-    )
-
-    hinted_rank = _first_int(
-        payload.get("rank"),
-        metadata.get("rank") if isinstance(metadata, Mapping) else None,
-        identity.get("rank") if isinstance(identity, Mapping) else None,
-        minimum=0,
-    )
-    hinted_local_rank = _first_int(
-        payload.get("local_rank"),
-        metadata.get("local_rank") if isinstance(metadata, Mapping) else None,
-        identity.get("local_rank") if isinstance(identity, Mapping) else None,
-        minimum=0,
-    )
-    hinted_world_size = _first_int(
-        payload.get("world_size"),
-        metadata.get("world_size") if isinstance(metadata, Mapping) else None,
-        identity.get("world_size") if isinstance(identity, Mapping) else None,
-        minimum=1,
+    hinted_rank, hinted_local_rank, hinted_world_size = _timeline_identity_hints(
+        payload
     )
 
     path_rank = _infer_rank_from_path(timeline_file)
@@ -1587,6 +1439,228 @@ def _dedupe_events(events: Iterable[TelemetryEvent]) -> list[TelemetryEvent]:
         seen.add(key)
         unique.append(event)
     return unique
+
+
+def _parse_rank_token(chunk: str) -> Iterable[int]:
+    if "-" in chunk:
+        parts = chunk.split("-", 1)
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError(f"Invalid rank range: {chunk!r}")
+        start = int(parts[0])
+        end = int(parts[1])
+        if start > end:
+            raise ValueError(f"Invalid rank range (start>end): {chunk!r}")
+        return range(start, end + 1)
+
+    return [int(chunk)]
+
+
+def _group_distributed_sessions(
+    sessions: Sequence[LoadedTelemetrySession],
+    candidate_session_ids: set[str],
+) -> dict[tuple[str, int], list[LoadedTelemetrySession]]:
+    grouped: dict[tuple[str, int], list[LoadedTelemetrySession]] = {}
+    for loaded in sessions:
+        summary = loaded.summary
+        if summary.session_id not in candidate_session_ids:
+            continue
+        if summary.job_id is None or summary.world_size <= 1:
+            continue
+        if not loaded.events:
+            continue
+        grouped.setdefault((summary.job_id, summary.world_size), []).append(loaded)
+
+    return grouped
+
+
+def _rank_memory_deltas(
+    rank_samples: Sequence[TelemetryCompatibleEvent],
+) -> tuple[int, int]:
+    first_event = rank_samples[0] if rank_samples else None
+    last_event = rank_samples[-1] if rank_samples else None
+
+    allocated_delta = (
+        last_event.allocator_allocated_bytes - first_event.allocator_allocated_bytes
+        if first_event is not None and last_event is not None
+        else 0
+    )
+    reserved_delta = (
+        last_event.allocator_reserved_bytes - first_event.allocator_reserved_bytes
+        if first_event is not None and last_event is not None
+        else 0
+    )
+    return allocated_delta, reserved_delta
+
+
+def _append_alert_candidates(
+    rank: int,
+    rank_events: Sequence[TelemetryCompatibleEvent],
+    candidates: list[_AnomalyCandidate],
+    phase_resolver: PhaseReplayIndex | None,
+) -> None:
+    for event in rank_events:
+        if event.event_type in _ALERT_TYPES:
+            phase_path = (
+                summarize_phase_attribution(phase_resolver.resolve_for_event(event))
+                if phase_resolver is not None
+                and hasattr(phase_resolver, "resolve_for_event")
+                else None
+            )
+            severity = _ALERT_SEVERITY.get(event.event_type, "warning")
+            candidates.append(
+                _AnomalyCandidate(
+                    rank=rank,
+                    severity=severity,
+                    timestamp_ns=event.timestamp_ns,
+                    signal=f"alert:{event.event_type}",
+                    details=event.context or "Alert event",
+                    phase_path=phase_path,
+                )
+            )
+
+
+def _append_gap_ratio_candidates(
+    rank: int,
+    rank_samples: Sequence[TelemetryCompatibleEvent],
+    candidates: list[_AnomalyCandidate],
+    phase_resolver: PhaseReplayIndex | None,
+) -> int | None:
+    first_gap_breach_ts: int | None = None
+    for event in rank_samples:
+        if event.device_total_bytes and event.device_total_bytes > 0:
+            gap_value = event.device_used_bytes - event.allocator_reserved_bytes
+            gap_ratio = abs(gap_value) / event.device_total_bytes
+            if gap_ratio >= GAP_RATIO_THRESHOLD:
+                if first_gap_breach_ts is None:
+                    first_gap_breach_ts = event.timestamp_ns
+                phase_path = (
+                    summarize_phase_attribution(phase_resolver.resolve_for_event(event))
+                    if phase_resolver is not None
+                    and hasattr(phase_resolver, "resolve_for_event")
+                    else None
+                )
+                candidates.append(
+                    _AnomalyCandidate(
+                        rank=rank,
+                        severity="warning",
+                        timestamp_ns=event.timestamp_ns,
+                        signal="gap_ratio_breach",
+                        details=f"gap ratio {gap_ratio:.1%} exceeded threshold",
+                        phase_path=phase_path,
+                    )
+                )
+
+    return first_gap_breach_ts
+
+
+def _timeline_identity_hints(
+    payload: Mapping[str, Any]
+) -> tuple[int | None, int | None, int | None]:
+    metadata = payload.get("metadata") if isinstance(payload, Mapping) else None
+    identity = (
+        payload.get("distributed_identity")
+        if isinstance(payload.get("distributed_identity"), Mapping)
+        else None
+    )
+
+    hinted_rank = _first_int(
+        payload.get("rank"),
+        metadata.get("rank") if isinstance(metadata, Mapping) else None,
+        identity.get("rank") if isinstance(identity, Mapping) else None,
+        minimum=0,
+    )
+    hinted_local_rank = _first_int(
+        payload.get("local_rank"),
+        metadata.get("local_rank") if isinstance(metadata, Mapping) else None,
+        identity.get("local_rank") if isinstance(identity, Mapping) else None,
+        minimum=0,
+    )
+    hinted_world_size = _first_int(
+        payload.get("world_size"),
+        metadata.get("world_size") if isinstance(metadata, Mapping) else None,
+        identity.get("world_size") if isinstance(identity, Mapping) else None,
+        minimum=1,
+    )
+
+    return hinted_rank, hinted_local_rank, hinted_world_size
+
+
+def _timeline_session_summary(
+    timeline_file: Path,
+    rank_context: _TimelineRankContext,
+    timestamps: list[Any],
+) -> SessionSummary:
+    session_summary = _load_diagnose_session_summary(timeline_file, rank_context)
+    if session_summary is None:
+        session_summary = create_session_summary(
+            source="stormlog.diagnose.timeline",
+            status=SESSION_STATUS_INCOMPLETE,
+            session_id=stable_legacy_session_id(
+                str(timeline_file.resolve()),
+                "diagnose.timeline",
+            ),
+            started_at_ns=int(float(timestamps[0]) * 1_000_000_000),
+            host="unknown",
+            pid=-1,
+            rank=rank_context.rank,
+            local_rank=rank_context.local_rank,
+            world_size=rank_context.world_size,
+        )
+
+    return session_summary
+
+
+def _timeline_events(
+    timestamps: list[Any],
+    allocated: list[Any],
+    reserved: list[Any],
+    sample_count: int,
+    session_summary: SessionSummary,
+) -> list[TelemetryEvent]:
+    events: list[TelemetryEvent] = []
+    previous_allocated = 0
+    previous_timestamp = float(timestamps[0])
+
+    for index in range(sample_count):
+        timestamp = float(timestamps[index])
+        allocated_bytes = int(allocated[index])
+        reserved_bytes = int(reserved[index])
+        interval_ms = (
+            int(round((timestamp - previous_timestamp) * 1000)) if index > 0 else 0
+        )
+        record = {
+            "session_id": session_summary.session_id,
+            "timestamp": timestamp,
+            "event_type": "sample",
+            "collector": "stormlog.diagnose.timeline",
+            "sampling_interval_ms": max(0, interval_ms),
+            "pid": session_summary.pid,
+            "host": session_summary.host,
+            "device_id": 0,
+            "memory_allocated": allocated_bytes,
+            "memory_reserved": reserved_bytes,
+            "memory_change": allocated_bytes - previous_allocated,
+            "device_used_bytes": max(allocated_bytes, reserved_bytes),
+            "device_total_bytes": None,
+            "context": "diagnose timeline sample",
+            "job_id": session_summary.job_id,
+            "rank": session_summary.rank,
+            "local_rank": session_summary.local_rank,
+            "world_size": session_summary.world_size,
+            "metadata": {"source": "diagnose.telemetry_timeline"},
+        }
+        event = telemetry_event_from_record(
+            record,
+            permissive_legacy=True,
+            default_collector="stormlog.diagnose.timeline",
+            default_sampling_interval_ms=max(0, interval_ms),
+            default_session_id=session_summary.session_id,
+        )
+        events.append(event)
+        previous_allocated = allocated_bytes
+        previous_timestamp = timestamp
+
+    return events
 
 
 __all__ = [

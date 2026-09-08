@@ -1013,6 +1013,17 @@ class GPUMemoryProfilerTUI(App):
         table.add_row("Total Events", str(stats.get("total_events", 0)))
         table.add_row("Duration (s)", f"{duration:.1f}")
         table.add_row("Cleanups", str(cleanup_count))
+        self._append_monitor_health_details(
+            table, partial_fields, collector_error, retry_at
+        )
+
+    @staticmethod
+    def _append_monitor_health_details(
+        table: DataTable,
+        partial_fields: list[Any],
+        collector_error: Any,
+        retry_at: Any,
+    ) -> None:
         if partial_fields:
             table.add_row(
                 "Partial Fields",
@@ -1094,28 +1105,14 @@ class GPUMemoryProfilerTUI(App):
 
         if session and session.is_active:
             device_label = session.get_device_label() or "current CUDA device"
-            if collector_health == "healthy":
-                message = (
-                    f"Live tracking on **{device_label}**.\n"
-                    f"Auto cleanup is {cleanup_state}."
-                )
-            elif collector_health == "degraded":
-                message = (
-                    f"Live tracking on **{device_label}** with **partial telemetry**.\n"
-                    f"Auto cleanup is {cleanup_state}."
-                )
-            else:
-                message = (
-                    f"Live tracking on **{device_label}** while the collector is **unhealthy**.\n"
-                    f"Telemetry samples are paused until recovery. Auto cleanup is {cleanup_state}."
-                )
-            if telemetry_partial and collector_error:
-                message += f"\nCollector detail: {collector_error}"
-            if retry_at is not None:
-                retry_text = datetime.fromtimestamp(float(retry_at)).strftime(
-                    "%H:%M:%S"
-                )
-                message += f"\nNext retry at **{retry_text}**."
+            message = self._active_monitor_message(
+                device_label,
+                cleanup_state,
+                collector_health,
+                telemetry_partial,
+                collector_error,
+                retry_at,
+            )
         else:
             message = (
                 "Tracker idle. Start a session to stream GPU allocation events.\n"
@@ -1123,6 +1120,37 @@ class GPUMemoryProfilerTUI(App):
             )
 
         self.monitor_status.update(message)
+
+    @staticmethod
+    def _active_monitor_message(
+        device_label: str,
+        cleanup_state: str,
+        collector_health: str,
+        telemetry_partial: bool,
+        collector_error: Any,
+        retry_at: Any,
+    ) -> str:
+        if collector_health == "healthy":
+            message = (
+                f"Live tracking on **{device_label}**.\n"
+                f"Auto cleanup is {cleanup_state}."
+            )
+        elif collector_health == "degraded":
+            message = (
+                f"Live tracking on **{device_label}** with **partial telemetry**.\n"
+                f"Auto cleanup is {cleanup_state}."
+            )
+        else:
+            message = (
+                f"Live tracking on **{device_label}** while the collector is **unhealthy**.\n"
+                f"Telemetry samples are paused until recovery. Auto cleanup is {cleanup_state}."
+            )
+        if telemetry_partial and collector_error:
+            message += f"\nCollector detail: {collector_error}"
+        if retry_at is not None:
+            retry_text = datetime.fromtimestamp(float(retry_at)).strftime("%H:%M:%S")
+            message += f"\nNext retry at **{retry_text}**."
+        return message
 
     def _update_watchdog_button_label(self) -> None:
         label = "Auto Cleanup: ON" if self.monitor_auto_cleanup else "Auto Cleanup: OFF"
@@ -1507,6 +1535,27 @@ class GPUMemoryProfilerTUI(App):
     ) -> None:
         self._diagnostics_source = source
         self._diagnostics_sessions = list(sessions)
+        selected, extra_warnings = self._select_diagnostics_session(
+            sessions, selected_session_id, extra_warnings
+        )
+        self._diagnostics_selected_session_id = (
+            selected.summary.session_id if selected is not None else None
+        )
+        self._diagnostics_events = list(selected.events) if selected is not None else []
+        self.diagnostics_session_input.value = (
+            self._diagnostics_selected_session_id or ""
+        )
+        if reset_filter:
+            self._diagnostics_selected_ranks = None
+            self.diagnostics_rank_filter_input.value = "all"
+        self._refresh_diagnostics_model(extra_warnings=extra_warnings)
+
+    def _select_diagnostics_session(
+        self,
+        sessions: list[LoadedTelemetrySession],
+        selected_session_id: str | None,
+        extra_warnings: list[str] | None,
+    ) -> tuple[LoadedTelemetrySession | None, list[str] | None]:
         selected: LoadedTelemetrySession | None = None
         if sessions:
             requested = (
@@ -1529,17 +1578,7 @@ class GPUMemoryProfilerTUI(App):
                     ]
             if selected is None:
                 selected = select_default_loaded_session(sessions)
-        self._diagnostics_selected_session_id = (
-            selected.summary.session_id if selected is not None else None
-        )
-        self._diagnostics_events = list(selected.events) if selected is not None else []
-        self.diagnostics_session_input.value = (
-            self._diagnostics_selected_session_id or ""
-        )
-        if reset_filter:
-            self._diagnostics_selected_ranks = None
-            self.diagnostics_rank_filter_input.value = "all"
-        self._refresh_diagnostics_model(extra_warnings=extra_warnings)
+        return selected, extra_warnings
 
     def _diagnostics_available_ranks(self) -> list[int]:
         if not self._diagnostics_events:
@@ -1634,9 +1673,9 @@ class GPUMemoryProfilerTUI(App):
         duration = (
             max(0.0, timestamps[-1] - timestamps[0]) if len(timestamps) > 1 else 0.0
         )
-        alloc_max = max(allocated) if allocated else 0
+        alloc_max = max(allocated)
         reserv_max = max(reserved) if reserved else 0
-        alloc_latest = allocated[-1] if allocated else 0
+        alloc_latest = allocated[-1]
         reserv_latest = reserved[-1] if reserved else 0
 
         table.add_row("Samples", str(sample_count))
@@ -1657,17 +1696,7 @@ class GPUMemoryProfilerTUI(App):
         table.add_row("Reserved Latest", "-")
 
     def _save_timeline_plot(self, timeline: dict, format: str) -> str:
-        timestamps = timeline.get("timestamps") or []
-        allocated = timeline.get("allocated") or []
-        reserved = timeline.get("reserved") or []
-
-        if not timestamps or not allocated:
-            raise ValueError("Timeline data is empty.")
-
-        start = timestamps[0]
-        rel_times = [t - start for t in timestamps]
-        allocated_gb = [val / (1024**3) for val in allocated]
-        reserved_gb = [val / (1024**3) for val in reserved] if reserved else []
+        rel_times, allocated_gb, reserved_gb = self._timeline_plot_data(timeline)
         single_sample = len(rel_times) == 1
         line_marker = "o" if single_sample else None
         line_mode = "lines+markers" if single_sample else "lines"
@@ -1765,6 +1794,23 @@ class GPUMemoryProfilerTUI(App):
             self.log_message(title, f"Error: {exc}")
         finally:
             self._set_loader(False)
+
+    @staticmethod
+    def _timeline_plot_data(
+        timeline: dict,
+    ) -> tuple[list[float], list[float], list[float]]:
+        timestamps = timeline.get("timestamps") or []
+        allocated = timeline.get("allocated") or []
+        reserved = timeline.get("reserved") or []
+
+        if not timestamps or not allocated:
+            raise ValueError("Timeline data is empty.")
+
+        start = timestamps[0]
+        rel_times = [t - start for t in timestamps]
+        allocated_gb = [val / (1024**3) for val in allocated]
+        reserved_gb = [val / (1024**3) for val in reserved] if reserved else []
+        return rel_times, allocated_gb, reserved_gb
 
     def _set_loader(self, visible: bool) -> None:
         self.loader.display = visible

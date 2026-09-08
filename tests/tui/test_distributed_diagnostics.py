@@ -136,6 +136,27 @@ def test_parse_rank_filter_rejects_invalid_ranges() -> None:
         parse_rank_filter("5-2", [0, 1, 2, 3, 4, 5])
 
 
+@pytest.mark.parametrize(
+    ("expression", "available", "expected"),
+    [
+        (" , 0, 0, 2-4, 99, ", [0, 2, 4], {0, 2, 4}),
+        (" * ", [1, 3], {1, 3}),
+        ("", [1], {1}),
+        ("bad-range", [], set()),
+    ],
+)
+def test_rank_filter_preserves_empty_and_unavailable_rank_semantics(
+    expression: str, available: list[int], expected: set[int]
+) -> None:
+    assert parse_rank_filter(expression, available) == expected
+
+
+@pytest.mark.parametrize("expression", ["-2", "2-", "4-2", "2-x", "x"])
+def test_rank_filter_rejects_malformed_tokens(expression: str) -> None:
+    with pytest.raises(ValueError):
+        parse_rank_filter(expression, [0, 1, 2])
+
+
 def test_build_distributed_model_computes_rank_metrics_and_missing_ranks() -> None:
     events = [
         _make_event(
