@@ -140,7 +140,7 @@ Project conventions:
 
 ### Cyclomatic Complexity
 
-New or changed Python functions and methods must have Radon complexity **10 or
+All scoped Python functions and methods must have Radon complexity **10 or
 less** (grade A or B). The CI complexity job checks `stormlog/` and the checker
 itself, including nested functions and methods of local classes. Class aggregate
 scores are excluded. Tests and examples are outside this gate.
@@ -151,17 +151,14 @@ python3 scripts/check_complexity.py
 python3 scripts/check_complexity.py --json
 ```
 
-Unchanged legacy callables above 10 are recorded in
-`.ci/complexity-baseline.json`. Each exception records its score and a hash of
-the parsed function, so moving lines or reformatting does not invalidate it.
-Fingerprints normalize empty type-parameter fields added by Python 3.12 and
-retain empty AST fields omitted by default since Python 3.13. CI checks the same
-baseline on Python 3.10, 3.12, 3.13, and 3.14.
-Changing its code, signature, annotations, decorators, or docstring requires
-bringing the callable to 10 or less. Prefer cohesive helpers and focused tests
-that preserve behavior, outputs, and error handling.
+The legacy exception map in `.ci/complexity-baseline.json` is empty. Keep it
+empty: do not add grace entries or raise the limit. A regression test enforces
+this policy. Prefer cohesive helpers and focused tests that preserve behavior,
+outputs, and error handling. CI checks the gate on Python 3.10, 3.12, 3.13,
+and 3.14.
 
-After resolving exceptions, remove their baseline entries with:
+For compatibility with older branches, the checker still supports pruning
+resolved or deleted legacy entries:
 
 ```bash
 python3 scripts/check_complexity.py --update-baseline
@@ -169,7 +166,6 @@ python3 scripts/check_complexity.py --update-baseline
 
 This command runs the full check first and refuses to add new exceptions or
 accept changed complex callables. It only prunes resolved or deleted entries.
-Baseline edits should accompany their refactor and be reviewed in the PR.
 Radon is pinned to 6.0.1 so measurements remain reproducible. Exit status is 0
 for a pass, 1 for complexity violations, and 2 for invalid source, configuration,
 or file access. The JSON report includes status, counts, and each violation's

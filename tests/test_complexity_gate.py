@@ -21,6 +21,12 @@ from scripts.check_complexity import (
 )
 
 
+def test_repository_has_no_complexity_grace_entries() -> None:
+    root = Path(__file__).resolve().parents[1]
+    baseline = read_baseline(root / ".ci/complexity-baseline.json")
+    assert baseline["blocks"] == {}
+
+
 def _complex_source(branches: int = 10, name: str = "legacy") -> str:
     body = "\n".join(
         f"    if value == {index}: return {index}" for index in range(branches)
