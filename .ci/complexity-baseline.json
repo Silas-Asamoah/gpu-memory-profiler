@@ -8,58 +8,6 @@
       "complexity": 11,
       "source_hash": "f043f98fe2b2b79f1f6c7d6042b459df6f4e25addf784e6677bf902bb3f64e70"
     },
-    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.analyze_efficiency": {
-      "complexity": 16,
-      "source_hash": "3692b1479cd4c6a7b043b071e6bea93767da11e87c26c7b44910f25e28f7346c"
-    },
-    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.detect_memory_leaks": {
-      "complexity": 16,
-      "source_hash": "e76378e015961cf6480399065b00c7ce6de332391e13afeb8237bf6a4d182046"
-    },
-    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.detect_patterns": {
-      "complexity": 15,
-      "source_hash": "c3334aebe2148379e3d19e3a340e9b422004ae0dc82e1326729c56fdf90a366a"
-    },
-    "stormlog/tensorflow/analyzer.py:MemoryAnalyzer.score_optimization": {
-      "complexity": 11,
-      "source_hash": "9adf0fde3537d427d9c923b1d57f87232b9055fe35c70836bd8cba264102bb0d"
-    },
-    "stormlog/tensorflow/cli.py:cmd_analyze": {
-      "complexity": 14,
-      "source_hash": "5fbd3cade07a739bfce34a6dacd0a3cdd49ef3e570c1c816b223203114250241"
-    },
-    "stormlog/tensorflow/cli.py:cmd_info": {
-      "complexity": 11,
-      "source_hash": "83f3b0633e09c57bf62d83a6921cd22d801f92d4f126e2294b15d6873f459e20"
-    },
-    "stormlog/tensorflow/cli.py:cmd_monitor": {
-      "complexity": 11,
-      "source_hash": "2c80723cb18aa7d46f00c67d564cb05b4062bd7f384773878c227118facb889b"
-    },
-    "stormlog/tensorflow/cli.py:cmd_track": {
-      "complexity": 18,
-      "source_hash": "550a5c687d95d3695706d599c3c27f08e6ab9aab2618b55352524b9fc77d6e14"
-    },
-    "stormlog/tensorflow/diagnose.py:build_diagnostic_summary": {
-      "complexity": 14,
-      "source_hash": "00830b6fb1575193c386e24ee14b89ea1d193b15b68d4dceb6d6047bd8d20cb5"
-    },
-    "stormlog/tensorflow/tracker.py:MemoryTracker._create_tracking_result": {
-      "complexity": 11,
-      "source_hash": "7243a9e94f98af113305194242f08b584598452995940c642766aa3f4cb791b5"
-    },
-    "stormlog/tensorflow/utils.py:generate_summary_report": {
-      "complexity": 15,
-      "source_hash": "a356220bf0eb74b48423547f4597b4193f64e663627f8dbcb94b8a193f034d5c"
-    },
-    "stormlog/tensorflow/utils.py:suggest_optimizations": {
-      "complexity": 16,
-      "source_hash": "b9a25a6f64a269cc2330388f58f241478b37dd4cf56a88c3404245d7af91859c"
-    },
-    "stormlog/tensorflow/visualizer.py:MemoryVisualizer.create_memory_heatmap": {
-      "complexity": 12,
-      "source_hash": "609d17de0694dc844431fe3f52b3698c1cae241de7515c37b7b43c54c9c9836b"
-    },
     "stormlog/tui/app.py:GPUMemoryProfilerTUI._save_timeline_plot": {
       "complexity": 17,
       "source_hash": "dce005e76dc35aedc575d8a1519bca5f9ab8a440580fc73a071f657dbb03480b"
