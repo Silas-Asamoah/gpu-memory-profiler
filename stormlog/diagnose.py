@@ -336,10 +336,7 @@ def run_diagnose(
     Returns (artifact_dir, exit_code).
     exit_code: 0 = success no risk, 1 = failure, 2 = success with memory risk.
     """
-    if native_history:
-        if native_history_max_entries <= 0:
-            raise ValueError("native_history_max_entries must be >= 1")
-        _validate_native_history_request()
+    _validate_native_history_options(native_history, native_history_max_entries)
 
     try:
         artifact_dir = _create_artifact_dir(output, "stormlog-diagnose")
@@ -439,3 +436,12 @@ def run_diagnose(
             pass
 
     return artifact_dir, exit_code
+
+
+def _validate_native_history_options(
+    native_history: bool, native_history_max_entries: int
+) -> None:
+    if native_history:
+        if native_history_max_entries <= 0:
+            raise ValueError("native_history_max_entries must be >= 1")
+        _validate_native_history_request()
